@@ -9,7 +9,7 @@
 
 /////// Radio settings ///////
 #define RADIO_CHANNEL		0x11
-#define RADIO_SRC_ADDR 		0x2162
+#define RADIO_SRC_ADDR 		0x2163
 #define RADIO_PAN_ID            0x2160
 //Hard-coded destination address, must match basestation or XBee addr
 #define RADIO_DST_ADDR		0x2161
