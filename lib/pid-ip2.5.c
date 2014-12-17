@@ -522,12 +522,28 @@ int measurements[NUM_PIDS];
 
 void pidSetControl()
 { int j;
+    long p_mod_error;
 // 0 = right side
     for(j=0; j < NUM_PIDS; j++)
    {  //pidobjs[0] : right side
 	// p_input has scaled velocity interpolation to make smoother
 	// p_state is [16].[16]
+        // Begin changes for mod 2 pi
         	pidObjs[j].p_error = pidObjs[j].p_input + pidObjs[j].interpolate  - pidObjs[j].p_state;
+                p_mod_error = (pidObjs[j].p_error & 0x0000ffff); // Clobber the MSBs corresponding to full revolutions
+
+                if (p_mod_error < ERR_FWD_BOUND)
+                {
+                    pidObjs[j].p_error = p_mod_error; //Take the mod 2 pi error if you're behind in the cycle
+                }
+                else if (p_mod_error > ERR_BWD_BOUND)
+                {
+                    pidObjs[j].p_error = p_mod_error - 65535; //Take the mod 2 pi error shifted down by 2 pi if you're ahead in the cycle
+                }
+                else
+                {
+                    pidObjs[j].p_error = 0; // Wait for reference if you're too far away from it
+                }
             pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state;  // v_input should be revs/sec
             //Update values
             UpdatePID(&(pidObjs[j]));

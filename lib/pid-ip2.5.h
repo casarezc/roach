@@ -13,6 +13,10 @@
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
 
+// Set constants of lower and upper bounds to respond to errors; for now set at pi/2 and 3pi/2
+#define ERR_FWD_BOUND 16384
+#define ERR_BWD_BOUND 49151
+
 
 /* The back emf constant can be measured by measuring velocity from Hall encoder 
 * 80 rad/sec = 12.5 rev/sec = 834 encPos[].pos/sec
