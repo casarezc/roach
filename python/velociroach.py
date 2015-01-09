@@ -134,9 +134,9 @@ class Velociroach:
         lastRightDelta = 1-sum(gaitConfig.deltasRight)
         
         temp = [int(periodLeft), int(gaitConfig.deltasLeft[0]*deltaConv), int(gaitConfig.deltasLeft[1]*deltaConv),
-                int(gaitConfig.deltasLeft[2]*deltaConv), int(lastLeftDelta*deltaConv) , 1, \
+                int(gaitConfig.deltasLeft[2]*deltaConv), int(lastLeftDelta*deltaConv) , 0, \
                 int(periodRight), int(gaitConfig.deltasRight[0]*deltaConv), int(gaitConfig.deltasRight[1]*deltaConv),
-                int(gaitConfig.deltasRight[2]*deltaConv), int(lastRightDelta*deltaConv), 1]
+                int(gaitConfig.deltasRight[2]*deltaConv), int(lastRightDelta*deltaConv), 0]
         
         self.clAnnounce()
         print "     ",temp
