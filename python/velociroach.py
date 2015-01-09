@@ -2,10 +2,10 @@ import glob
 import time
 import sys
 from lib import command
-from callbackFunc import xbee_received
+from callbackFunc_multi import xbee_received
 import datetime
 import serial
-import shared
+import shared_multi as shared
 from struct import pack,unpack
 from xbee import XBee
 from math import ceil,floor
@@ -318,11 +318,11 @@ def xb_safe_exit(xb):
     print "Halting xb"
     if xb is not None:
         xb.halt()
-    else:
-        shared.xb.halt()
         
     print "Closing serial"
-    shared.ser.close()
+    if xb.serial is not None:
+        xb.serial.close()
+        
     print "Exiting..."
     sys.exit(1)
     

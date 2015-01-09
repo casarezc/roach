@@ -10,7 +10,11 @@ The main function will send all the setup parameters to the robots, execute defi
 from lib import command
 import time,sys,os,traceback
 import serial
-import shared
+
+# Path to imageproc-settings repo must be added
+sys.path.append(os.path.dirname("../../imageproc-settings/"))
+sys.path.append(os.path.dirname("../imageproc-settings/"))  
+import shared_multi as shared
 
 from velociroach import *
 
@@ -46,7 +50,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [1800,0,0,0,200, 1800,0,0,0,200]
+    motorgains = [1800,0,100,0,0, 1800,0,100,0,0]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     simpleAltTripod = GaitConfig(motorgains, rightFreq=1, leftFreq=1) # Parameters can be passed into object upon construction, as done here.
@@ -101,13 +105,9 @@ def main():
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:
-            try:
-                time.sleep(0.1)
-            except KeyboardInterrupt:
-                break
+            time.sleep(0.1)
 
     print "Done"
-    xb_safe_exit(xb)
     
 #Provide a try-except over the whole main function
 # for clean exit. The Xbee module should have better
@@ -118,17 +118,11 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print "\nRecieved Ctrl+C, exiting."
-        shared.xb.halt()
-        shared.ser.close()
     except Exception as args:
-        print "\nGeneral exception:",args
+        print "\nGeneral exception from main:\n",args,'\n'
         print "\n    ******    TRACEBACK    ******    "
         traceback.print_exc()
         print "    *****************************    \n"
         print "Attempting to exit cleanly..."
-        shared.xb.halt()
-        shared.ser.close()
-        sys.exit()
-    except serial.serialutil.SerialException:
-        shared.xb.halt()
-        shared.ser.close()
+    finally:
+        xb_safe_exit(shared.xb)
