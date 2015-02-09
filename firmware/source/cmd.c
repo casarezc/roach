@@ -51,6 +51,7 @@ static unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsig
 
 //Experiment/Flash Commands
 static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -80,6 +81,7 @@ void cmdSetup(void) {
     cmd_func[CMD_ZERO_POS] = &cmdZeroPos;   
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
+    cmd_func[CMD_START_TIMED_RUN_WINCH] = &cmdStartTimedRunWinch;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
 
 }
@@ -143,6 +145,27 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
     }
     pidObjs[0].mode = 0;
     pidStartTimedTrial(run_time);
+
+    return 1;
+}
+
+unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
+    unsigned int run_time = frame[0] + (frame[1] << 8);
+    int thrust = frame[2] + (frame[3] << 8);
+
+    int i;
+    for (i = 0; i < NUM_PIDS; i++){
+        pidObjs[i].timeFlag = 1;
+        pidSetInput(i, 0);
+        checkSwapBuff(i);
+        pidOn(i);
+    }
+    pidObjs[0].mode = 0;
+
+    tiHSetDC(3, thrust);
+    pidStartTimedTrial(run_time);
+    delay_ms(run_time);
+    tiHSetDC(3, 0);
 
     return 1;
 }

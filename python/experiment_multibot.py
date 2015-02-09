@@ -25,11 +25,13 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x63', xb)
+    R2 = Velociroach('\x21\x62', xb)
     R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
     shared.ROBOTS.append(R1) #This is necessary so callbackfunc can reference robots
+    shared.ROBOTS.append(R2)
     shared.xb = xb           #This is necessary so callbackfunc can halt before exit
 
     # Send resets
@@ -50,20 +52,28 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [1800,0,100,0,0, 1800,0,100,0,0]
+    motorgains = [2500,100,200,0,200, 2500,10,200,0,200]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
-    simpleAltTripod = GaitConfig(motorgains, rightFreq=1, leftFreq=1) # Parameters can be passed into object upon construction, as done here.
-    simpleAltTripod.phase = PHASE_180_DEG                             # Or set individually, as here
+    simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
+    simpleBound = GaitConfig(motorgains, rightFreq=3, leftFreq=3)
+    winchPWM = 0
+    ## Settings for climb
+    simpleBound.phase = 0                          # Or set individually, as here
+    simpleBound.deltasLeft = [0.125, 0.125, 0.25]
+    simpleBound.deltasRight = [0.125, 0.125, 0.25]
+    ## Settings for approach
+    simpleAltTripod.phase = PHASE_180_DEG                           # Or set individually, as here
     simpleAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     simpleAltTripod.deltasRight = [0.25, 0.25, 0.25]
     #simpleAltTripod.deltasTime  = [0.25, 0.25, 0.25] # Not current supported by firmware; time deltas are always exactly [0.25, 0.25, 0.25, 0.25]
     
     # Configure intra-stride control
-    R1.setGait(simpleAltTripod)
+    R1.setGait(simpleBound)
+    R2.setGait(simpleBound)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 10000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 1000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 100  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
     
@@ -91,7 +101,8 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
+    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) 
+    R2.startTimedRunWinch( EXPERIMENT_RUN_TIME_MS , winchPWM)
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########
     

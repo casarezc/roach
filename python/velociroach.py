@@ -109,6 +109,13 @@ class Velociroach:
         print "Starting timed run of",duration," ms"
         self.tx( 0, command.START_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
+
+    def startTimedRunWinch(self, duration, winchthrust):
+        self.clAnnounce()
+        print "Starting timed run of",duration," ms"
+        cmd_temp = [duration, winchthrust]
+        self.tx( 0, command.START_TIMED_RUN_WINCH, pack('2h', *cmd_temp))
+        time.sleep(0.05)
         
     def findFileName(self):   
         # Construct filename
@@ -124,7 +131,12 @@ class Velociroach:
     def setVelProfile(self, gaitConfig):
         self.clAnnounce()
         print "Setting stride velocity profile to: "
-        
+
+
+        if gaitConfig.leftFreq == 0:
+            gaitConfig.leftFreq =  0.1;
+        if gaitConfig.rightFreq == 0:
+            gaitConfig.rightFreq = 0.1;
         periodLeft = 1000.0 / gaitConfig.leftFreq
         periodRight = 1000.0 / gaitConfig.rightFreq
         
