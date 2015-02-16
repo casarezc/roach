@@ -52,10 +52,14 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [2500,100,200,0,200, 2500,10,200,0,200]
+    motorgains = [3000,100,200,0,200, 3000,100,200,0,200]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
-    simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
+    #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
+    #simpleBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
+    #winchPWM = 0
+
+    simpleAltTripod = GaitConfig(motorgains, rightFreq=3, leftFreq=3) # Parameters can be passed into object upon construction, as done here.
     simpleBound = GaitConfig(motorgains, rightFreq=3, leftFreq=3)
     winchPWM = 0
     ## Settings for climb
@@ -70,7 +74,7 @@ def main():
     
     # Configure intra-stride control
     R1.setGait(simpleBound)
-    R2.setGait(simpleBound)
+    R2.setGait(simpleAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 1000 #ms
