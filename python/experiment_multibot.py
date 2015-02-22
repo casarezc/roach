@@ -52,44 +52,87 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [3000,100,200,0,200, 3000,100,200,0,200]
+    motorgains = [4000,100,200,0,200, 4000,100,200,0,200]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
     #simpleBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
     #winchPWM = 0
 
-    simpleAltTripod = GaitConfig(motorgains, rightFreq=3, leftFreq=3) # Parameters can be passed into object upon construction, as done here.
-    simpleBound = GaitConfig(motorgains, rightFreq=3, leftFreq=3)
-    winchPWM = 0
-    ## Settings for climb
-    simpleBound.phase = 0                          # Or set individually, as here
-    simpleBound.deltasLeft = [0.125, 0.125, 0.25]
-    simpleBound.deltasRight = [0.125, 0.125, 0.25]
-    ## Settings for approach
-    simpleAltTripod.phase = PHASE_180_DEG                           # Or set individually, as here
-    simpleAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    simpleAltTripod.deltasRight = [0.25, 0.25, 0.25]
-    #simpleAltTripod.deltasTime  = [0.25, 0.25, 0.25] # Not current supported by firmware; time deltas are always exactly [0.25, 0.25, 0.25, 0.25]
+    ## Set up different gaits to be used in the trials
+    slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    slowBound.phase = 0
+    slowBound.deltasLeft = [0.25, 0.25, 0.25]
+    slowBound.deltasRight = [0.25, 0.25, 0.25]
+
+    fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
+    fastBound.phase = 0
+    fastBound.deltasLeft = [0.125, 0.125, 0.25]
+    fastBound.deltasRight = [0.125, 0.125, 0.25]
+
+    fastBackwardBound = GaitConfig(motorgains, rightFreq=-5, leftFreq=-5)
+    fastBackwardBound.phase = 0
+    fastBackwardBound.deltasLeft = [0.25, 0.25, 0.25]
+    fastBackwardBound.deltasRight = [0.25, 0.25, 0.25]
+
+    slowAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    slowAltTripod.phase = PHASE_180_DEG                          
+    slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
+    slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
+
+    fastAltTripod = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
+    fastAltTripod.phase = PHASE_180_DEG                           
+    fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
+    fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
+
+    holdCenter = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    holdCenter.phase = 0                          
+    holdCenter.deltasLeft = [0, 0, 0]
+    holdCenter.deltasRight = [0, 0, 0]
+
+    holdBack = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    holdBack.phase = 0                          
+    holdBack.deltasLeft = [0.25, 0, 0]
+    holdBack.deltasRight = [0.25, 0, 0]
+
+    holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
+    holdBackLong.phase = 0                          
+    holdBackLong.deltasLeft = [0.25, 0, 0]
+    holdBackLong.deltasRight = [0.25, 0, 0]
+
+
     
-    # Configure intra-stride control
-    R1.setGait(simpleBound)
-    R2.setGait(simpleAltTripod)
+    # Set the timings of each segment of the run
+    T1 = 500
+    T2 = 500
+    T3 = 400
+    T4 = 2000
+    T5 = 1000
+    T6 = 1000
+    T7 = 1000
+
+    # Set the winch PWM of each segment of the run
+    winchPWM2 = 1500
+    winchPWM3 = 3000
+    winchPWM5 = -2000
+    winchPWM6 = -2000
+    winchPWM7 = 2500
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 1000 #ms
-    EXPERIMENT_LEADIN_TIME_MS  = 100  #ms
-    EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
+    EXPERIMENT_SAVE_TIME_MS     = (T1 + T2 + T3 + T4 + T5 + T6 + T7) + 3000
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             #This needs to be done to prepare the .telemtryData variables in each robot object
-            r.setupTelemetryDataTime(EXPERIMENT_LEADIN_TIME_MS + EXPERIMENT_RUN_TIME_MS + EXPERIMENT_LEADOUT_TIME_MS)
+            r.setupTelemetryDataTime(EXPERIMENT_SAVE_TIME_MS)
             r.eraseFlashMem()
-        
-    # Pause and wait to start run, including lead-in time
-    print ""
+    
+        print ""
+
+
+    nextFlag = 0
+
     print "  ***************************"
     print "  *******    READY    *******"
     print "  ***************************"
@@ -100,19 +143,95 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             r.startTelemetrySave()
-    
-    # Sleep for a lead-in time before any motion commands
-    time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
-    
-    ######## Motion is initiated here! ########
-    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) 
-    R2.startTimedRunWinch( EXPERIMENT_RUN_TIME_MS , winchPWM)
-    time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
-    ######## End of motion commands   ########
-    
-    # Sleep for a lead-out time after any motion
-    time.sleep(EXPERIMENT_LEADOUT_TIME_MS / 1000.0) 
-    
+
+    time.sleep(0.1)
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 1   *******"
+        print "  ***************************"
+        R1.setGait(fastBound)
+        R1.startTimedRun( T1 )
+
+        nextFlag = int(raw_input(" Move on to stage 2 (1 or 0)?: "))
+
+    nextFlag = 0
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 2   *******"
+        print "  ***************************"
+        R2.setGait(slowBound)
+        R2.startTimedRunWinch( T2 , winchPWM2)
+
+        nextFlag = int(raw_input(" Move on to stage 3 (1 or 0)?: "))
+
+    nextFlag = 0
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 3   *******"
+        print "  ***************************"
+        R1.setGait(holdBack)
+        R2.setGait(holdCenter)
+        R1.startTimedRun( T3 )
+        R2.startTimedRunWinch( T3 , winchPWM3)
+
+        nextFlag = int(raw_input(" Move on to stage 4 (1 or 0)?: "))
+
+    nextFlag = 0
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 4   *******"
+        print "  ***************************"
+        R1.setGait(fastBound)
+        R2.setGait(fastBound)
+        R1.startTimedRun( T4 )
+        R2.startTimedRun( T4 )
+
+        nextFlag = int(raw_input(" Move on to stage 5 (1 or 0)?: "))
+
+    nextFlag = 0
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 5   *******"
+        print "  ***************************"
+        R1.setGait(fastBound)
+        R2.setGait(holdBackLong)
+        R1.startTimedRun( T5 )
+        R2.startTimedRunWinch( T5 , winchPWM5 )
+
+        nextFlag = int(raw_input(" Move on to stage 6 (1 or 0)?: "))
+
+    nextFlag = 0
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 6   *******"
+        print "  ***************************"
+        R1.setGait(slowAltTripod)
+        R2.setGait(holdBackLong)
+        R1.startTimedRun( T6 )
+        R2.startTimedRunWinch( T6 , winchPWM6)
+
+        nextFlag = int(raw_input(" Move on to stage 7 (1 or 0)?: "))
+
+    nextFlag = 0
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 7   *******"
+        print "  ***************************"
+        R1.setGait(holdCenter)
+        R2.setGait(fastBound)
+        R1.startTimedRun( T7 )
+        R2.startTimedRunWinch( T7 , winchPWM7)
+
+        nextFlag = int(raw_input(" End experiment (1 or 0)?: ")) 
+
+    ## Save data after runs
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
