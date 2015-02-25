@@ -9,7 +9,11 @@
 #define DEFAULT_FF  0
 
 #define GAIN_SCALER         100
+#define GAIN_SCALER_2   549
+#define K_VBATT         7
+#define K_VEMF          15
 #define NUM_PIDS	2
+#define NUM_PI_NO_AMS  1
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
 
@@ -64,6 +68,29 @@ typedef struct
 	int leg_stride;
 } pidPos;
 
+// pi type for winch control
+typedef struct
+{
+	long p_input; // reference velocity input
+	long p_state; // current velocity
+	long p_error; // velocity error
+	long i_error; // integral error
+	long  p, i;   // control contributions from position, integral, and derivative gains respectively
+  	long preSat; // output value before saturations
+	int  output;	 //  control output u
+ 	char onoff; //boolean
+ 	char mode; //Motor mode: 1 iff PWM open loop control
+ 	int pwmDes; // Desired PWM
+ 	char timeFlag;
+	unsigned long run_time;
+	unsigned long start_time;
+	int inputOffset;  // BEMF setpoint offset
+	int feedforward;
+    int Kp, Ki;
+	int Kaw;  // anti-windup gain
+	//Leg control variables
+} piWinch;
+
 // structure for velocity control of leg cycle
 
 typedef struct
@@ -76,21 +103,28 @@ typedef struct
 
 //Functions
 void UpdatePID(pidPos *pid);
+void UpdatePI(piWinch *pi);
 void pidSetup();
 void initPIDVelProfile();
 void setPIDVelProfile(int pid_num, int *interval, int *delta, int *vel, int onceFlag);
 void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff);
+void initPIObjPos(piWinch *pi, int Kp, int Ki, int Kaw, int ff);
 //void SetupTimer1(void);
 void pidStartTimedTrial(unsigned int run_time);
 void pidSetInput(int pid_num, int input_val);
+void piSetInput(int pi_num, int input_val);
 void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff);
+void piSetGains(int pid_num, int Kp, int Ki, int Kaw, int ff);
 void pidGetState(); // update state vector from bemf and Hall angle
+void piGetState();
 void pidGetSetpoint(int j);
 void checkSwapBuff(int j);
 void pidSetControl();
+void piSetControl();
 void EmergencyStop(void);
 unsigned char* pidGetTelemetry(void);
 void pidOn(int pid_num);
+void piOn(int pid_num);
 void pidZeroPos(int pid_num);
 void calibBatteryOffset(int spindown_ms);
 

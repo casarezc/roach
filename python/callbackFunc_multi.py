@@ -15,6 +15,7 @@ pktFormat = { \
     command.SET_THRUST_OPEN_LOOP:   '', \
     command.PID_START_MOTORS:       '', \
     command.SET_PID_GAINS:          '10h', \
+    command.SET_PI_GAINS_WINCH:     '4h', \
     command.GET_PID_TELEMETRY:      '', \
     command.GET_AMS_POS:            '=2l', \
     command.GET_IMU_LOOP_ZGYRO:     '='+2*'Lhhh', \
@@ -88,6 +89,14 @@ def xbee_received(packet):
             for r in shared.ROBOTS:
                 if r.DEST_ADDR_int == src_addr:
                     r.motor_gains_set = True
+
+        # SET_PI_GAINS_WINCH
+        elif type == command.SET_PI_GAINS_WINCH:
+            gains = unpack(pattern, data)
+            print "Set winch gains to ", gains
+            for r in shared.ROBOTS:
+                if r.DEST_ADDR_int == src_addr:
+                    r.winch_gains_set = True
         
         # FLASH_READBACK
         elif type == command.FLASH_READBACK:

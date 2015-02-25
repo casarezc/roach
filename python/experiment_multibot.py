@@ -53,6 +53,10 @@ def main():
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
     motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+
+    # Winch gains format:
+    #  [ Kp , Ki , Kaw , Kff ]
+    winchgains = [30, 20, 20, 0] 
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
@@ -61,11 +65,13 @@ def main():
 
     ## Set up different gaits to be used in the trials
     slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    slowBound.winchgains = winchgains
     slowBound.phase = 0
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
     slowBound.deltasRight = [0.25, 0.25, 0.25]
 
     fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
+    fastBound.winchgains = winchgains
     fastBound.phase = 0
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBound.deltasRight = [0.25, 0.25, 0.25]
@@ -87,16 +93,19 @@ def main():
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
     holdCenter = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    holdCenter.winchgains = winchgains
     holdCenter.phase = 0                          
     holdCenter.deltasLeft = [0, 0, 0]
     holdCenter.deltasRight = [0, 0, 0]
 
     holdBack = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    holdBack.winchgains = winchgains
     holdBack.phase = 0                          
     holdBack.deltasLeft = [0.25, 0, 0]
     holdBack.deltasRight = [0.25, 0, 0]
 
     holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
+    holdBackLong.winchgains = winchgains
     holdBackLong.phase = 0                          
     holdBackLong.deltasLeft = [0.25, 0, 0]
     holdBackLong.deltasRight = [0.25, 0, 0]
@@ -113,11 +122,11 @@ def main():
     T7 = 1000
 
     # Set the winch PWM of each segment of the run
-    winchPWM2 = 1500
-    winchPWM3 = 2000
-    winchPWM5 = -2000
-    winchPWM6 = -1500
-    winchPWM7 = 1500
+    winchtorque2 = 1500
+    winchtorque3 = 2000
+    winchtorque5 = -2000
+    winchtorque6 = -1500
+    winchtorque7 = 1500
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = (T1 + T2 + T3 + T4 + T5 + T6 + T7) + 3000
@@ -163,7 +172,7 @@ def main():
         print "  *******   STAGE 2   *******"
         print "  ***************************"
         R2.setGait(slowBound)
-        R2.startTimedRunWinch( T2 , winchPWM2)
+        R2.startTimedRunWinchTorque( T2 , winchtorque2)
 
         nextFlag = int(raw_input(" Move on to stage 3 (1 or 0)?: "))
 
@@ -176,7 +185,7 @@ def main():
         R1.setGait(holdBack)
         R2.setGait(holdCenter)
         R1.startTimedRun( T3 )
-        R2.startTimedRunWinch( T3 , winchPWM3)
+        R2.startTimedRunWinchTorque( T3 , winchtorque3)
 
         nextFlag = int(raw_input(" Move on to stage 4 (1 or 0)?: "))
 
@@ -202,7 +211,7 @@ def main():
         R1.setGait(fastBound)
         R2.setGait(holdBackLong)
         R1.startTimedRun( T5 )
-        R2.startTimedRunWinch( T5 , winchPWM5 )
+        R2.startTimedRunWinchTorque( T5 , winchtorque5 )
 
         nextFlag = int(raw_input(" Move on to stage 6 (1 or 0)?: "))
 
@@ -215,7 +224,7 @@ def main():
         R1.setGait(fastAltTripod)
         R2.setGait(holdBackLong)
         R1.startTimedRun( T6 )
-        R2.startTimedRunWinch( T6 , winchPWM6)
+        R2.startTimedRunWinchTorque( T6 , winchtorque6)
 
         nextFlag = int(raw_input(" Move on to stage 7 (1 or 0)?: "))
 
@@ -228,7 +237,7 @@ def main():
         R1.setGait(holdCenter)
         R2.setGait(fastBound)
         R1.startTimedRun( T7 )
-        R2.startTimedRunWinch( T7 , winchPWM7)
+        R2.startTimedRunWinch( T7 , winchtorque7)
 
         nextFlag = int(raw_input(" End experiment (1 or 0)?: ")) 
 

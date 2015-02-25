@@ -70,6 +70,9 @@ START_TIMED_RUN         =   0x91
 PID_STOP_MOTORS         =   0x92
 SET_PHASE               =   0x93
 SET_MOTOR_MODE      	=   0x94
-START_TIMED_RUN_WINCH 	=	0x95
+
+SET_PI_GAINS_WINCH           =  0xC0
+START_TIMED_RUN_WINCH_TORQUE =  0xC1
+START_TIMED_RUN_WINCH_PWM    =  0xC2
 
 # CMD values of 0xF0(240) - 0xFF(255) are reserved for future use

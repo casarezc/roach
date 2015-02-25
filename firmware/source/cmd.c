@@ -29,6 +29,7 @@ unsigned char (*cmd_func[MAX_CMD_FUNC])(unsigned char, unsigned char, unsigned c
 void cmdError(void);
 
 extern pidPos pidObjs[NUM_PIDS];
+extern piWinch piObjs[NUM_PI_NO_AMS];
 extern EncObj encPos[NUM_ENC];
 extern volatile CircArray fun_queue;
 
@@ -51,7 +52,8 @@ static unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsig
 
 //Experiment/Flash Commands
 static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-static unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdStartTimedRunWinchTorque(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdStartTimedRunWinchPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -81,7 +83,8 @@ void cmdSetup(void) {
     cmd_func[CMD_ZERO_POS] = &cmdZeroPos;   
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
-    cmd_func[CMD_START_TIMED_RUN_WINCH] = &cmdStartTimedRunWinch;
+    cmd_func[CMD_START_TIMED_RUN_WINCH_TORQUE] = &cmdStartTimedRunWinchTorque;
+    cmd_func[CMD_START_TIMED_RUN_WINCH_PWM] = &cmdStartTimedRunWinchPWM;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
 
 }
@@ -144,15 +147,15 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
         pidOn(i);
     }
     pidObjs[0].mode = 0;
+    piObjs[0].onoff = 0;
     pidStartTimedTrial(run_time);
 
     return 1;
 }
 
-unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
+unsigned char cmdStartTimedRunWinchTorque(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
     unsigned int run_time = frame[0] + (frame[1] << 8);
-    int thrust = frame[2] + (frame[3] << 8);
-
+    int input_torque = frame[2] + (frame[3] << 8);
     int i;
     for (i = 0; i < NUM_PIDS; i++){
         pidObjs[i].timeFlag = 1;
@@ -160,12 +163,34 @@ unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char status, un
         checkSwapBuff(i);
         pidOn(i);
     }
-    pidObjs[0].mode = 0;
 
-    tiHSetDC(3, thrust);
+    for (i = 0; i < NUM_PI_NO_AMS; i++){
+        piSetInput(i, input_torque);
+        piOn(i);
+    }
+
+    pidObjs[0].mode = 0;
+    piObjs[0].mode = 0;
     pidStartTimedTrial(run_time);
-    delay_ms(run_time);
-    tiHSetDC(3, 0);
+
+    return 1;
+}
+
+unsigned char cmdStartTimedRunWinchPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
+    unsigned int run_time = frame[0] + (frame[1] << 8);
+    int thrust = frame[2] + (frame[3] << 8);
+    int i;
+    for (i = 0; i < NUM_PIDS; i++){
+        pidObjs[i].timeFlag = 1;
+        pidSetInput(i, 0);
+        checkSwapBuff(i);
+        pidOn(i);
+    }
+
+    pidObjs[0].mode = 0;
+    piObjs[0].pwmDes = thrust;
+    piObjs[0].mode = 1;
+    pidStartTimedTrial(run_time);
 
     return 1;
 }
@@ -246,6 +271,23 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
     pidSetGains(1,Kp,Ki,Kd,Kaw, ff);
 
     radioSendData(src_addr, status, CMD_SET_PID_GAINS, 20, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+ unsigned char cmdSetPIGainsWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    int Kp, Ki, Kaw, ff;
+    int idx = 0;
+
+    Kp = frame[idx] + (frame[idx+1] << 8); idx+=2;
+    Ki = frame[idx] + (frame[idx+1] << 8); idx+=2;
+    Kaw = frame[idx] + (frame[idx+1] << 8); idx+=2;
+    ff = frame[idx] + (frame[idx+1] << 8);
+    piSetGains(0,Kp,Ki,Kaw, ff);
+
+    radioSendData(src_addr, status, CMD_SET_PI_GAINS_WINCH, 8, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
     // WARNING: Will fail at high data throughput
     //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);

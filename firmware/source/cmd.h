@@ -21,7 +21,11 @@
 #define CMD_PID_STOP_MOTORS         0x92         
 #define CMD_SET_PHASE               0x93         
 #define CMD_SET_MOTOR_MODE          0x94
-#define CMD_START_TIMED_RUN_WINCH   0x95
+
+#define CMD_SET_PI_GAINS_WINCH             0xC0
+#define CMD_START_TIMED_RUN_WINCH_TORQUE   0xC1
+#define CMD_START_TIMED_RUN_WINCH_PWM      0xC2
+
 // Redefine
 
 void cmdSetup(void);
