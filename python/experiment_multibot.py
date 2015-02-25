@@ -52,7 +52,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [4000,100,200,0,200, 4000,100,200,0,200]
+    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
@@ -67,8 +67,9 @@ def main():
 
     fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
     fastBound.phase = 0
-    fastBound.deltasLeft = [0.125, 0.125, 0.25]
-    fastBound.deltasRight = [0.125, 0.125, 0.25]
+    fastBound.deltasLeft = [0.25, 0.25, 0.25]
+    fastBound.deltasRight = [0.25, 0.25, 0.25]
+
 
     fastBackwardBound = GaitConfig(motorgains, rightFreq=-5, leftFreq=-5)
     fastBackwardBound.phase = 0
@@ -103,7 +104,7 @@ def main():
 
     
     # Set the timings of each segment of the run
-    T1 = 500
+    T1 = 750
     T2 = 500
     T3 = 400
     T4 = 2000
@@ -113,10 +114,10 @@ def main():
 
     # Set the winch PWM of each segment of the run
     winchPWM2 = 1500
-    winchPWM3 = 3000
+    winchPWM3 = 2000
     winchPWM5 = -2000
-    winchPWM6 = -2000
-    winchPWM7 = 2500
+    winchPWM6 = -1500
+    winchPWM7 = 1500
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = (T1 + T2 + T3 + T4 + T5 + T6 + T7) + 3000
@@ -185,7 +186,7 @@ def main():
         print "  ***************************"
         print "  *******   STAGE 4   *******"
         print "  ***************************"
-        R1.setGait(fastBound)
+        R1.setGait(slowBound)
         R2.setGait(fastBound)
         R1.startTimedRun( T4 )
         R2.startTimedRun( T4 )
@@ -211,7 +212,7 @@ def main():
         print "  ***************************"
         print "  *******   STAGE 6   *******"
         print "  ***************************"
-        R1.setGait(slowAltTripod)
+        R1.setGait(fastAltTripod)
         R2.setGait(holdBackLong)
         R1.startTimedRun( T6 )
         R2.startTimedRunWinch( T6 , winchPWM6)

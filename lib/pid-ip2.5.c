@@ -68,6 +68,7 @@ unsigned int offsetAccumulatorCounter;
 int measLast1[NUM_PIDS];
 int measLast2[NUM_PIDS];
 int bemf[NUM_PIDS];
+int bemfextra[2];
 
 
 // -------------------------------------------
@@ -450,6 +451,8 @@ void pidGetState()
 	time_start =  sclockGetTime();
     bemf[0] = pidObjs[0].inputOffset - adcGetMotorA(); // watch sign for A/D? unsigned int -> signed?
     bemf[1] = pidObjs[1].inputOffset - adcGetMotorB(); // MotorB
+    bemfextra[0] = pidObjs[0].inputOffset - adcGetMotorC(); // MotorC
+    bemfextra[1] = pidObjs[0].inputOffset - adcGetMotorD(); // MotorD
 // only works to +-32K revs- might reset after certain number of steps? Should wrap around properly
 	for(i =0; i<NUM_PIDS; i++)
 	{     p_state = (long)(encPos[i].pos << 2);		// pos 14 bits 0x0 -> 0x3fff
