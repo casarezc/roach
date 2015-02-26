@@ -232,11 +232,19 @@ void piSetInput(int pi_num, int input_val){
     piObjs[pi_num].p = 0;
     piObjs[pi_num].i = 0;
     piObjs[pi_num].p_input = ((long) input_val << 12);
+    piObjs[pi_num].v_input = 0;
 	//Seed the median filters
         bemfextra[0] = 0; // MotorC
         bemfextra[1] = 0; // MotorD
 	measLast1PI[pi_num] = 0;
 	measLast2PI[pi_num] = 0;
+
+}
+
+void piSetUnwindThresh(int pi_num, int input_val){
+/*      ******   use velocity setpoint + throttle for compatibility between Hall and Pullin code *****/
+/* otherwise, miss first velocity set point */
+    piObjs[pi_num].v_input = ((long) input_val << 12);
 
 }
 
@@ -433,7 +441,15 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
 
         // Only execute winch measurements/control if the pi object is turned on
         if(piObjs[0].onoff){
-            piGetState();
+
+            if (piObjs[0].timeFlag){
+                    if (piObjs[0].start_time + piObjs[0].run_time >= t1_ticks){
+                        piGetState();
+                    }
+                    if(t1_ticks > lastMoveTime){ // turn off if done running all legs
+                        piObjs[0].onoff = 0;
+                    }
+            }
 
             if (piObjs[0].mode == 0)
             {
@@ -649,15 +665,9 @@ int measurements[NUM_PI_NO_AMS];
         DCW = (long) PDC3;
         Vbatt = (long) adcGetVbatt();
 
-        if(DCW > 0)
-        {
-            piObjs[0].p_state = (DCW*Vbatt)*((long) K_VBATT) - DCW*bemfextra[0]*((long) K_VEMF);
-        }
-        else
-        {
-            piObjs[0].p_state = -DCW*Vbatt*((long) K_VBATT) - DCW*bemfextra[0]*((long) K_VEMF);
-        }
-    //if((measurements[0] > 0) || (measurements[1] > 0)) {
+        piObjs[0].v_state = DCW*bemfextra[0]*((long) K_VEMF);
+        piObjs[0].p_state = (DCW*Vbatt)*((long) K_VBATT) - piObjs[0].v_state;
+            //if((measurements[0] > 0) || (measurements[1] > 0)) {
     if((measurements[0] > 0)) { LED_BLUE = 1;}
     else{ LED_BLUE = 0;}
 }
@@ -709,7 +719,9 @@ void piSetControl()
 	// p_input has scaled velocity interpolation to make smoother
 	// p_state is [16].[16]
         // Begin changes for mod 2 pi
+
             piObjs[j].p_error = piObjs[j].p_input - piObjs[j].p_state;
+
 
             //Update values
             UpdatePI(&(piObjs[j]));
@@ -757,8 +769,14 @@ void UpdatePID(pidPos *pid)
 
 void UpdatePI(piWinch *pi)
 {
+    if((pi->p_input < 0)&((pi->v_state) < (pi->v_input))){
+        pi->p = -((long)pi->Kp * pi->p_error) >> 17 ;
+    }
+    else
+    {
+        pi->p = ((long)pi->Kp * pi->p_error) >> 17 ;  // scale so doesn't over flow
+    }
     //Kp ranges 0 to 87, Ki and Kaw from 0 to 45, ff 0 to 4096
-    pi->p = ((long)pi->Kp * pi->p_error) >> 17 ;  // scale so doesn't over flow
     pi->i = (long)pi->Ki  * pi->i_error >> 16 ;
     // better check scale factors
 

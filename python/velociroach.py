@@ -124,11 +124,13 @@ class Velociroach:
         self.tx( 0, command.START_TIMED_RUN_WINCH_PWM, pack('2h', *cmd_temp))
         time.sleep(0.05)
 
-    def startTimedRunWinchTorque(self, duration, torque):
+    def startTimedRunWinchTorque(self, duration, torque, unwindvel):
         self.clAnnounce()
         print "Starting timed run of",duration," ms, winch torque",torque,"out of 6000"
-        cmd_temp = [duration, torque]
-        self.tx( 0, command.START_TIMED_RUN_WINCH_TORQUE, pack('2h', *cmd_temp))
+        if torque < 0:
+            print "Unwind velocity",unwindvel,"out of 6000"
+        cmd_temp = [duration, torque , unwindvel]
+        self.tx( 0, command.START_TIMED_RUN_WINCH_TORQUE, pack('3h', *cmd_temp))
         time.sleep(0.05)
         
     def findFileName(self):   
@@ -311,7 +313,7 @@ class Velociroach:
     def setWinchGains(self, gains, retries = 8):
         tries = 1
         self.winchGains = gains
-        while not(self.motor_gains_set) and (tries <= retries):
+        while not(self.winch_gains_set) and (tries <= retries):
             self.clAnnounce()
             print "Setting winch gains...   ",tries,"/8"
             self.tx( 0, command.SET_PI_GAINS_WINCH, pack('4h',*gains))

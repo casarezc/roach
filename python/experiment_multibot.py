@@ -105,7 +105,7 @@ def main():
     holdBack.deltasRight = [0.25, 0, 0]
 
     holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
-    holdBackLong.winchgains = winchgains
+    holdBackLong.winchgains = [30, 20, 20, 0]
     holdBackLong.phase = 0                          
     holdBackLong.deltasLeft = [0.25, 0, 0]
     holdBackLong.deltasRight = [0.25, 0, 0]
@@ -122,11 +122,13 @@ def main():
     T7 = 1000
 
     # Set the winch PWM of each segment of the run
-    winchtorque2 = 1500
-    winchtorque3 = 2000
-    winchtorque5 = -2000
-    winchtorque6 = -1500
-    winchtorque7 = 1500
+    winchtorque2 = 1000
+    winchtorque3 = 3000
+    winchtorque5 = -500
+    unwindvel5 = -500
+    winchtorque6 = -500
+    unwindvel6 = -500
+    winchtorque7 = 3000
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = (T1 + T2 + T3 + T4 + T5 + T6 + T7) + 3000
@@ -154,53 +156,53 @@ def main():
         if r.SAVE_DATA:
             r.startTelemetrySave()
 
-    time.sleep(0.1)
+    # time.sleep(0.1)
 
-    while(nextFlag == 0):
-        print "  ***************************"
-        print "  *******   STAGE 1   *******"
-        print "  ***************************"
-        R1.setGait(fastBound)
-        R1.startTimedRun( T1 )
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 1   *******"
+    #     print "  ***************************"
+    #     R1.setGait(fastBound)
+    #     R1.startTimedRun( T1 )
 
-        nextFlag = int(raw_input(" Move on to stage 2 (1 or 0)?: "))
+    #     nextFlag = int(raw_input(" Move on to stage 2 (1 or 0)?: "))
 
-    nextFlag = 0
+    # nextFlag = 0
 
-    while(nextFlag == 0):
-        print "  ***************************"
-        print "  *******   STAGE 2   *******"
-        print "  ***************************"
-        R2.setGait(slowBound)
-        R2.startTimedRunWinchTorque( T2 , winchtorque2)
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 2   *******"
+    #     print "  ***************************"
+    #     R2.setGait(slowBound)
+    #     R2.startTimedRunWinchTorque( T2 , winchtorque2 , 0)
 
-        nextFlag = int(raw_input(" Move on to stage 3 (1 or 0)?: "))
+    #     nextFlag = int(raw_input(" Move on to stage 3 (1 or 0)?: "))
 
-    nextFlag = 0
+    # nextFlag = 0
 
-    while(nextFlag == 0):
-        print "  ***************************"
-        print "  *******   STAGE 3   *******"
-        print "  ***************************"
-        R1.setGait(holdBack)
-        R2.setGait(holdCenter)
-        R1.startTimedRun( T3 )
-        R2.startTimedRunWinchTorque( T3 , winchtorque3)
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 3   *******"
+    #     print "  ***************************"
+    #     R1.setGait(holdBack)
+    #     R2.setGait(holdCenter)
+    #     R1.startTimedRun( T3 )
+    #     R2.startTimedRunWinchTorque( T3 , winchtorque3 , 0)
 
-        nextFlag = int(raw_input(" Move on to stage 4 (1 or 0)?: "))
+    #     nextFlag = int(raw_input(" Move on to stage 4 (1 or 0)?: "))
 
-    nextFlag = 0
+    # nextFlag = 0
 
-    while(nextFlag == 0):
-        print "  ***************************"
-        print "  *******   STAGE 4   *******"
-        print "  ***************************"
-        R1.setGait(slowBound)
-        R2.setGait(fastBound)
-        R1.startTimedRun( T4 )
-        R2.startTimedRun( T4 )
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 4   *******"
+    #     print "  ***************************"
+    #     R1.setGait(slowBound)
+    #     R2.setGait(fastBound)
+    #     R1.startTimedRun( T4 )
+    #     R2.startTimedRun( T4 )
 
-        nextFlag = int(raw_input(" Move on to stage 5 (1 or 0)?: "))
+    #     nextFlag = int(raw_input(" Move on to stage 5 (1 or 0)?: "))
 
     nextFlag = 0
 
@@ -208,10 +210,11 @@ def main():
         print "  ***************************"
         print "  *******   STAGE 5   *******"
         print "  ***************************"
+        R2.winch_gains_set = False
         R1.setGait(fastBound)
         R2.setGait(holdBackLong)
         R1.startTimedRun( T5 )
-        R2.startTimedRunWinchTorque( T5 , winchtorque5 )
+        R2.startTimedRunWinchTorque( T5 , winchtorque5 , unwindvel5)
 
         nextFlag = int(raw_input(" Move on to stage 6 (1 or 0)?: "))
 
@@ -224,7 +227,7 @@ def main():
         R1.setGait(fastAltTripod)
         R2.setGait(holdBackLong)
         R1.startTimedRun( T6 )
-        R2.startTimedRunWinchTorque( T6 , winchtorque6)
+        R2.startTimedRunWinchTorque( T6 , winchtorque6 , unwindvel6)
 
         nextFlag = int(raw_input(" Move on to stage 7 (1 or 0)?: "))
 
@@ -234,10 +237,11 @@ def main():
         print "  ***************************"
         print "  *******   STAGE 7   *******"
         print "  ***************************"
+        R2.winch_gains_set = False
         R1.setGait(holdCenter)
         R2.setGait(fastBound)
         R1.startTimedRun( T7 )
-        R2.startTimedRunWinch( T7 , winchtorque7)
+        R2.startTimedRunWinchTorque( T7 , winchtorque7 , 0)
 
         nextFlag = int(raw_input(" End experiment (1 or 0)?: ")) 
 

@@ -72,9 +72,11 @@ typedef struct
 typedef struct
 {
 	long p_input; // reference velocity input
-	long p_state; // current velocity
-	long p_error; // velocity error
-	long i_error; // integral error
+        long v_input;
+        long v_state; // back emf state
+	long p_state; // torque state
+	long p_error; // torque error
+	long i_error; // integrated torque error
 	long  p, i;   // control contributions from position, integral, and derivative gains respectively
   	long preSat; // output value before saturations
 	int  output;	 //  control output u
@@ -113,6 +115,7 @@ void initPIObjPos(piWinch *pi, int Kp, int Ki, int Kaw, int ff);
 void pidStartTimedTrial(unsigned int run_time);
 void pidSetInput(int pid_num, int input_val);
 void piSetInput(int pi_num, int input_val);
+void piSetUnwindThresh(int pi_num, int input_val);
 void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff);
 void piSetGains(int pid_num, int Kp, int Ki, int Kaw, int ff);
 void pidGetState(); // update state vector from bemf and Hall angle

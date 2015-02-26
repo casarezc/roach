@@ -44,6 +44,7 @@ static unsigned char cmdGetAMSPos(unsigned char type, unsigned char status, unsi
 static unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetMotorMode(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetPIDGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetPIGainsWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdPIDStartMotors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdPIDStopMotors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -74,6 +75,7 @@ void cmdSetup(void) {
     cmd_func[CMD_SET_MOTOR_MODE] = &cmdSetMotorMode;
     cmd_func[CMD_PID_START_MOTORS] = &cmdPIDStartMotors;
     cmd_func[CMD_SET_PID_GAINS] = &cmdSetPIDGains;
+    cmd_func[CMD_SET_PI_GAINS_WINCH] = &cmdSetPIGainsWinch;
     cmd_func[CMD_GET_AMS_POS] = &cmdGetAMSPos;
     cmd_func[CMD_START_TELEMETRY] = &cmdStartTelemetry;
     cmd_func[CMD_ERASE_SECTORS] = &cmdEraseSectors;
@@ -156,6 +158,7 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
 unsigned char cmdStartTimedRunWinchTorque(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
     unsigned int run_time = frame[0] + (frame[1] << 8);
     int input_torque = frame[2] + (frame[3] << 8);
+    int unwind_thresh = frame[4] + (frame[5] << 8);
     int i;
     for (i = 0; i < NUM_PIDS; i++){
         pidObjs[i].timeFlag = 1;
@@ -165,7 +168,9 @@ unsigned char cmdStartTimedRunWinchTorque(unsigned char type, unsigned char stat
     }
 
     for (i = 0; i < NUM_PI_NO_AMS; i++){
+        piObjs[i].timeFlag = 1;
         piSetInput(i, input_torque);
+        piSetUnwindThresh(i, unwind_thresh);
         piOn(i);
     }
 
