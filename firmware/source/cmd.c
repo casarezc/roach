@@ -53,8 +53,8 @@ static unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsig
 
 //Experiment/Flash Commands
 static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-static unsigned char cmdStartTimedRunWinchTorque(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-static unsigned char cmdStartTimedRunWinchPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdWindJumper(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdStartTimedRunJumpPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -85,8 +85,8 @@ void cmdSetup(void) {
     cmd_func[CMD_ZERO_POS] = &cmdZeroPos;   
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
-    cmd_func[CMD_START_TIMED_RUN_WINCH_TORQUE] = &cmdStartTimedRunWinchTorque;
-    cmd_func[CMD_START_TIMED_RUN_WINCH_PWM] = &cmdStartTimedRunWinchPWM;
+    cmd_func[CMD_WIND_JUMPER] = &cmdWindJumper;
+    cmd_func[CMD_START_TIMED_RUN_JUMP_PWM] = &cmdStartTimedRunJumpPWM;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
 
 }
@@ -155,47 +155,50 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
     return 1;
 }
 
-unsigned char cmdStartTimedRunWinchTorque(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
+unsigned char cmdWindJumper(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
     unsigned int run_time = frame[0] + (frame[1] << 8);
-    int input_torque = frame[2] + (frame[3] << 8);
-    int unwind_thresh = frame[4] + (frame[5] << 8);
+    int thrust = frame[2] + (frame[3] << 8);
     int i;
     for (i = 0; i < NUM_PIDS; i++){
-        pidObjs[i].timeFlag = 1;
-        pidSetInput(i, 0);
-        checkSwapBuff(i);
-        pidOn(i);
+        pidObjs[i].onoff = 0;
     }
 
-    for (i = 0; i < NUM_PI_NO_AMS; i++){
-        piObjs[i].timeFlag = 1;
-        piSetInput(i, input_torque);
-        piSetUnwindThresh(i, unwind_thresh);
-        piOn(i);
-    }
+    piObjs[0].timeFlag = 1;
+    piOn(0);
+    piObjs[0].mode = 1;
 
-    pidObjs[0].mode = 0;
-    piObjs[0].mode = 0;
+    piObjs[0].pwmDes = thrust;
     pidStartTimedTrial(run_time);
 
     return 1;
 }
 
-unsigned char cmdStartTimedRunWinchPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
-    unsigned int run_time = frame[0] + (frame[1] << 8);
-    int thrust = frame[2] + (frame[3] << 8);
+unsigned char cmdStartTimedRunJumpPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
+    unsigned int run_time_1 = frame[0] + (frame[1] << 8);
+    unsigned int run_time_2 = frame[2] + (frame[3] << 8);
+    unsigned int run_time_3 = frame[4] + (frame[5] << 8);
+    int thrust = frame[6] + (frame[7] << 8);
     int i;
     for (i = 0; i < NUM_PIDS; i++){
         pidObjs[i].timeFlag = 1;
-        pidSetInput(i, 0);
-        checkSwapBuff(i);
         pidOn(i);
     }
 
-    pidObjs[0].mode = 0;
-    piObjs[0].pwmDes = thrust;
+    piObjs[0].timeFlag = 1;
+    piOn(0);
     piObjs[0].mode = 1;
-    pidStartTimedTrial(run_time);
+
+    piObjs[0].pwmDes = 0;
+    pidStartTimedTrial(run_time_1);
+    delay_ms(run_time_1);
+
+    piObjs[0].pwmDes = thrust;
+    pidStartTimedTrial(run_time_2);
+    delay_ms(run_time_2);
+
+    piObjs[0].pwmDes = -thrust;
+    pidStartTimedTrial(run_time_3);
+    delay_ms(run_time_3);
 
     return 1;
 }
