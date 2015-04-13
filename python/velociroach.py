@@ -117,20 +117,18 @@ class Velociroach:
         self.tx( 0, command.START_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
 
-    def startTimedRunWinchPWM(self, duration, winchthrust):
+    def windJumper(self, duration, thrust):
         self.clAnnounce()
-        print "Starting timed run of",duration," ms, winch thrust",winchthrust,"out of 4096"
-        cmd_temp = [duration, winchthrust]
-        self.tx( 0, command.START_TIMED_RUN_WINCH_PWM, pack('2h', *cmd_temp))
+        print "Starting timed winding",duration," ms, wind PWM",thrust,"out of 4096"
+        cmd_temp = [duration, thrust]
+        self.tx( 0, command.WIND_JUMPER, pack('2h', *cmd_temp))
         time.sleep(0.05)
 
-    def startTimedRunWinchTorque(self, duration, torque, unwindvel):
+    def startTimedRunJumpPWM(self, duration1, duration2, duration3, thrust):
         self.clAnnounce()
-        print "Starting timed run of",duration," ms, winch torque",torque,"out of 6000"
-        if torque < 0:
-            print "Unwind velocity",unwindvel,"out of 6000"
-        cmd_temp = [duration, torque , unwindvel]
-        self.tx( 0, command.START_TIMED_RUN_WINCH_TORQUE, pack('3h', *cmd_temp))
+        print "Starting timed run of",duration1 + duration2 + duration3," ms, wind PWM",thrust," out of 4096"
+        cmd_temp = [duration1, duration2, duration3, thrust]
+        self.tx( 0, command.START_TIMED_RUN_JUMP_PWM, pack('4h', *cmd_temp))
         time.sleep(0.05)
         
     def findFileName(self):   
@@ -173,16 +171,12 @@ class Velociroach:
         time.sleep(0.1)
     
     #TODO: This may be a vestigial function. Check versus firmware.
-    def setMotorMode(self, motorgains, retries = 8 ):
-        tries = 1
-        self.motorGains = motorgains
-        self.motor_gains_set = False
-        while not(self.motor_gains_set) and (tries <= retries):
-            self.clAnnounce()
-            print "Setting motor mode...   ",tries,"/8"
-            self.tx( 0, command.SET_MOTOR_MODE, pack('10h',*gains))
-            tries = tries + 1
-            time.sleep(0.1)
+    def setOpenLoopPWM(self, thrust1, thrust2):
+        self.clAnnounce()
+        print "Setting open loop PWM Left:",thrust1,"Right:",thrust2," out of 4096"
+        cmd_temp = [thrust1, thrust2]
+        self.tx( 0, command.SET_MOTOR_MODE, pack('2h',*cmd_temp))
+        time.sleep(0.05)
 
     ######TODO : sort out this function and flashReadback below
     def downloadTelemetry(self, timeout = 5, retry = True):
