@@ -26,7 +26,10 @@ def main():
     
     R1 = Velociroach('\x21\x63', xb)
     R2 = Velociroach('\x21\x62', xb)
-    R1.SAVE_DATA = False
+    # R1.SAVE_DATA = False
+    # R2.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    R2.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -105,7 +108,7 @@ def main():
     holdBack.deltasRight = [0.25, 0, 0]
 
     holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
-    holdBackLong.winchgains = [30, 20, 20, 0]
+    holdBackLong.winchgains = [40, 20, 20, 0]
     holdBackLong.phase = 0                          
     holdBackLong.deltasLeft = [0.25, 0, 0]
     holdBackLong.deltasRight = [0.25, 0, 0]
@@ -117,21 +120,24 @@ def main():
     T2 = 500
     T3 = 400
     T4 = 2000
-    T5 = 1000
+    T5 = 500
+    T5A = 500
     T6 = 1000
     T7 = 1000
 
     # Set the winch PWM of each segment of the run
-    winchtorque2 = 1000
-    winchtorque3 = 3000
-    winchtorque5 = -500
-    unwindvel5 = -500
-    winchtorque6 = -500
-    unwindvel6 = -500
-    winchtorque7 = 3000
+    winchtorque2 = 3500
+    winchtorque3 = 5000
+    winchtorque6 = -5500
+    winchpwm5 = -3200
+    unwindvel6 = 0
+    winchtorque5 = -5000
+    winchpwm6 = -5000
+    unwindvel5 = -4500
+    winchtorque7 = 5000
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = (T1 + T2 + T3 + T4 + T5 + T6 + T7) + 3000
+    EXPERIMENT_SAVE_TIME_MS     = 3*(T1 + T2 + T3 + T4 + T5  + T6 + T7)
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -156,7 +162,7 @@ def main():
         if r.SAVE_DATA:
             r.startTelemetrySave()
 
-    # time.sleep(0.1)
+    time.sleep(0.1)
 
     # while(nextFlag == 0):
     #     print "  ***************************"
@@ -204,21 +210,35 @@ def main():
 
     #     nextFlag = int(raw_input(" Move on to stage 5 (1 or 0)?: "))
 
-    nextFlag = 0
+    # nextFlag = 0
 
-    while(nextFlag == 0):
-        print "  ***************************"
-        print "  *******   STAGE 5   *******"
-        print "  ***************************"
-        R2.winch_gains_set = False
-        R1.setGait(fastBound)
-        R2.setGait(holdBackLong)
-        R1.startTimedRun( T5 )
-        R2.startTimedRunWinchTorque( T5 , winchtorque5 , unwindvel5)
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 5   *******"
+    #     print "  ***************************"
+    #     R2.winch_gains_set = False
+    #     R1.setGait(fastBound)
+    #     R2.setGait(holdBackLong)
+    #     R1.startTimedRun( T5 )
+    #     R2.startTimedRunWinchTorque( T5 , winchtorque5 , unwindvel5)
+    #     # R2.startTimedRunWinchPWM( T5 , winchpwm5)
+    #     nextFlag = int(raw_input(" Move on to stage 5A (1 or 0)?: "))
 
-        nextFlag = int(raw_input(" Move on to stage 6 (1 or 0)?: "))
+    # nextFlag = 0
 
-    nextFlag = 0
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 5A   *******"
+    #     print "  ***************************"
+    #     R2.winch_gains_set = False
+    #     R1.setGait(fastBound)
+    #     R2.setGait(slowBound)
+    #     R1.startTimedRun( T5A )
+    #     R2.startTimedRun( T5A )
+
+    #     nextFlag = int(raw_input(" Move on to stage 6 (1 or 0)?: "))
+
+    # nextFlag = 0
 
     while(nextFlag == 0):
         print "  ***************************"
@@ -228,6 +248,7 @@ def main():
         R2.setGait(holdBackLong)
         R1.startTimedRun( T6 )
         R2.startTimedRunWinchTorque( T6 , winchtorque6 , unwindvel6)
+        # R2.startTimedRunWinchPWM( T6 , winchpwm6)
 
         nextFlag = int(raw_input(" Move on to stage 7 (1 or 0)?: "))
 

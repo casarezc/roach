@@ -92,7 +92,7 @@ class Velociroach:
     
     #TODO: getting flash erase to work is critical to function testing (pullin)    
     #existing VR firmware does not send a packet when the erase is done, so this will hang and retry.
-    def eraseFlashMem(self, timeout = 8):
+    def eraseFlashMem(self, timeout = 30):
         eraseStartTime = time.time()
         self.tx( 0, command.ERASE_SECTORS, pack('L',self.numSamples))
         self.clAnnounce()
@@ -183,7 +183,7 @@ class Velociroach:
             self.tx( 0, command.SET_MOTOR_MODE, pack('10h',*gains))
             tries = tries + 1
             time.sleep(0.1)
-    
+
     ######TODO : sort out this function and flashReadback below
     def downloadTelemetry(self, timeout = 5, retry = True):
         #suppress callback output messages for the duration of download
@@ -241,12 +241,14 @@ class Velociroach:
         print ""
         self.saveTelemetryData()
         #Done with flash download and save
-
     def saveTelemetryData(self):
         self.findFileName()
         self.writeFileHeader()
         fileout = open(self.dataFileName, 'a')
-        np.savetxt(fileout , np.array(self.telemtryData), self.telemFormatString, delimiter = ',')
+        
+        sanitized = [item for item in self.telemtryData if item!= []];
+        
+        np.savetxt(fileout , np.array(sanitized), self.telemFormatString, delimiter = ',')
         fileout.close()
         self.clAnnounce()
         print "Telemetry data saved to", self.dataFileName
