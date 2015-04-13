@@ -331,11 +331,14 @@ class Velociroach:
         self.setMotorGains(gaitConfig.motorgains)
         self.setWinchGains(gaitConfig.winchgains)
         self.setVelProfile(gaitConfig) #whole object is passed in, due to several references
+        self.zeroPosition()
         
         self.clAnnounce()
         print " ------------------------------------ "
         
-        
+    def zeroPosition(self):
+        self.tx( 0, command.ZERO_POS, 'zero') #actual data sent in packet is not relevant
+        time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
         
 ########## Helper functions #################
 #TODO: find a home for these? Possibly in BaseStation class (pullin, abuchan)
