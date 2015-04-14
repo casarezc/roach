@@ -22,6 +22,7 @@
 extern int bemf[NUM_PIDS];
 extern int bemfextra[2];
 extern pidPos pidObjs[NUM_PIDS];
+extern piWinch piObjs[NUM_PI_NO_AMS];
 
 //void vrTelemGetData(unsigned char* ptr) {
 void vrTelemGetData(vrTelemStruct_t* ptr) {
@@ -40,9 +41,9 @@ void vrTelemGetData(vrTelemStruct_t* ptr) {
     ptr->posR = pidObjs[1].p_state;
     ptr->composL = pidObjs[0].p_input + pidObjs[0].interpolate;
     ptr->composR = pidObjs[1].p_input + pidObjs[1].interpolate;
-    ptr->dcL = pidObjs[0].output; // left
-    ptr->dcR = pidObjs[1].output; // right
-    ptr->dcC = PDC3;
+    ptr->dcL = -(pidObjs[0].pwmDes < 0)*(PDC1) +(pidObjs[0].pwmDes > 0)*(PDC1); // left
+    ptr->dcR = -(pidObjs[1].pwmDes < 0)*(PDC2) +(pidObjs[1].pwmDes > 0)*(PDC2); // right
+    ptr->dcC = -(piObjs[0].pwmDes < 0)*(PDC3) +(piObjs[0].pwmDes > 0)*(PDC3);//stopgap measure to help Gwangpil
     ptr->dcD = PDC4;
     ptr->bemfL = bemf[0];
     ptr->bemfR = bemf[1];

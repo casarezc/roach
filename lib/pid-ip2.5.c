@@ -433,10 +433,14 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
         if (pidObjs[0].mode == 0)
         {
         pidSetControl();
-        } else if (pidObjs[0].mode == 1)
+        } else if ((pidObjs[0].mode == 1)&(pidObjs[0].onoff == 1))
         {
             tiHSetDC(1, pidObjs[0].pwmDes);
             tiHSetDC(2, pidObjs[1].pwmDes);
+        } else if ((pidObjs[0].mode == 1)&(pidObjs[0].onoff == 0))
+        {
+            tiHSetDC(1, 0);
+            tiHSetDC(2, 0);
         }
 
         // Only execute winch measurements/control if the pi object is turned on
@@ -451,13 +455,17 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
                     }
             }
 
-            if (piObjs[0].mode == 0)
-            {
-            piSetControl();
-            } else if (piObjs[0].mode == 1)
-            {
-                tiHSetDC(3, piObjs[0].pwmDes);
-            }
+        }
+
+        if (piObjs[0].mode == 0)
+        {
+        piSetControl();
+        } else if ((piObjs[0].mode == 1)&(piObjs[0].onoff == 1))
+        {
+            tiHSetDC(3, piObjs[0].pwmDes);
+        } else if ((piObjs[0].mode == 1)&(piObjs[0].onoff == 0))
+        {
+            tiHSetDC(3, 0);
         }
 
         if(pidObjs[0].onoff) {

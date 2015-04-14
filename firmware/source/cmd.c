@@ -169,6 +169,8 @@ unsigned char cmdWindJumper(unsigned char type, unsigned char status, unsigned c
 
     piObjs[0].pwmDes = thrust;
     pidStartTimedTrial(run_time);
+    delay_ms(run_time);
+    piObjs[0].onoff = 0;
 
     return 1;
 }
@@ -179,6 +181,7 @@ unsigned char cmdStartTimedRunJumpPWM(unsigned char type, unsigned char status, 
     unsigned int run_time_3 = frame[4] + (frame[5] << 8);
     int thrust = frame[6] + (frame[7] << 8);
     int i;
+    piObjs[0].mode = 1;
     for (i = 0; i < NUM_PIDS; i++){
         pidObjs[i].timeFlag = 1;
         pidOn(i);
@@ -186,19 +189,34 @@ unsigned char cmdStartTimedRunJumpPWM(unsigned char type, unsigned char status, 
 
     piObjs[0].timeFlag = 1;
     piOn(0);
-    piObjs[0].mode = 1;
 
     piObjs[0].pwmDes = 0;
     pidStartTimedTrial(run_time_1);
     delay_ms(run_time_1);
 
+    for (i = 0; i < NUM_PIDS; i++){
+        pidOn(i);
+    }
+
+    piOn(0);
+
     piObjs[0].pwmDes = -thrust;
     pidStartTimedTrial(run_time_2);
     delay_ms(run_time_2);
 
+    for (i = 0; i < NUM_PIDS; i++){
+        pidOn(i);
+    }
+
+    piOn(0);
+
     piObjs[0].pwmDes = thrust;
     pidStartTimedTrial(run_time_3);
     delay_ms(run_time_3);
+
+    pidObjs[0].onoff = 0;
+    pidObjs[1].onoff = 0;
+    piObjs[0].onoff = 0;
 
     return 1;
 }
