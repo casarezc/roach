@@ -24,7 +24,7 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x62', xb)
+    R1 = Velociroach('\x21\x66', xb)
     # R1.SAVE_DATA = False
     R1.SAVE_DATA = True
                             
@@ -66,8 +66,8 @@ def main():
 
     # Set the open loop PWM of the jumping mechanism and the left and right motors
     PWM_WIND = 2000
-    PWM_LEFT = 900
-    PWM_RIGHT = 700
+    PWM_LEFT = 2000
+    PWM_RIGHT = 2000
 
     nextFlag = 0
 
