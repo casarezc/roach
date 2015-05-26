@@ -191,7 +191,7 @@ unsigned char cmdStartTimedRunJumpPWM(unsigned char type, unsigned char status, 
     piOn(0);
 
     piObjs[0].pwmDes = 0;
-    pidStartTimedTrial(run_time_1);
+    pidStartTimedTrial(run_time_1 + 400);
     delay_ms(run_time_1);
 
     for (i = 0; i < NUM_PIDS; i++){
