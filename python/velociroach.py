@@ -227,7 +227,7 @@ class Velociroach:
         #Final update to download progress bar to make it show 100%
         dlProgress(self.numSamples-self.telemtryData.count([]) , self.numSamples)
         #totBytes = 52*self.numSamples
-        totBytes = 52*(self.numSamples - self.telemtryData.count([]))
+        totBytes = 54*(self.numSamples - self.telemtryData.count([]))
         datarate = totBytes / dlTime / 1000.0
         print '\n'
         #self.clAnnounce()
@@ -270,7 +270,7 @@ class Velociroach:
         fileout.write('%  Motor Gains    = ' + repr(self.currentGait.motorgains) + '\n')
         fileout.write('% Columns: \n')
         # order for wiring on RF Turner
-        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | DCC | DCD | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | BEMFC | BEMFD| VBatt\n')
+        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | DCC | DCD | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | BEMFC | BEMFD| VLoad | VBatt\n')
         fileout.close()
 
     def setupTelemetryDataTime(self, runtime):

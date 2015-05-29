@@ -23,6 +23,7 @@ typedef struct {
     int16_t bemfR;
     int16_t bemfC;
     int16_t bemfD;
+    int16_t Vload; // Load cell voltage (winch)
     int16_t Vbatt; // battery voltage
 } vrTelemStruct_t;
 

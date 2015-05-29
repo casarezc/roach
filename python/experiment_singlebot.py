@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -63,7 +63,7 @@ def main():
     #winchPWM = 0
 
     ## Set up different gaits to be used in the trials
-    slowBound = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
+    slowBound = GaitConfig(motorgains, rightFreq=0, leftFreq=0)
     slowBound.winchgains = winchgains
     slowBound.phase = 0
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
@@ -112,9 +112,9 @@ def main():
 
     
     # Set the timings of each segment of the run
-    T = 2000
+    T = 5000
 
-    winchtorque = 3000
+    winchtorque = 0
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = T

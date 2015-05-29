@@ -72,6 +72,7 @@ int measLast1PI[NUM_PI_NO_AMS];
 int measLast2PI[NUM_PI_NO_AMS];
 int bemf[NUM_PIDS];
 int bemfextra[2];
+int vloadcell;
 
 
 // -------------------------------------------
@@ -627,8 +628,10 @@ void piGetState()
 	{
 		offsetAccumulatorW += adcGetMotorC();  }
 
-    bemfextra[0] = pidObjs[0].inputOffset - adcGetMotorC(); // MotorC
-    bemfextra[1] = pidObjs[0].inputOffset - adcGetMotorD(); // MotorD
+    bemfextra[0] = piObjs[0].inputOffset - adcGetMotorC(); // MotorC
+    bemfextra[1] = piObjs[0].inputOffset - adcGetMotorD(); // MotorD
+
+    vloadcell = adcGetVload(); // Load cell
 
  // choose velocity estimate
 

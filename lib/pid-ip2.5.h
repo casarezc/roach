@@ -71,7 +71,7 @@ typedef struct
 // pi type for winch control
 typedef struct
 {
-	long p_input; // reference velocity input
+	long p_input; // reference torque input
         long v_input;
         long v_state; // back emf state
 	long p_state; // torque state
