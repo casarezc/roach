@@ -21,6 +21,7 @@
 #include "tih.h"
 #include "mpu6000.h"
 #include "uart_driver.h"
+#include "battery.h"
 #include "ppool.h"
 #include "dfmem.h"
 #include "telem.h"
@@ -45,6 +46,7 @@
 
 // PID control structure
 pidPos pidObjs[NUM_PIDS];
+piWinch piObjs[NUM_PI_NO_AMS];
 
 // structure for reference velocity for leg
 pidVelLUT  pidVel[NUM_PIDS*NUM_BUFF];
@@ -59,7 +61,7 @@ int seqIndex;
 
 //for battery voltage:
 char calib_flag = 0;   // flag is set if doing calibration
-long offsetAccumulatorL, offsetAccumulatorR;
+long offsetAccumulatorL, offsetAccumulatorR, offsetAccumulatorW;
 unsigned int offsetAccumulatorCounter;
 
 
@@ -67,7 +69,11 @@ unsigned int offsetAccumulatorCounter;
 // 2 last readings for median filter
 int measLast1[NUM_PIDS];
 int measLast2[NUM_PIDS];
+int measLast1PI[NUM_PI_NO_AMS];
+int measLast2PI[NUM_PI_NO_AMS];
 int bemf[NUM_PIDS];
+int bemfextra[2];
+int vloadcell;
 
 
 // -------------------------------------------
@@ -78,6 +84,10 @@ void pidSetup()
 	for(i = 0; i < NUM_PIDS; i++){
 		initPIDObjPos( &(pidObjs[i]), DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, DEFAULT_KAW, DEFAULT_FF); 
 	}
+
+        for(i = 0; i < NUM_PI_NO_AMS; i++){
+		initPIObjPos( &(piObjs[i]), DEFAULT_KP, DEFAULT_KI, DEFAULT_KAW, DEFAULT_FF);
+	}
 	initPIDVelProfile();
 	SetupTimer1();  // main interrupt used for leg motor PID
 
@@ -85,6 +95,8 @@ void pidSetup()
 //  initialize PID structures before starting Timer1
 	pidSetInput(0,0);
 	pidSetInput(1,0);
+        piSetInput(0,0);
+        piSetSensorOffset(0);
 	
 	EnableIntT1; // turn on pid interrupts
 
@@ -145,7 +157,6 @@ void setPIDVelProfile(int pid_num, int *interval, int *delta, int *vel, int once
     }
 }
 
-
 // called from pidSetup()
 void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff)
 {
@@ -158,12 +169,27 @@ void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff)
     pid->Ki= Ki;
     pid->Kd = Kd;
     pid->Kaw = Kaw; 
-	pid->feedforward = 0;
+	pid->feedforward = ff;
   pid->output = 0;
     pid->onoff = 0;
 	pid->p_error = 0;
 	pid->v_error = 0;
 	pid->i_error = 0;
+}
+
+void initPIObjPos(piWinch *pi, int Kp, int Ki, int Kaw, int ff)
+{
+    pi->p_input = 0;
+    pi->p = 0;
+    pi->i = 0;
+    pi->Kp = Kp;
+    pi->Ki= Ki;
+    pi->Kaw = Kaw;
+	pi->feedforward = ff;
+  pi->output = 0;
+    pi->onoff = 0;
+	pi->p_error = 0;
+	pi->i_error = 0;
 }
 
 
@@ -199,14 +225,32 @@ unsigned long temp;
 
 }
 
+// called from set thrust closed loop, etc. Thrust
+void piSetInput(int pi_num, int input_val){
+    piObjs[pi_num].start_time = t1_ticks;
+    //zero out running PID values
+    piObjs[pi_num].i_error = 0;
+    piObjs[pi_num].p = 0;
+    piObjs[pi_num].i = 0;
+    piObjs[pi_num].p_input = ((long) input_val);
+	//Seed the median filters
+        bemfextra[0] = 0; // MotorC
+        bemfextra[1] = 0; // MotorD
+	measLast1PI[pi_num] = 0;
+	measLast2PI[pi_num] = 0;
+
+}
+
 void pidStartTimedTrial(unsigned int run_time){
     unsigned long temp;
 
     temp = t1_ticks;  // need atomic read due to interrupt  
     pidObjs[0].run_time = run_time;
     pidObjs[1].run_time = run_time;
+    piObjs[0].run_time = run_time;
     pidObjs[0].start_time = temp;
     pidObjs[1].start_time = temp;
+    piObjs[0].start_time = temp;
     if ((temp + (unsigned long) run_time) > lastMoveTime)
     { lastMoveTime = temp + (unsigned long) run_time; }  // set run time to max requested time
 }
@@ -220,9 +264,20 @@ void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff){
 	pidObjs[pid_num].feedforward = ff;
 }
 
+void piSetGains(int pi_num, int Kp, int Ki, int Kaw, int ff){
+    piObjs[pi_num].Kp  = Kp;
+    piObjs[pi_num].Ki  = Ki;
+    piObjs[pi_num].Kaw = Kaw;
+	piObjs[pi_num].feedforward = ff;
+}
+
 void pidOn(int pid_num){
 	pidObjs[pid_num].onoff = 1;
 	t1_ticks = 0;
+}
+
+void piOn(int pi_num){
+	piObjs[pi_num].onoff = 1;
 }
 
 // zero position setpoint for both motors (avoids big offset errors)
@@ -238,6 +293,12 @@ void pidZeroPos(int pid_num){
 	EnableIntT1; // turn on pid interrupts
 }
 
+// find zero load point for winch ir sensor
+void piSetSensorOffset(int pi_num){
+// disable interrupts to reset state variables
+	piObjs[pi_num].sensorOffset = adcGetVload();
+}
+
 
 // calibrate A/D offset, using PWM synchronized A/D reads inside 
 // timer 1 interrupt loop
@@ -248,18 +309,23 @@ void calibBatteryOffset(int spindown_ms){
 // save current PWM config
 	int tempPDC1 = PDC1;
 	int tempPDC2 = PDC2;
-	PDC1 = 0; PDC2 = 0;  /* SFR for PWM? */
+        int tempPDC3 = PDC3;
+	PDC1 = 0; PDC2 = 0; PDC3 = 0;  /* SFR for PWM? */
 
 // save current PID status, and turn off PID control
 	short tempPidObjsOnOff[NUM_PIDS];
+        short tempPiObjsOnOff[NUM_PI_NO_AMS];
 	tempPidObjsOnOff[0] = pidObjs[0].onoff;
 	tempPidObjsOnOff[1] = pidObjs[1].onoff;
+        tempPiObjsOnOff[0] = piObjs[0].onoff;
 	pidObjs[0].onoff = 0; pidObjs[1].onoff = 0;
+        piObjs[0].onoff = 0;
 
 	delay_ms(spindown_ms); //motor spin-down
 	LED_RED = 1;
 	offsetAccumulatorL = 0;
-	offsetAccumulatorR = 0; 
+	offsetAccumulatorR = 0;
+        offsetAccumulatorW = 0;
 	offsetAccumulatorCounter = 0; // updated inside servo loop
 	calib_flag = 1;  // enable calibration
 	while(offsetAccumulatorCounter < 100); // wait for 100 samples
@@ -275,12 +341,19 @@ void calibBatteryOffset(int spindown_ms){
 	temp = temp/(long)offsetAccumulatorCounter;
 	pidObjs[1].inputOffset = (int) temp;
 
+	//Winch
+	temp = offsetAccumulatorW;
+	temp = temp/(long)offsetAccumulatorCounter;
+	piObjs[0].bemfOffset = (int) temp;
+
 	LED_RED = 0;
 // restore PID values
 	PDC1 = tempPDC1;
 	PDC2 = tempPDC2;
+        PDC3 = tempPDC3;
 	pidObjs[0].onoff = tempPidObjsOnOff[0];
 	pidObjs[1].onoff = tempPidObjsOnOff[1];
+        piObjs[0].onoff = tempPiObjsOnOff[0];
 }
 
 
@@ -293,9 +366,11 @@ void EmergencyStop(void)
 {
 	pidSetInput(0, 0);
 	pidSetInput(1, 0);
+        piSetInput(0, 0);
 	DisableIntT1; // turn off pid interrupts
        SetDCMCPWM(MC_CHANNEL_PWM1, 0, 0);    // set PWM to zero
-       SetDCMCPWM(MC_CHANNEL_PWM2, 0, 0); 
+       SetDCMCPWM(MC_CHANNEL_PWM2, 0, 0);
+       SetDCMCPWM(MC_CHANNEL_PWM3, 0, 0);
 }
 	
 
@@ -353,16 +428,34 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
                 }
             }
         }
+
         if (pidObjs[0].mode == 0)
         {
-        pidSetControl();
-        } else if (pidObjs[0].mode == 1)
+            pidSetControl();
+        }
+        else if (pidObjs[0].mode == 1)
         {
             tiHSetDC(1, pidObjs[0].pwmDes);
             tiHSetDC(2, pidObjs[1].pwmDes);
         }
 
-        if(pidObjs[0].onoff) {
+        // Only execute winch measurements/control if the pi object is turned on
+        if(piObjs[0].onoff){
+
+            if (piObjs[0].timeFlag){
+                    if (piObjs[0].start_time + piObjs[0].run_time >= t1_ticks){
+                        piGetState();
+                    }
+                    if(t1_ticks > lastMoveTime){ // turn off if done running all legs
+                        piObjs[0].onoff = 0;
+                    }
+            }
+
+        }
+
+        piSetControl();
+
+//        if(pidObjs[0].onoff) {
             //telemGetPID();
 //            telemSaveNow();
             //TODO: Telemetry save should not be tied to the on/off state of the PID controller. Removed for now. needs to be checked. (ronf, pullin, dhaldane)
@@ -375,7 +468,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
             //     paySetStatus(uart_tx_packet->payload, 0);
             //     paySetData(uart_tx_packet->payload, sizeof(telemStruct_t), (unsigned char *) &telemPIDdata);
             //     uart_tx_flag = 1;
-        }
+//        }
     }
     LED_3 = 0;
     _T1IF = 0;
@@ -519,15 +612,79 @@ int measurements[NUM_PIDS];
 #endif
 }
 
+void piGetState()
+{   int i;
+
+//	calib_flag = 0;  //BEMF disable
+// get diff amp offset with motor off at startup time
+	if(calib_flag)
+	{
+		offsetAccumulatorW += adcGetMotorC();  }
+
+    bemfextra[0] = piObjs[0].bemfOffset - adcGetMotorC(); // MotorC
+    bemfextra[1] = piObjs[0].bemfOffset - adcGetMotorD(); // MotorD
+
+    vloadcell = adcGetVload(); // Load cell
+
+int measurements[NUM_PI_NO_AMS];
+// Battery: AN0, MotorA AN8, MotorB AN9, MotorC AN10, MotorD AN11
+	measurements[0] = bemfextra[0]; // watch sign for A/D? unsigned int -> signed?
+
+
+//Get motor speed reading on every interrupt - A/D conversion triggered by PWM timer to read Vm when transistor is off
+// when motor is loaded, sometimes see motor short so that  bemf=offset voltage
+// get zero sometimes - open circuit brush? Hence try median filter
+	for(i = 0; i<NUM_PI_NO_AMS; i++) 	// median filter
+	{	if(measurements[i] > measLast1PI[i])
+		{	if(measLast1PI[i] > measLast2PI[i]) {bemfextra[i] = measLast1PI[i];}  // middle value is median
+			else // middle is smallest
+	     		{ if(measurements[i] > measLast2PI[i]) {bemfextra[i] = measLast2PI[i];} // 3rd value is median
+                        else{ bemfextra[i] = measurements[i];}  // first value is median
+            	}
+      	}
+		else  // first is not biggest
+		{	if(measLast1PI[i] < measLast2PI[i]) {bemfextra[i] = measLast1PI[i];}  // middle value is median
+			else  // middle is biggest
+	     		{    if(measurements[i] < measLast2PI[i]) {bemfextra[i] = measLast2PI[i];} // 3rd value is median
+		     		else
+				{ bemfextra[i] = measurements[i];  // first value is median
+				}
+			}
+		}
+	} // end for
+// store old values
+	measLast2PI[0] = measLast1PI[0];  measLast1PI[0] = measurements[0];
+
+// record current load
+        piObjs[0].p_state = ((long) piObjs[0].sensorOffset - (long) vloadcell)*((long) K_LOAD_CELL);
+
+}
+
 
 void pidSetControl()
 { int j;
+    long p_mod_error;
 // 0 = right side
     for(j=0; j < NUM_PIDS; j++)
    {  //pidobjs[0] : right side
 	// p_input has scaled velocity interpolation to make smoother
 	// p_state is [16].[16]
+        // Begin changes for mod 2 pi
         	pidObjs[j].p_error = pidObjs[j].p_input + pidObjs[j].interpolate  - pidObjs[j].p_state;
+                p_mod_error = (pidObjs[j].p_error & 0x0000ffff); // Clobber the MSBs corresponding to full revolutions
+
+                if (p_mod_error < ERR_FWD_BOUND)
+                {
+                    pidObjs[j].p_error = p_mod_error; //Take the mod 2 pi error if you're behind in the cycle
+                }
+                else if (p_mod_error > ERR_BWD_BOUND)
+                {
+                    pidObjs[j].p_error = p_mod_error - 65535; //Take the mod 2 pi error shifted down by 2 pi if you're ahead in the cycle
+                }
+                else
+                {
+                    pidObjs[j].p_error = 0; // Wait for reference if you're too far away from it
+                }
             pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state;  // v_input should be revs/sec
             //Update values
             UpdatePID(&(pidObjs[j]));
@@ -542,11 +699,43 @@ void pidSetControl()
 		{ tiHSetDC(1,0); tiHSetDC(2,0); }	
 }
 
+void piSetControl()
+{            
+
+    if(piObjs[0].onoff)
+    {
+        // mode = 1 unwind only above input, no PI controller
+        if(piObjs[0].mode)
+        {
+            if(piObjs[0].p_state > piObjs[0].p_input)
+            {
+                piObjs[0].output = -MAXTHROT;
+            }
+            else
+            {
+                piObjs[0].output = 0;
+            }
+        }
+        // mode = 0 PI controller on load
+        else
+        {
+            piObjs[0].p_error = piObjs[0].p_input - piObjs[0].p_state; //long hundreths of grams error
+            UpdatePI(&(piObjs[0])); //update PI controller
+        }
+
+        tiHSetDC(3, piObjs[0].output);
+   }
+   else // turn off motors if PID loop is off
+   {
+        tiHSetDC(3,0);
+   }
+}
+
 
 void UpdatePID(pidPos *pid)
 {
     pid->p = ((long)pid->Kp * pid->p_error) >> 12 ;  // scale so doesn't over flow
-    pid->i = (long)pid->Ki  * pid->i_error >>12 ;
+    pid->i = (long)pid->Ki  * pid->i_error >> 12 ;
     pid->d=(long)pid->Kd *  (long) pid->v_error;
     // better check scale factors
 
@@ -568,10 +757,51 @@ void UpdatePID(pidPos *pid)
 	}      
 	if (pid->preSat < -MAXTHROT)
       { 	      pid->output = -MAXTHROT; 
-			pid->i_error = (long) pid->i_error + 
-				(long)(pid->Kaw) * ((long)(MAXTHROT) - (long)(pid->preSat)) 
+			pid->i_error = (long) pid->i_error +
+				(long)(pid->Kaw) * ((long)(-MAXTHROT) - (long)(pid->preSat))
 				/ ((long)GAIN_SCALER);		
 	}      
 }
 
+void UpdatePI(piWinch *pi)
+{
 
+    //Kp ranges 0 to 100, Ki and Kaw from 0 to 100, ff 0 to 4096
+    pi->p = ((long)pi->Kp * pi->p_error) >> 6;  // scale so that gain of ~100 and 25 g error saturates output
+    pi->i = ((long)pi->Ki * pi->i_error) >> 6;  // scale so that gain of ~100 and 5 g error over 350 ms saturates output
+
+    //Because of worm gear drive having significant static friction to overcome,
+    //add feedforward term depending on proportional error
+    if(pi->p_error > 0)
+    {
+        pi->preSat = pi->p + pi->i + pi->feedforward;
+    }
+    else if(pi->p_error < 0)
+    {
+        pi->preSat = pi->p + pi->i - pi->feedforward;
+    }
+    else
+    {
+        pi->preSat = pi->p + pi->i;
+    }
+
+    pi->output = pi->preSat;
+
+    pi->i_error = (long)pi->i_error + ((long)pi->p_error >> 6); // integrate error
+// saturate output - assume only worry about >0 for now
+// apply anti-windup to integrator
+    if (pi->preSat > MAXTHROT)
+	{
+            pi->output = MAXTHROT;
+            pi->i_error = (long) pi->i_error +
+                            (long)(pi->Kaw) * ((long)(MAXTHROT) - (long)(pi->preSat))
+                            / ((long)GAIN_SCALER);
+	}
+    if (pi->preSat < -MAXTHROT)
+      {
+        pi->output = -MAXTHROT;
+        pi->i_error = (long) pi->i_error +
+                        (long)(pi->Kaw) * ((long)(-MAXTHROT) - (long)(pi->preSat))
+                        / ((long)GAIN_SCALER);
+	}
+}

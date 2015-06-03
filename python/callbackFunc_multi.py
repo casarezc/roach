@@ -15,6 +15,7 @@ pktFormat = { \
     command.SET_THRUST_OPEN_LOOP:   '', \
     command.PID_START_MOTORS:       '', \
     command.SET_PID_GAINS:          '10h', \
+    command.SET_PI_GAINS_WINCH:     '4h', \
     command.GET_PID_TELEMETRY:      '', \
     command.GET_AMS_POS:            '=2l', \
     command.GET_IMU_LOOP_ZGYRO:     '='+2*'Lhhh', \
@@ -22,12 +23,14 @@ pktFormat = { \
     command.SET_STEERING_GAINS:     '6h', \
     command.SOFTWARE_RESET:         '', \
     command.ERASE_SECTORS:          'L', \
-    command.FLASH_READBACK:         '=LL' +'4l'+'11h', \
+    command.FLASH_READBACK:         '=LL' +'4l'+'16h', \
     command.SLEEP:                  'b', \
     command.ECHO:                   'c' ,\
     command.SET_VEL_PROFILE:        '8h' ,\
     command.WHO_AM_I:               '', \
     command.ZERO_POS:               '=2l', \
+    command.SET_WINCH_LOAD:         '2h', \
+    command.ZERO_LOAD_CELL:         '2h', \
     }
                
 #XBee callback function, called every time a packet is recieved
@@ -88,6 +91,26 @@ def xbee_received(packet):
             for r in shared.ROBOTS:
                 if r.DEST_ADDR_int == src_addr:
                     r.motor_gains_set = True
+
+        # SET_PI_GAINS_WINCH
+        elif type == command.SET_PI_GAINS_WINCH:
+            gains = unpack(pattern, data)
+            print "Set winch gains to ", gains
+            for r in shared.ROBOTS:
+                if r.DEST_ADDR_int == src_addr:
+                    r.winch_gains_set = True
+
+        # SET_WINCH_LOAD
+        elif type == command.SET_WINCH_LOAD:
+            print "Set Winch Load readback:"
+            temp = unpack(pattern, data)
+            print "Winch load:",temp[0]/100,"g, Winch mode:",temp[1]
+
+        # ZERO_LOAD_CELL
+        elif type == command.ZERO_LOAD_CELL:
+            print 'Load cell zero established. Previous, current zero reading:',
+            sensor = unpack(pattern,data)
+            print sensor
         
         # FLASH_READBACK
         elif type == command.FLASH_READBACK:

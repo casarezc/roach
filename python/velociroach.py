@@ -16,6 +16,7 @@ PHASE_180_DEG = 0x8000
 
 class GaitConfig:
     motorgains = None
+    winchgains = None
     duration = None
     rightFreq = None
     leftFreq = None
@@ -23,11 +24,16 @@ class GaitConfig:
     repeat = None
     deltasLeft = None
     deltasRight = None
-    def __init__(self, motorgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None):
+    def __init__(self, motorgains = None, winchgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None):
         if motorgains == None:
             self.motorgains = [0,0,0,0,0 , 0,0,0,0,0]
         else:
             self.motorgains = motorgains
+
+        if winchgains == None:
+             self.winchgains = [0,0,0,0]
+        else:
+            self.winchgains = winchgains   
         
         self.duration = duration
         self.rightFreq = rightFreq
@@ -38,6 +44,7 @@ class GaitConfig:
         
 class Velociroach:
     motor_gains_set = False
+    winch_gains_set = False
     robot_queried = False
     flash_erased = False
     
@@ -85,7 +92,7 @@ class Velociroach:
     
     #TODO: getting flash erase to work is critical to function testing (pullin)    
     #existing VR firmware does not send a packet when the erase is done, so this will hang and retry.
-    def eraseFlashMem(self, timeout = 8):
+    def eraseFlashMem(self, timeout = 30):
         eraseStartTime = time.time()
         self.tx( 0, command.ERASE_SECTORS, pack('L',self.numSamples))
         self.clAnnounce()
@@ -109,6 +116,23 @@ class Velociroach:
         print "Starting timed run of",duration," ms"
         self.tx( 0, command.START_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
+
+    def startTimedRunWinch(self, duration):
+        self.clAnnounce()
+        print "Starting timed run with winch of",duration," ms"
+        self.tx( 0, command.START_TIMED_RUN_WINCH, pack('h', duration))
+        time.sleep(0.05)
+
+    def setWinchLoad(self, load, mode):
+        self.clAnnounce()
+        print "Setting winch load to",load/100,"g winch mode to",mode,"(0:PI, 1:unwind)"
+        cmdtemp = [load, mode]
+        self.tx( 0, command.SET_WINCH_LOAD, pack('2h', *cmdtemp))
+        time.sleep(0.05)
+
+    def zeroLoadCell(self):
+        self.tx( 0, command.ZERO_LOAD_CELL, 'zero') #actual data sent in packet is not relevant
+        time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
         
     def findFileName(self):   
         # Construct filename
@@ -124,7 +148,12 @@ class Velociroach:
     def setVelProfile(self, gaitConfig):
         self.clAnnounce()
         print "Setting stride velocity profile to: "
-        
+
+
+        if gaitConfig.leftFreq == 0:
+            gaitConfig.leftFreq =  0.1;
+        if gaitConfig.rightFreq == 0:
+            gaitConfig.rightFreq = 0.1;
         periodLeft = 1000.0 / gaitConfig.leftFreq
         periodRight = 1000.0 / gaitConfig.rightFreq
         
@@ -155,7 +184,7 @@ class Velociroach:
             self.tx( 0, command.SET_MOTOR_MODE, pack('10h',*gains))
             tries = tries + 1
             time.sleep(0.1)
-    
+
     ######TODO : sort out this function and flashReadback below
     def downloadTelemetry(self, timeout = 5, retry = True):
         #suppress callback output messages for the duration of download
@@ -199,7 +228,7 @@ class Velociroach:
         #Final update to download progress bar to make it show 100%
         dlProgress(self.numSamples-self.telemtryData.count([]) , self.numSamples)
         #totBytes = 52*self.numSamples
-        totBytes = 52*(self.numSamples - self.telemtryData.count([]))
+        totBytes = 54*(self.numSamples - self.telemtryData.count([]))
         datarate = totBytes / dlTime / 1000.0
         print '\n'
         #self.clAnnounce()
@@ -213,12 +242,14 @@ class Velociroach:
         print ""
         self.saveTelemetryData()
         #Done with flash download and save
-
     def saveTelemetryData(self):
         self.findFileName()
         self.writeFileHeader()
         fileout = open(self.dataFileName, 'a')
-        np.savetxt(fileout , np.array(self.telemtryData), self.telemFormatString, delimiter = ',')
+        
+        sanitized = [item for item in self.telemtryData if item!= []];
+        
+        np.savetxt(fileout , np.array(sanitized), self.telemFormatString, delimiter = ',')
         fileout.close()
         self.clAnnounce()
         print "Telemetry data saved to", self.dataFileName
@@ -240,7 +271,7 @@ class Velociroach:
         fileout.write('%  Motor Gains    = ' + repr(self.currentGait.motorgains) + '\n')
         fileout.write('% Columns: \n')
         # order for wiring on RF Turner
-        fileout.write('% time | Right Leg Pos | Left Leg Pos | Commanded Right Leg Pos | Commanded Left Leg Pos | DCR | DCL | GyroX | GryoY | GryoZ | AX | AY | AZ | RBEMF | LBEMF | VBatt\n')
+        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | DCC | DCD | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | BEMFC | BEMFD| VLoad | VBatt\n')
         fileout.close()
 
     def setupTelemetryDataTime(self, runtime):
@@ -281,16 +312,28 @@ class Velociroach:
             self.tx( 0, command.SET_PID_GAINS, pack('10h',*gains))
             tries = tries + 1
             time.sleep(0.3)
+
+    def setWinchGains(self, gains, retries = 8):
+        tries = 1
+        self.winchGains = gains
+        while not(self.winch_gains_set) and (tries <= retries):
+            self.clAnnounce()
+            print "Setting winch gains...   ",tries,"/8"
+            self.tx( 0, command.SET_PI_GAINS_WINCH, pack('4h',*gains))
+            tries = tries + 1
+            time.sleep(0.3)
             
     def setGait(self, gaitConfig):
         self.currentGait = gaitConfig
         
         self.clAnnounce()
         print " --- Setting complete gait config --- "
-        self.setPhase(gaitConfig.phase)
-        self.setMotorGains(gaitConfig.motorgains)
-        self.setVelProfile(gaitConfig) #whole object is passed in, due to several references
         self.zeroPosition()
+        self.setMotorGains(gaitConfig.motorgains)
+        self.setWinchGains(gaitConfig.winchgains)
+        self.setPhase(gaitConfig.phase)
+        self.setVelProfile(gaitConfig) #whole object is passed in, due to several references
+
         
         self.clAnnounce()
         print " ------------------------------------ "
