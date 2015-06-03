@@ -117,21 +117,22 @@ class Velociroach:
         self.tx( 0, command.START_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
 
-    def startTimedRunWinchPWM(self, duration, winchthrust):
+    def startTimedRunWinch(self, duration):
         self.clAnnounce()
-        print "Starting timed run of",duration," ms, winch thrust",winchthrust,"out of 4096"
-        cmd_temp = [duration, winchthrust]
-        self.tx( 0, command.START_TIMED_RUN_WINCH_PWM, pack('2h', *cmd_temp))
+        print "Starting timed run with winch of",duration," ms"
+        self.tx( 0, command.START_TIMED_RUN_WINCH, pack('h', duration))
         time.sleep(0.05)
 
-    def startTimedRunWinchTorque(self, duration, torque, unwindvel):
+    def setWinchLoad(self, load, mode):
         self.clAnnounce()
-        print "Starting timed run of",duration," ms, winch torque",torque,"out of 6000"
-        if torque < 0:
-            print "Unwind velocity",unwindvel,"out of 6000"
-        cmd_temp = [duration, torque , unwindvel]
-        self.tx( 0, command.START_TIMED_RUN_WINCH_TORQUE, pack('3h', *cmd_temp))
+        print "Setting winch load to",load/100,"g winch mode to",mode,"(0:PI, 1:unwind)"
+        cmdtemp = [load, mode]
+        self.tx( 0, command.SET_WINCH_LOAD, pack('2h', *cmdtemp))
         time.sleep(0.05)
+
+    def zeroLoadCell(self):
+        self.tx( 0, command.ZERO_LOAD_CELL, 'zero') #actual data sent in packet is not relevant
+        time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
         
     def findFileName(self):   
         # Construct filename

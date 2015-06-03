@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x63', xb)
-    R1.SAVE_DATA = True
-    # R1.SAVE_DATA = False
+    # R1.SAVE_DATA = True
+    R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -55,7 +55,7 @@ def main():
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [30, 20, 20, 0] 
+    winchgains = [50, 40, 40, 0] 
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
@@ -114,7 +114,9 @@ def main():
     # Set the timings of each segment of the run
     T = 5000
 
-    winchtorque = 0
+    # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
+    winchload = 37*30
+    winchmode = 1
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = T
@@ -142,7 +144,9 @@ def main():
     time.sleep(0.1)
 
     R1.setGait(slowBound)
-    R1.startTimedRunWinchTorque( T , winchtorque , 0)
+    R1.zeroLoadCell()
+    R1.setWinchLoad(winchload, winchmode)
+    R1.startTimedRunWinch( T )
 
     ## Save data after runs
     for r in shared.ROBOTS:

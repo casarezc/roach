@@ -8,12 +8,11 @@
 #define DEFAULT_KAW 0
 #define DEFAULT_FF  0
 
-#define GAIN_SCALER         100
-#define GAIN_SCALER_2   549
-#define K_VBATT         7
-#define K_VEMF          15
+#define GAIN_SCALER     100
+// Load cell calibration
+#define K_LOAD_CELL     37      //hundreth of a gram per count
 #define NUM_PIDS	2
-#define NUM_PI_NO_AMS  1
+#define NUM_PI_NO_AMS   1
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
 
@@ -71,24 +70,24 @@ typedef struct
 // pi type for winch control
 typedef struct
 {
-	long p_input; // reference torque input
-        long v_input;
-        long v_state; // back emf state
-	long p_state; // torque state
-	long p_error; // torque error
-	long i_error; // integrated torque error
-	long  p, i;   // control contributions from position, integral, and derivative gains respectively
+	long p_input; // reference load input
+//      long v_input;
+//      long v_state; // back emf state
+	long p_state; // load state
+	long p_error; // load error
+	long i_error; // integrated load error
+	long  p, i;   // control contributions from position, integral gains respectively
   	long preSat; // output value before saturations
 	int  output;	 //  control output u
  	char onoff; //boolean
- 	char mode; //Motor mode: 1 iff PWM open loop control
- 	int pwmDes; // Desired PWM
+ 	char mode; //Motor mode: 1 iff unwind on/off control
  	char timeFlag;
 	unsigned long run_time;
 	unsigned long start_time;
-	int inputOffset;  // BEMF setpoint offset
+	int bemfOffset;  // BEMF setpoint offset
+        int sensorOffset; // Load cell ambient light offset
 	int feedforward;
-    int Kp, Ki;
+        int Kp, Ki;
 	int Kaw;  // anti-windup gain
 	//Leg control variables
 } piWinch;
@@ -115,9 +114,8 @@ void initPIObjPos(piWinch *pi, int Kp, int Ki, int Kaw, int ff);
 void pidStartTimedTrial(unsigned int run_time);
 void pidSetInput(int pid_num, int input_val);
 void piSetInput(int pi_num, int input_val);
-void piSetUnwindThresh(int pi_num, int input_val);
 void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff);
-void piSetGains(int pid_num, int Kp, int Ki, int Kaw, int ff);
+void piSetGains(int pi_num, int Kp, int Ki, int Kaw, int ff);
 void pidGetState(); // update state vector from bemf and Hall angle
 void piGetState();
 void pidGetSetpoint(int j);
@@ -129,6 +127,7 @@ unsigned char* pidGetTelemetry(void);
 void pidOn(int pid_num);
 void piOn(int pid_num);
 void pidZeroPos(int pid_num);
+void piSetSensorOffset(int pi_num);
 void calibBatteryOffset(int spindown_ms);
 
 #endif // __PID_H

@@ -23,8 +23,9 @@
 #define CMD_SET_MOTOR_MODE          0x94
 
 #define CMD_SET_PI_GAINS_WINCH             0xC0
-#define CMD_START_TIMED_RUN_WINCH_TORQUE   0xC1
-#define CMD_START_TIMED_RUN_WINCH_PWM      0xC2
+#define CMD_SET_WINCH_LOAD                 0xC1
+#define CMD_ZERO_LOAD_CELL                 0xC2
+#define CMD_START_TIMED_RUN_WINCH          0xC3
 
 // Redefine
 
