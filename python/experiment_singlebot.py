@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -112,14 +112,16 @@ def main():
 
     
     # Set the timings of each segment of the run
-    T = 5000
+    T = 4000
+    T_LEAD_OUT = 1000
 
     # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
-    winchload = 37*30
-    winchmode = 1
+    # Mode = 0 PI, Mode = 1 Unwind
+    winchload = 37*60
+    winchmode = 0
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = T
+    EXPERIMENT_SAVE_TIME_MS     = T + T_LEAD_OUT
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
