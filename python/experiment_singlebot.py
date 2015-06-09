@@ -69,6 +69,11 @@ def main():
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
     slowBound.deltasRight = [0.25, 0.25, 0.25]
 
+    # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
+    # Mode = 0 PI, Mode = 1 Unwind
+    slowBound.winchSetpoint = 37*60
+    slowBound.winchMode = 0
+
     fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
     fastBound.winchgains = winchgains
     fastBound.phase = 0
@@ -115,10 +120,7 @@ def main():
     T = 4000
     T_LEAD_OUT = 1000
 
-    # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
-    # Mode = 0 PI, Mode = 1 Unwind
-    winchload = 37*60
-    winchmode = 0
+
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = T + T_LEAD_OUT
@@ -145,9 +147,8 @@ def main():
 
     time.sleep(0.1)
 
-    R1.setGait(slowBound)
     R1.zeroLoadCell()
-    R1.setWinchLoad(winchload, winchmode)
+    R1.setGait(slowBound)
     R1.startTimedRunWinch( T )
 
     ## Save data after runs

@@ -24,7 +24,9 @@ class GaitConfig:
     repeat = None
     deltasLeft = None
     deltasRight = None
-    def __init__(self, motorgains = None, winchgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None):
+    winchSetpoint = None
+    winchMode = None
+    def __init__(self, motorgains = None, winchgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None, winchSetpoint = None, winchMode = None):
         if motorgains == None:
             self.motorgains = [0,0,0,0,0 , 0,0,0,0,0]
         else:
@@ -40,6 +42,8 @@ class GaitConfig:
         self.leftFreq = leftFreq
         self.phase = phase
         self.repeat = repeat
+        self.winchSetpoint = winchSetpoint
+        self.winchMode = winchMode
         
         
 class Velociroach:
@@ -47,6 +51,7 @@ class Velociroach:
     winch_gains_set = False
     robot_queried = False
     flash_erased = False
+    winchOffset = None
     
     currentGait = GaitConfig()
 
@@ -260,15 +265,15 @@ class Velociroach:
         today = time.localtime()
         date = str(today.tm_year)+'/'+str(today.tm_mon)+'/'+str(today.tm_mday)+'  '
         date = date + str(today.tm_hour) +':' + str(today.tm_min)+':'+str(today.tm_sec)
-        fileout.write('%  Data file recorded ' + date + '\n')
+        fileout.write('%  experiment_singlebot.py casarezc/roach master branch Data file recorded ' + date + '\n')
 
         fileout.write('%  Stride Frequency         = ' +repr( [ self.currentGait.leftFreq, self.currentGait.leftFreq]) + '\n')
-        fileout.write('%  Lead In /Lead Out        = ' + '\n')
         fileout.write('%  Deltas (Fractional)      = ' + repr(self.currentGait.deltasLeft) + ',' + repr(self.currentGait.deltasRight) + '\n')
         fileout.write('%  Phase                    = ' + repr(self.currentGait.phase) + '\n')
             
-        fileout.write('%  Experiment.py \n')
         fileout.write('%  Motor Gains    = ' + repr(self.currentGait.motorgains) + '\n')
+        fileout.write('%  Winch Gains = ' + repr(self.currentGait.winchgains) + '\n')
+        fileout.write('%  Winch: Mode, Setpoint (hundreths of grams), Offset (counts) = ' + repr([self.currentGait.winchMode, self.currentGait.winchSetpoint, self.winchOffset]) + '\n')
         fileout.write('% Columns: \n')
         # order for wiring on RF Turner
         fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | DCC | DCD | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | BEMFC | BEMFD| VLoad | VBatt\n')
@@ -332,7 +337,9 @@ class Velociroach:
         self.setMotorGains(gaitConfig.motorgains)
         self.setWinchGains(gaitConfig.winchgains)
         self.setPhase(gaitConfig.phase)
-        self.setVelProfile(gaitConfig) #whole object is passed in, due to several references
+        self.setVelProfile(gaitConfig) #whole object is passed in, due to several reference
+
+        self.setWinchLoad(gaitConfig.winchSetpoint, gaitConfig.winchMode)
 
         
         self.clAnnounce()

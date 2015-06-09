@@ -111,6 +111,7 @@ def xbee_received(packet):
             print 'Load cell zero established. Previous, current zero reading:',
             sensor = unpack(pattern,data)
             print sensor
+            r.winchOffset = sensor[1]
         
         # FLASH_READBACK
         elif type == command.FLASH_READBACK:
