@@ -20,12 +20,14 @@
 #define CMD_START_TIMED_RUN         0x91 
 #define CMD_PID_STOP_MOTORS         0x92         
 #define CMD_SET_PHASE               0x93         
-#define CMD_SET_MOTOR_MODE          0x94
+#define CMD_SET_DRIVE_PWM          0x94
 
 #define CMD_SET_PI_GAINS_WINCH             0xC0
 #define CMD_WIND_JUMPER                    0xC1
 #define CMD_START_TIMED_RUN_JUMP_PWM       0xC2
-
+#define CMD_SET_JUMPER_PWM                 0xC3
+#define CMD_JUMPER_START_MOTOR             0xC4
+#define CMD_JUMPER_STOP_MOTOR              0xC5
 // Redefine
 
 void cmdSetup(void);

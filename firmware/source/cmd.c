@@ -42,11 +42,14 @@ static unsigned char cmdGetAMSPos(unsigned char type, unsigned char status, unsi
 
 //Motor and PID functions
 static unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-static unsigned char cmdSetMotorMode(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetDrivePWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetJumperPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetPIDGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetPIGainsWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdPIDStartMotors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdJumperStartMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdPIDStopMotors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdJumperStopMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -72,8 +75,10 @@ void cmdSetup(void) {
     cmd_func[CMD_TEST_RADIO] = &test_radio;
     cmd_func[CMD_TEST_MPU] = &test_mpu;
     cmd_func[CMD_SET_THRUST_OPEN_LOOP] = &cmdSetThrustOpenLoop;
-    cmd_func[CMD_SET_MOTOR_MODE] = &cmdSetMotorMode;
+    cmd_func[CMD_SET_DRIVE_PWM] = &cmdSetDrivePWM;
+    cmd_func[CMD_SET_JUMPER_PWM] = &cmdSetJumperPWM;
     cmd_func[CMD_PID_START_MOTORS] = &cmdPIDStartMotors;
+    cmd_func[CMD_JUMPER_START_MOTOR] = &cmdJumperStartMotor;
     cmd_func[CMD_SET_PID_GAINS] = &cmdSetPIDGains;
     cmd_func[CMD_SET_PI_GAINS_WINCH] = &cmdSetPIGainsWinch;
     cmd_func[CMD_GET_AMS_POS] = &cmdGetAMSPos;
@@ -88,6 +93,7 @@ void cmdSetup(void) {
     cmd_func[CMD_WIND_JUMPER] = &cmdWindJumper;
     cmd_func[CMD_START_TIMED_RUN_JUMP_PWM] = &cmdStartTimedRunJumpPWM;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
+    cmd_func[CMD_JUMPER_STOP_MOTOR] = &cmdJumperStopMotor;
 
 }
 
@@ -265,7 +271,7 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
     return 1;
  } 
 
- unsigned char cmdSetMotorMode(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+ unsigned char cmdSetDrivePWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 
 
     int thrust1 = frame[0] + (frame[1] << 8);
@@ -273,6 +279,18 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
 
     pidObjs[0].pwmDes = thrust1;
     pidObjs[1].pwmDes = thrust2;
+
+    pidObjs[0].mode = 1;
+
+    return 1;
+ }
+
+  unsigned char cmdSetJumperPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+
+    int thrust = frame[0] + (frame[1] << 8);
+
+    piObjs[0].pwmDes = thrust;
 
     pidObjs[0].mode = 1;
 
@@ -378,9 +396,21 @@ unsigned char cmdPIDStartMotors(unsigned char type, unsigned char status, unsign
     return 1;
 }
 
+unsigned char cmdJumperStartMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    piObjs[0].timeFlag = 0;
+    piSetInput(0, 0);
+    piOn(0);
+    return 1;
+}
+
 unsigned char cmdPIDStopMotors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     pidObjs[0].onoff = 0;
     pidObjs[1].onoff = 0;
+    return 1;
+}
+
+unsigned char cmdJumperStopMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    piObjs[0].onoff = 0;
     return 1;
 }
 
