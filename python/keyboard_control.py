@@ -132,6 +132,7 @@ def main():
         elif keypress == 'v':
             R1.stopJumperMotor()
             R1.stopDriveMotors()
+            jump_PWM = 0
             left_PWM = 0
             right_PWM = 0
         elif keypress == 'r':
