@@ -333,6 +333,35 @@ class Velociroach:
     def zeroPosition(self):
         self.tx( 0, command.ZERO_POS, 'zero') #actual data sent in packet is not relevant
         time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
+
+    def startDriveMotors(self):
+        self.tx( 0 , command.PID_START_MOTORS, 'start')
+        self.clAnnounce()
+        print "Starting drive motors"
+
+    def stopDriveMotors(self):
+        self.tx( 0 , command.PID_STOP_MOTORS, 'stop')
+        self.clAnnounce()
+        print "Stopping drive motors"
+
+    def setDrivePWM(self, leftPWM, rightPWM):
+        cmd_temp = [leftPWM, rightPWM]
+        self.tx( 0 , command.SET_DRIVE_PWM, pack('2h',*cmd_temp))
+        print "Setting drive PWM to left:",leftPWM,", right:",rightPWM," out of 4096"
+
+    def startJumperMotor(self):
+        self.tx( 0 , command.JUMPER_START_MOTOR, 'start')
+        self.clAnnounce()
+        print "Starting jumper motor"
+
+    def stopJumperMotor(self):
+        self.tx( 0 , command.JUMPER_STOP_MOTOR, 'stop')
+        self.clAnnounce()
+        print "Stopping jumper motor"
+
+    def setJumperPWM(self, jumpPWM):
+        self.tx( 0 , command.SET_JUMPER_PWM, pack('h',jumpPWM))
+        print "Setting jumper PWM to ",jumpPWM," out of 4096"
         
 ########## Helper functions #################
 #TODO: find a home for these? Possibly in BaseStation class (pullin, abuchan)

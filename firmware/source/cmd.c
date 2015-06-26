@@ -292,7 +292,7 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
 
     piObjs[0].pwmDes = thrust;
 
-    pidObjs[0].mode = 1;
+    piObjs[0].mode = 1;
 
     return 1;
  }
