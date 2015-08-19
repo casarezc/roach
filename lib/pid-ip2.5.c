@@ -72,6 +72,7 @@ int measLast1PI[NUM_PI_NO_AMS];
 int measLast2PI[NUM_PI_NO_AMS];
 int bemf[NUM_PIDS];
 int bemfextra[2];
+int ADXL377[3];
 
 
 // -------------------------------------------
@@ -409,6 +410,8 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
     {
         interrupt_count = 0;
 
+        ADXL377GetAcc();
+
         if (t1_ticks == T1_MAX) t1_ticks = 0;
         t1_ticks++;
         pidGetState();	// always update state, even if motor is coasting
@@ -443,7 +446,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
             tiHSetDC(2, 0);
         }
 
-        // Only execute winch measurements/control if the pi object is turned on
+        // Only execute winch measurements if the pi object is turned on
         if(piObjs[0].onoff){
 
             if (piObjs[0].timeFlag){
@@ -623,6 +626,13 @@ int measurements[NUM_PIDS];
     if((measurements[0] > 0)) { LED_BLUE = 1;}
     else{ LED_BLUE = 0;}
 #endif
+}
+
+void ADXL377GetAcc()
+{
+    ADXL377[0] = adcGetAccx;
+    ADXL377[1] = adcGetAccy;
+    ADXL377[2] = adcGetAccz;
 }
 
 void piGetState()

@@ -23,6 +23,7 @@ extern int bemf[NUM_PIDS];
 extern int bemfextra[2];
 extern pidPos pidObjs[NUM_PIDS];
 extern piWinch piObjs[NUM_PI_NO_AMS];
+extern int ADXL377[3];
 
 //void vrTelemGetData(unsigned char* ptr) {
 void vrTelemGetData(vrTelemStruct_t* ptr) {
@@ -57,6 +58,11 @@ void vrTelemGetData(vrTelemStruct_t* ptr) {
     ptr->accelX = xldata[0];
     ptr->accelY = xldata[1];
     ptr->accelZ = xldata[2];
+
+    //ADXL377 channels
+    ptr->ADXL377X = ADXL377[0];
+    ptr->ADXL377Y = ADXL377[1];
+    ptr->ADXL377Z = ADXL377[2];
 
     //Battery
     ptr->Vbatt = (int) adcGetVbatt();

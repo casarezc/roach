@@ -19,6 +19,9 @@ typedef struct {
     int16_t accelX;
     int16_t accelY;
     int16_t accelZ;
+    int16_t ADXL377X;
+    int16_t ADXL377Y;
+    int16_t ADXL377Z;
     int16_t bemfL;
     int16_t bemfR;
     int16_t bemfC;

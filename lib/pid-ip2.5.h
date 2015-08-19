@@ -119,6 +119,7 @@ void piSetUnwindThresh(int pi_num, int input_val);
 void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff);
 void piSetGains(int pid_num, int Kp, int Ki, int Kaw, int ff);
 void pidGetState(); // update state vector from bemf and Hall angle
+void ADXL377GetAcc(); // Get function for accelerometer connected to analog inputs
 void piGetState();
 void pidGetSetpoint(int j);
 void checkSwapBuff(int j);
