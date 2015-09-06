@@ -439,18 +439,14 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
             tiHSetDC(2, pidObjs[1].pwmDes);
         }
 
-        // Only execute winch measurements/control if the pi object is turned on
+        // Always execute winch measurements/control even if the pi object is turned off
+        piGetState();
         if(piObjs[0].onoff){
-
             if (piObjs[0].timeFlag){
-                    if (piObjs[0].start_time + piObjs[0].run_time >= t1_ticks){
-                        piGetState();
-                    }
-                    if(t1_ticks > lastMoveTime){ // turn off if done running all legs
-                        piObjs[0].onoff = 0;
-                    }
+                if(t1_ticks > lastMoveTime){ // turn off if done running all legs
+                    piObjs[0].onoff = 0;
+                }
             }
-
         }
 
         piSetControl();

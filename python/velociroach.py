@@ -36,14 +36,22 @@ class GaitConfig:
              self.winchgains = [0,0,0,0]
         else:
             self.winchgains = winchgains   
+
+        if winchSetpoint == None:
+            self.winchSetpoint = 0
+        else:
+            self.winchSetpoint = winchSetpoint
+
+        if winchMode == None:
+            self.winchMode = 0
+        else:
+            self.winchMode = winchMode
         
         self.duration = duration
         self.rightFreq = rightFreq
         self.leftFreq = leftFreq
         self.phase = phase
         self.repeat = repeat
-        self.winchSetpoint = winchSetpoint
-        self.winchMode = winchMode
         
         
 class Velociroach:

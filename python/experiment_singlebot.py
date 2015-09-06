@@ -24,9 +24,9 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x63', xb)
-    #R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1 = Velociroach('\x21\x62', xb)
+    R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -63,7 +63,7 @@ def main():
     #winchPWM = 0
 
     ## Set up different gaits to be used in the trials
-    slowBound = GaitConfig(motorgains, rightFreq=0, leftFreq=0)
+    slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
     slowBound.winchgains = winchgains
     slowBound.phase = 0
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
@@ -74,7 +74,7 @@ def main():
     slowBound.winchSetpoint = 37*60
     slowBound.winchMode = 0
 
-    fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
+    fastBound = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
     fastBound.winchgains = winchgains
     fastBound.phase = 0
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
@@ -91,7 +91,7 @@ def main():
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=15, leftFreq=15)
+    fastAltTripod = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
     fastAltTripod.phase = PHASE_180_DEG                           
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
@@ -147,9 +147,11 @@ def main():
 
     time.sleep(0.1)
 
-    R1.zeroLoadCell()
-    R1.setGait(slowBound)
-    R1.startTimedRunWinch( T )
+    # R1.zeroLoadCell()
+    R1.setGait(fastBound)
+    # R1.setGait(slowBound)
+    # R1.startTimedRunWinch( T )
+    R1.startTimedRun( T )
 
     ## Save data after runs
     for r in shared.ROBOTS:
