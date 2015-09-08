@@ -138,7 +138,7 @@ class Velociroach:
 
     def setWinchLoad(self, load, mode):
         self.clAnnounce()
-        print "Setting winch load to",load/100,"g winch mode to",mode,"(0:PI, 1:unwind)"
+        print "Setting winch load to",load/100,"g winch mode to",mode," (0:PI, 1:unwind)"
         cmdtemp = [load, mode]
         self.tx( 0, command.SET_WINCH_LOAD, pack('2h', *cmdtemp))
         time.sleep(0.05)
@@ -146,6 +146,13 @@ class Velociroach:
     def zeroLoadCell(self):
         self.tx( 0, command.ZERO_LOAD_CELL, 'zero') #actual data sent in packet is not relevant
         time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
+
+    def setPitchThresh(self, angle, mode):
+        self.clAnnounce()
+        print "Setting pitch threshold to",angle,"degrees, trigger mode to",mode," (1: Rising, 2: Falling)"
+        cmdtemp = [angle, mode]
+        self.tx( 0, command.SET_PITCH_THRESH, pack('2h',*cmdtemp)) #actual data sent in packet is not relevant
+        time.sleep(0.2) #built-in holdoff, since reset apparently takes > 50ms
         
     def findFileName(self):   
         # Construct filename

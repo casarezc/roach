@@ -56,6 +56,7 @@ static unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char sta
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 
 //Winch commands
 static unsigned char cmdSetPIGainsWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -86,6 +87,7 @@ void cmdSetup(void) {
     cmd_func[CMD_SET_VEL_PROFILE] = &cmdSetVelProfile;
     cmd_func[CMD_SET_WINCH_LOAD] = &cmdSetWinchLoad;
     cmd_func[CMD_ZERO_LOAD_CELL] = &cmdZeroLoadCell;
+    cmd_func[CMD_SET_PITCH_THRESH] = &cmdSetPitchThresh;
     cmd_func[CMD_WHO_AM_I] = &cmdWhoAmI;
     cmd_func[CMD_ZERO_POS] = &cmdZeroPos;   
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
@@ -323,6 +325,7 @@ unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char
     return 1;
 }
 
+
 unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     long offset = 0, error;
     int i;
@@ -372,6 +375,7 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
     return 1; //success
 }
 
+
   unsigned char cmdZeroLoadCell(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 
     int sensorOffset[2];
@@ -383,6 +387,23 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
     sensorOffset[1] = piObjs[0].sensorOffset;
 
     radioSendData(src_addr, status, CMD_ZERO_LOAD_CELL, sizeof(sensorOffset), (unsigned char *)sensorOffset, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+   unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    // Unpack angle, mode
+    int angle = frame[0] + (frame[1] << 8);
+    int mode = frame[2] + (frame[3] << 8);
+
+    // Set angle set point and angle trigger, send radio confirmation packet
+    pidObjs[0].angle_setpt = (char) angle;
+    pidObjs[0].angle_trig = (char) mode;
+
+    radioSendData(src_addr, status, CMD_SET_PITCH_THRESH, 4, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
     // WARNING: Will fail at high data throughput
     //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);

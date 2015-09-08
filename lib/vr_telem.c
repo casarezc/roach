@@ -36,6 +36,7 @@ void vrTelemGetData(vrTelemStruct_t* ptr) {
     /////// Get XL data
     mpuGetGyro(gdata);
     mpuGetXl(xldata);
+    
 
     //Motion control
     ptr->posL = pidObjs[0].p_state;

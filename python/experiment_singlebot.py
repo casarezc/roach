@@ -117,8 +117,11 @@ def main():
 
     
     # Set the timings of each segment of the run
-    T = 4000
+    T = 2000
     T_LEAD_OUT = 1000
+
+    STOP_ANGLE = 30
+    ANGLE_TRIGGER = 2
 
 
 
@@ -148,8 +151,9 @@ def main():
     time.sleep(0.1)
 
     # R1.zeroLoadCell()
-    R1.setGait(fastBound)
-    # R1.setGait(slowBound)
+    R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER);
+    # R1.setGait(fastBound)
+    R1.setGait(slowBound)
     # R1.startTimedRunWinch( T )
     R1.startTimedRun( T )
 

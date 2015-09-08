@@ -52,6 +52,8 @@ typedef struct
 	int  output;	 //  control output u
  	char onoff; //boolean
  	char mode; //Motor mode: 1 iff PWM open loop control
+        char angle_trig; //Angle trigger: 0 if inactive, 1 if rising, 2 if falling
+        char angle_setpt;
  	int pwmDes; // Desired PWM
  	char timeFlag;
 	unsigned long run_time;
@@ -122,6 +124,7 @@ void pidGetSetpoint(int j);
 void checkSwapBuff(int j);
 void pidSetControl();
 void piSetControl();
+void checkPitchStopCondition();
 void EmergencyStop(void);
 unsigned char* pidGetTelemetry(void);
 void pidOn(int pid_num);

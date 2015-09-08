@@ -71,9 +71,25 @@ int measLast1[NUM_PIDS];
 int measLast2[NUM_PIDS];
 int measLast1PI[NUM_PI_NO_AMS];
 int measLast2PI[NUM_PI_NO_AMS];
+
+// Declaration of bemf variables
 int bemf[NUM_PIDS];
 int bemfextra[2];
+
+// Declaration of load cell reading
 int vloadcell;
+
+// Declaration of variables used to calculate pitch angle conditions
+long pitch_angle = 0;
+long pitch_angle_acc = 0;
+long gyro_offset = 0;
+long gyro_offset_acc = 0;
+int count = 0;
+
+long I;
+long Q;
+long num;
+long den;
 
 
 // -------------------------------------------
@@ -172,6 +188,7 @@ void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff)
 	pid->feedforward = ff;
   pid->output = 0;
     pid->onoff = 0;
+    pid->angle_trig = 0;
 	pid->p_error = 0;
 	pid->v_error = 0;
 	pid->i_error = 0;
@@ -407,6 +424,11 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
     else if(interrupt_count == 5)
     {
         interrupt_count = 0;
+        
+        if(pidObjs[0].angle_trig != 0){
+            checkPitchStopCondition();
+        }
+
 
         if (t1_ticks == T1_MAX) t1_ticks = 0;
         t1_ticks++;
@@ -508,6 +530,68 @@ void checkSwapBuff(int j){
        nextPID[j] = NULL;
        CRITICAL_SECTION_END;
        }
+    }
+}
+
+void checkPitchStopCondition(){
+    // If legs aren't moving, use accelerometer measurements to estimate pitch angle
+    // Also, record gyro offset to prevent drift in angle measurements
+    if(pidObjs[0].onoff==0){
+        int xldata[3];
+        mpuGetXl(xldata);
+        I = (long) xldata[2];
+        Q = (long) xldata[1];
+        if((Q <= I)&&(Q >= -I)&&(I>0)) {
+            int gdata[3];
+            mpuGetGyro(gdata);
+            count++;
+            gyro_offset_acc += (long) gdata[0];
+            long Q2;
+            Q2 = Q*Q;
+            num = I*Q*255;
+            den = I*I + (Q2 >> 2) + (Q2 >> 5);
+            pitch_angle_acc += (num/den)*3681;
+        }
+        else if ((I <= Q)&&(I >= -Q)&&(Q>0)){
+            int gdata[3];
+            mpuGetGyro(gdata);
+            count++;
+            gyro_offset_acc += (long) gdata[0];
+            long I2;
+            I2 = I*I;
+            num = I*Q*255;
+            den = Q*Q + (I2 >> 2) + (I2 >> 5);
+            pitch_angle_acc += 1474560 - (num/den)*3681;
+        }
+
+        if (count>=100){
+            pitch_angle = pitch_angle_acc/((long) count);
+            gyro_offset = gyro_offset_acc/((long) count);
+            gyro_offset_acc = 0;
+            pitch_angle_acc = 0;
+            count = 0;
+        }
+    }
+    // Otherwise use integrated gyro to measure pitch angle
+    else{
+        int gdata[3];
+        mpuGetGyro(gdata);
+        pitch_angle += ((long) gdata[0]) - gyro_offset;
+    }
+
+    if(pidObjs[0].angle_trig == 1){
+        if(pitch_angle > ((long) pidObjs[0].angle_setpt)*16384){
+            pidObjs[0].onoff = 0;
+            pidObjs[1].onoff = 0;
+            piObjs[0].onoff = 0;
+        }
+    }
+    else if (pidObjs[0].angle_trig == 2){
+        if(pitch_angle < ((long) pidObjs[0].angle_setpt)*16384){
+            pidObjs[0].onoff = 0;
+            pidObjs[1].onoff = 0;
+            piObjs[0].onoff = 0;
+        }
     }
 }
 
@@ -692,7 +776,10 @@ void pidSetControl()
 		   tiHSetDC(2, pidObjs[1].output); 
 		} 
 		else // turn off motors if PID loop is off
-		{ tiHSetDC(1,0); tiHSetDC(2,0); }	
+		{
+                    pidObjs[0].output = 0;
+                    pidObjs[1].output = 0;
+                    tiHSetDC(1,0); tiHSetDC(2,0); }
 }
 
 void piSetControl()
@@ -723,6 +810,7 @@ void piSetControl()
    }
    else // turn off motors if PID loop is off
    {
+        piObjs[0].output = 0;
         tiHSetDC(3,0);
    }
 }

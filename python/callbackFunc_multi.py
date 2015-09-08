@@ -31,6 +31,7 @@ pktFormat = { \
     command.ZERO_POS:               '=2l', \
     command.SET_WINCH_LOAD:         '2h', \
     command.ZERO_LOAD_CELL:         '2h', \
+    command.SET_PITCH_THRESH:       '2h', \
     }
                
 #XBee callback function, called every time a packet is recieved
@@ -112,6 +113,12 @@ def xbee_received(packet):
             sensor = unpack(pattern,data)
             print sensor
             r.winchOffset = sensor[1]
+
+        # SET_PITCH_THRESH
+        elif type == command.SET_PITCH_THRESH:
+            print "Set pitch threshold readback:"
+            temp = unpack(pattern, data)
+            print "Pitch threshold angle:",temp[0]," degrees, Trigger mode:",temp[1]
         
         # FLASH_READBACK
         elif type == command.FLASH_READBACK:

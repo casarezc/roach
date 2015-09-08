@@ -22,6 +22,8 @@
 #define CMD_SET_PHASE               0x93         
 #define CMD_SET_MOTOR_MODE          0x94
 
+#define CMD_SET_PITCH_THRESH        0xB0
+
 #define CMD_SET_PI_GAINS_WINCH             0xC0
 #define CMD_SET_WINCH_LOAD                 0xC1
 #define CMD_ZERO_LOAD_CELL                 0xC2
