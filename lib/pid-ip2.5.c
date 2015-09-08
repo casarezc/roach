@@ -736,7 +736,13 @@ int measurements[NUM_PI_NO_AMS];
 	measLast2PI[0] = measLast1PI[0];  measLast1PI[0] = measurements[0];
 
 // record current load
-        piObjs[0].p_state = ((long) piObjs[0].sensorOffset - (long) vloadcell)*((long) K_LOAD_CELL);
+        if(vloadcell > SWITCH_LOAD_CELL){
+            piObjs[0].p_state = ((long) piObjs[0].sensorOffset - (long) vloadcell)*((long) K_LOAD_CELL_1);
+        }
+        else if (vloadcell <= SWITCH_LOAD_CELL){
+            piObjs[0].p_state = ((long) piObjs[0].sensorOffset - (long) SWITCH_LOAD_CELL)*((long) K_LOAD_CELL_1) + ((long) SWITCH_LOAD_CELL - (long) vloadcell)*((long) K_LOAD_CELL_2);
+        }
+
 
 }
 

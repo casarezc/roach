@@ -24,9 +24,9 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x62', xb)
-    R1.SAVE_DATA = True
-    # R1.SAVE_DATA = False
+    R1 = Velociroach('\x21\x63', xb)
+    # R1.SAVE_DATA = True
+    R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -71,48 +71,8 @@ def main():
 
     # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
     # Mode = 0 PI, Mode = 1 Unwind
-    slowBound.winchSetpoint = 24*70
+    slowBound.winchSetpoint = 37*60
     slowBound.winchMode = 0
-
-    fastBound = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
-    fastBound.winchgains = winchgains
-    fastBound.phase = 0
-    fastBound.deltasLeft = [0.25, 0.25, 0.25]
-    fastBound.deltasRight = [0.25, 0.25, 0.25]
-
-
-    fastBackwardBound = GaitConfig(motorgains, rightFreq=-5, leftFreq=-5)
-    fastBackwardBound.phase = 0
-    fastBackwardBound.deltasLeft = [0.25, 0.25, 0.25]
-    fastBackwardBound.deltasRight = [0.25, 0.25, 0.25]
-
-    slowAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    slowAltTripod.phase = PHASE_180_DEG                          
-    slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
-
-    fastAltTripod = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
-    fastAltTripod.phase = PHASE_180_DEG                           
-    fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
-
-    holdCenter = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdCenter.winchgains = winchgains
-    holdCenter.phase = 0                          
-    holdCenter.deltasLeft = [0, 0, 0]
-    holdCenter.deltasRight = [0, 0, 0]
-
-    holdBack = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdBack.winchgains = winchgains
-    holdBack.phase = 0                          
-    holdBack.deltasLeft = [0.25, 0, 0]
-    holdBack.deltasRight = [0.25, 0, 0]
-
-    holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
-    holdBackLong.winchgains = [40, 20, 20, 0]
-    holdBackLong.phase = 0                          
-    holdBackLong.deltasLeft = [0.25, 0, 0]
-    holdBackLong.deltasRight = [0.25, 0, 0]
 
 
     
@@ -149,13 +109,13 @@ def main():
             r.startTelemetrySave()
 
     time.sleep(0.1)
-
-    R1.zeroLoadCell()
-    # R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER);
-    # R1.setGait(fastBound)
-    R1.setGait(slowBound)
-    R1.startTimedRunWinch( T )
-    # R1.startTimedRun( T )
+    nextFlag = 0
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  **** Winch Calibration ****"
+        print "  ***************************"
+        R1.zeroLoadCell()
+        nextFlag = int(raw_input(" Exit (1 or 0)?: "))
 
     ## Save data after runs
     for r in shared.ROBOTS:
