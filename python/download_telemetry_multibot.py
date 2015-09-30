@@ -48,19 +48,8 @@ def main():
     #Verify all robots can be queried
     verifyAllQueried()  # exits on failure
 
-
-    
-    # Set the timings of each segment of the run
-    T1 = 750
-    T2 = 500
-    T3 = 400
-    T4 = 2000
-    T5 = 500
-    T6 = 1000
-    T7 = 1000
-
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = 5*(T1 + T2 + T3 + T4 + T5 + T6 + T7)
+    EXPERIMENT_SAVE_TIME_MS     = 8000
 
     for r in shared.ROBOTS:
         #This needs to be done to  prepare the .telemtryData variables in each robot object

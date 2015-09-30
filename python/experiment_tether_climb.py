@@ -25,12 +25,16 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x62', xb)
-    # R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R2 = Velociroach('\x21\x63', xb)
+    # R1.SAVE_DATA = False
+    # R2.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    R2.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
     shared.ROBOTS.append(R1) #This is necessary so callbackfunc can reference robots
+    shared.ROBOTS.append(R2)
     shared.xb = xb           #This is necessary so callbackfunc can halt before exit
 
     # Send resets
@@ -52,82 +56,37 @@ def main():
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
     motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
     winchgains = [140, 40, 20, 0] 
-    #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
-
-    #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
-    #simpleBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
-    #winchPWM = 0
 
     ## Set up different gaits to be used in the trials
-    slowBound = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
-    slowBound.winchgains = winchgains
-    slowBound.phase = 0
-    slowBound.deltasLeft = [0.25, 0.25, 0.25]
-    slowBound.deltasRight = [0.25, 0.25, 0.25]
 
-    # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
-    # Mode = 0 PI, Mode = 1 Unwind
-    # slowBound.winchSetpoint = 7000
-    # slowBound.winchMode = 0
-    slowBound.winchSetpoint = 3000
-    slowBound.winchMode = 0
+    tetherClimb = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
+    tetherClimb.winchgains = winchgains
+    tetherClimb.phase = 0                          
+    tetherClimb.deltasLeft = [0.25, 0.25, 0.25]
+    tetherClimb.deltasRight = [0.25, 0.25, 0.25]
 
-    fastBound = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
-    fastBound.winchgains = winchgains
-    fastBound.phase = 0
-    fastBound.deltasLeft = [0.25, 0.25, 0.25]
-    fastBound.deltasRight = [0.25, 0.25, 0.25]
-
-
-    fastBackwardBound = GaitConfig(motorgains, rightFreq=-5, leftFreq=-5)
-    fastBackwardBound.phase = 0
-    fastBackwardBound.deltasLeft = [0.25, 0.25, 0.25]
-    fastBackwardBound.deltasRight = [0.25, 0.25, 0.25]
-
-    slowAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    slowAltTripod.phase = PHASE_180_DEG                          
-    slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
-
-    fastAltTripod = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
-    fastAltTripod.phase = PHASE_180_DEG                           
-    fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
-
-    holdCenter = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdCenter.winchgains = winchgains
-    holdCenter.phase = 0                          
-    holdCenter.deltasLeft = [0, 0, 0]
-    holdCenter.deltasRight = [0, 0, 0]
-
-    holdBack = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdBack.winchgains = winchgains
-    holdBack.phase = 0                          
-    holdBack.deltasLeft = [0.25, 0, 0]
-    holdBack.deltasRight = [0.25, 0, 0]
-
-    holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
-    holdBackLong.winchgains = [40, 20, 20, 0]
-    holdBackLong.phase = 0                          
-    holdBackLong.deltasLeft = [0.25, 0, 0]
-    holdBackLong.deltasRight = [0.25, 0, 0]
-
+    tetherClimb.winchSetpoint = 500
+    tetherClimb.winchMode = 0
 
     
     # Set the timings of each segment of the run
-    T = 5000
-    T_LEAD_OUT = 1000
+    TLEADOUT = 1500
+    T1 = 2000
+    T2 = 3000
 
-    STOP_ANGLE = 10
-    ANGLE_TRIGGER = 2
+    # Set angle trigger parameters
+    STOP_ANGLE_1 = 60
+    ANGLE_TRIGGER_1 = 1
 
-
+    STOP_ANGLE_2 = -5
+    ANGLE_TRIGGER_2 = 2
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = T + T_LEAD_OUT
+    EXPERIMENT_SAVE_TIME_MS     = 3*TLEADOUT + T1 + T2
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -137,6 +96,11 @@ def main():
             r.eraseFlashMem()
     
         print ""
+
+
+    nextFlag = 0
+
+    R2.zeroLoadCell()
 
     print "  ***************************"
     print "  *******    READY    *******"
@@ -151,18 +115,37 @@ def main():
 
     time.sleep(0.1)
 
-    R1.zeroLoadCell()
-    # R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER);
-    # R1.setGait(fastBound)
-    R1.setGait(fastBound)
-    # R1.startTimedRunWinch( T )
-    R1.startTimedRun( T )
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 1   *******"
+        print "  ***************************"
+        R2.setPitchThresh(STOP_ANGLE_1, ANGLE_TRIGGER_1)
+        R2.setGait(tetherClimb)
+        R2.startTimedRunWinch( T1 )
+
+        nextFlag = int(raw_input(" Stage 2 (1 or 0)?: "))
+
+    nextFlag = 0
+    tetherClimb.winchSetpoint = 15000
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  *******   STAGE 2   *******"
+        print "  ***************************"
+        R2.setPitchThresh(STOP_ANGLE_2, ANGLE_TRIGGER_2)
+        R2.setGait(tetherClimb)
+        R2.startTimedRunWinch( T2 )
+
+        nextFlag = int(raw_input(" Exit (1 or 0)?: "))
 
     ## Save data after runs
     for r in shared.ROBOTS:
+        retry_flag = 1
         if r.SAVE_DATA:
-            raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry()
+            while(retry_flag == 1):
+                raw_input("Press Enter to start telemetry read-back ...")
+                r.downloadTelemetry()
+                retry_flag = int(raw_input(" Retry (1 or 0)?: "))
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

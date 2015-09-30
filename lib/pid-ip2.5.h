@@ -10,17 +10,17 @@
 
 #define GAIN_SCALER     100
 // Load cell calibration
-#define K_LOAD_CELL_1   24      //hundreth of a gram per count
-#define K_LOAD_CELL_2   68
-#define SWITCH_LOAD_CELL 673
+#define K_LOAD_CELL_1   26      //hundreth of a gram per count
+#define K_LOAD_CELL_2   76
+#define SWITCH_LOAD_CELL 662
 #define NUM_PIDS	2
 #define NUM_PI_NO_AMS   1
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
 
-// Set constants of lower and upper bounds to respond to errors; for now set at pi/2 and 3pi/2
-#define ERR_FWD_BOUND 16384
-#define ERR_BWD_BOUND 49151
+// Set constants of lower and upper bounds to respond to errors; for now set at 3*pi/2 and 7*pi/4
+#define ERR_FWD_BOUND 49151
+#define ERR_BWD_BOUND 57337
 
 
 /* The back emf constant can be measured by measuring velocity from Hall encoder 

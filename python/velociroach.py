@@ -59,7 +59,7 @@ class Velociroach:
     winch_gains_set = False
     robot_queried = False
     flash_erased = False
-    winchOffset = None
+    winchOffset = 0
     
     currentGait = GaitConfig()
 
@@ -282,7 +282,7 @@ class Velociroach:
         date = date + str(today.tm_hour) +':' + str(today.tm_min)+':'+str(today.tm_sec)
         fileout.write('%  experiment_singlebot.py casarezc/roach master branch Data file recorded ' + date + '\n')
 
-        fileout.write('%  Stride Frequency         = ' +repr( [ self.currentGait.leftFreq, self.currentGait.leftFreq]) + '\n')
+        fileout.write('%  Stride Frequency         = ' +repr( [ self.currentGait.leftFreq, self.currentGait.rightFreq]) + '\n')
         fileout.write('%  Deltas (Fractional)      = ' + repr(self.currentGait.deltasLeft) + ',' + repr(self.currentGait.deltasRight) + '\n')
         fileout.write('%  Phase                    = ' + repr(self.currentGait.phase) + '\n')
             
