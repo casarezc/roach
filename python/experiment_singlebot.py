@@ -20,13 +20,20 @@ from velociroach import *
 
 ####### Wait at exit? #######
 EXIT_WAIT   = False
+# PHASE_LEFT = 28217
+# PHASE_RIGHT = 37319
+# PHASE_LEFT = 23666
+# PHASE_RIGHT = 41870
+PHASE_LEFT = 20024
+PHASE_RIGHT = 45511
+STRIDE_FREQ = 5
 
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x62', xb)
-    # R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -51,7 +58,9 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
+    # motorgains = [0,0,0,0,2200, 0, 0, 0, 0, 0]
+
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
     winchgains = [140, 40, 20, 0] 
@@ -62,7 +71,7 @@ def main():
     #winchPWM = 0
 
     ## Set up different gaits to be used in the trials
-    slowBound = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
+    slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
     slowBound.winchgains = winchgains
     slowBound.phase = 0
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
@@ -87,12 +96,22 @@ def main():
     fastBackwardBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBackwardBound.deltasRight = [0.25, 0.25, 0.25]
 
-    slowAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    slowAltTripod = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
     slowAltTripod.phase = PHASE_180_DEG                          
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
+    slowLeftTurn = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
+    slowLeftTurn.phase = PHASE_LEFT                        
+    slowLeftTurn.deltasLeft = [0.25, 0.25, 0.25]
+    slowLeftTurn.deltasRight = [0.25, 0.25, 0.25]
+
+    slowRightTurn = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
+    slowRightTurn.phase = PHASE_RIGHT                     
+    slowRightTurn.deltasLeft = [0.25, 0.25, 0.25]
+    slowRightTurn.deltasRight = [0.25, 0.25, 0.25]
+
+    fastAltTripod = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
     fastAltTripod.phase = PHASE_180_DEG                           
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
@@ -118,7 +137,7 @@ def main():
 
     
     # Set the timings of each segment of the run
-    T = 5000
+    T = 2000
     T_LEAD_OUT = 1000
 
     STOP_ANGLE = 10
@@ -151,10 +170,12 @@ def main():
 
     time.sleep(0.1)
 
-    R1.zeroLoadCell()
+    # R1.zeroLoadCell()
     # R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER);
     # R1.setGait(fastBound)
-    R1.setGait(fastBound)
+    R1.setGait(slowAltTripod)
+    # R1.setGait(slowLeftTurn)
+    # R1.setGait(slowRightTurn)
     # R1.startTimedRunWinch( T )
     R1.startTimedRun( T )
 

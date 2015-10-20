@@ -31,9 +31,12 @@ def menu():
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x63', xb)
+    R1 = Velociroach('\x21\x62', xb)
     # R1.SAVE_DATA = True
     R1.SAVE_DATA = False
+    PHASE_LEFT = 23666
+    PHASE_RIGHT = 41870
+    STRIDE_FREQ = 5
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -58,7 +61,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
@@ -76,46 +79,45 @@ def main():
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
     slowBound.deltasRight = [0.25, 0.25, 0.25]
 
-    fastBound = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
+    fastBound = GaitConfig(motorgains, rightFreq=6, leftFreq=6)
     fastBound.winchgains = winchgains
     fastBound.phase = 0
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBound.deltasRight = [0.25, 0.25, 0.25]
 
-    slowAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    slowAltTripod = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
     slowAltTripod.phase = PHASE_180_DEG                          
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
+    fastAltTripod = GaitConfig(motorgains, rightFreq=6, leftFreq=6)
     fastAltTripod.phase = PHASE_180_DEG                           
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    slowRightTurn = GaitConfig(motorgains, rightFreq=1, leftFreq=2)
-    slowRightTurn.phase = PHASE_180_DEG                          
+    slowRightTurn = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
+    slowRightTurn.phase = PHASE_RIGHT                        
     slowRightTurn.deltasLeft = [0.25, 0.25, 0.25]
     slowRightTurn.deltasRight = [0.25, 0.25, 0.25]
 
-    slowLeftTurn = GaitConfig(motorgains, rightFreq=2, leftFreq=1)
-    slowLeftTurn.phase = PHASE_180_DEG                          
+    slowLeftTurn = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
+    slowLeftTurn.phase = PHASE_LEFT                         
     slowLeftTurn.deltasLeft = [0.25, 0.25, 0.25]
     slowLeftTurn.deltasRight = [0.25, 0.25, 0.25]
 
-    fastRightTurn = GaitConfig(motorgains, rightFreq=2, leftFreq=4)
+    fastRightTurn = GaitConfig(motorgains, rightFreq=3, leftFreq=6)
     fastRightTurn.phase = PHASE_180_DEG                          
     fastRightTurn.deltasLeft = [0.25, 0.25, 0.25]
     fastRightTurn.deltasRight = [0.25, 0.25, 0.25]
 
-    fastLeftTurn = GaitConfig(motorgains, rightFreq=4, leftFreq=2)
+    fastLeftTurn = GaitConfig(motorgains, rightFreq=6, leftFreq=3)
     fastLeftTurn.phase = PHASE_180_DEG                          
     fastLeftTurn.deltasLeft = [0.25, 0.25, 0.25]
     fastLeftTurn.deltasRight = [0.25, 0.25, 0.25]
     
     # Set the timings of each segment of the run
-    T = 3000
+    T = 1000
 
-    winchtorque = 0
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = T
@@ -147,28 +149,28 @@ def main():
         keypress = msvcrt.getch()
         if keypress == 'a':
             R1.setGait(slowLeftTurn)
-            R1.startTimedRunWinchTorque( T , winchtorque , 0)
+            R1.startTimedRun( T )
         elif keypress == 's':
             R1.setGait(slowAltTripod)
-            R1.startTimedRunWinchTorque( T , winchtorque , 0)
+            R1.startTimedRun( T )
         elif keypress == 'd':
             R1.setGait(slowRightTurn)
-            R1.startTimedRunWinchTorque( T , winchtorque , 0)
+            R1.startTimedRun( T )
         elif keypress == 'w':
             R1.setGait(slowBound)
-            R1.startTimedRunWinchTorque( T , winchtorque , 0)
+            R1.startTimedRun( T )
         elif keypress == 'f':
             R1.setGait(fastLeftTurn)
-            R1.startTimedRunWinchTorque( T , winchtorque , 0)
+            R1.startTimedRun( T )
         elif keypress == 'g':
             R1.setGait(fastAltTripod)
-            R1.startTimedRunWinchTorque( T , winchtorque , 0)
+            R1.startTimedRun( T )
         elif keypress == 'h':
             R1.setGait(fastRightTurn)
-            R1.startTimedRunWinchTorque( T , winchtorque , 0)
+            R1.startTimedRun( T )
         elif keypress == 't':
             R1.setGait(fastBound)
-            R1.startTimedRunWinchTorque( T , winchtorque , 0)
+            R1.startTimedRun( T )
         elif (keypress == 'q') or (ord(keypress) == 26):
             print "Exit."
             exit_flag = True
