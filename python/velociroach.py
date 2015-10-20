@@ -287,10 +287,10 @@ class Velociroach:
         
         self.clAnnounce()
         print " --- Setting complete gait config --- "
+        self.zeroPosition()
         self.setPhase(gaitConfig.phase)
         self.setMotorGains(gaitConfig.motorgains)
         self.setVelProfile(gaitConfig) #whole object is passed in, due to several references
-        self.zeroPosition()
         
         self.clAnnounce()
         print " ------------------------------------ "
