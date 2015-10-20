@@ -218,6 +218,9 @@ class Velociroach:
         self.findFileName()
         self.writeFileHeader()
         fileout = open(self.dataFileName, 'a')
+
+        sanitized = [item for item in self.telemtryData if item!= []];
+        
         np.savetxt(fileout , np.array(self.telemtryData), self.telemFormatString, delimiter = ',')
         fileout.close()
         self.clAnnounce()

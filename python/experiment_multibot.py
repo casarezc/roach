@@ -24,7 +24,7 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x20\x52', xb)
+    R1 = Velociroach('\x21\x62', xb)
     R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
@@ -50,7 +50,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [1800,0,100,0,0, 1800,0,100,0,0]
+    motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     simpleAltTripod = GaitConfig(motorgains, rightFreq=5, leftFreq=5) # Parameters can be passed into object upon construction, as done here.
