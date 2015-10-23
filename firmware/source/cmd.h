@@ -5,8 +5,8 @@
 #include "mac_packet.h"
 #include "cmd_const.h"
 
-#define CMD_TEST_RADIO				0x00
-#define CMD_TEST_MPU				0x06
+#define CMD_TEST_RADIO              0x00
+#define CMD_TEST_MPU                0x06
 #define CMD_SET_THRUST_OPEN_LOOP    0x80
 #define CMD_PID_START_MOTORS        0x81
 #define CMD_SET_PID_GAINS           0x82
@@ -20,7 +20,11 @@
 #define CMD_START_TIMED_RUN         0x91 
 #define CMD_PID_STOP_MOTORS         0x92         
 #define CMD_SET_PHASE               0x93         
-#define CMD_SET_MOTOR_MODE      	0x94
+#define CMD_SET_MOTOR_MODE          0x94
+
+#define CMD_SET_STEER_GAINS         0xA0
+#define CMD_SET_STEER_ANGLE         0xA1
+#define CMD_STEER_CONTROL_OFF       0xA2
 // Redefine
 
 void cmdSetup(void);

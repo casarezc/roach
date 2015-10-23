@@ -54,6 +54,11 @@ static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, 
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+
+//Steering control commands
+static unsigned char cmdSetSteerGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetSteerAngle(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSteerControlOff(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 /*-----------------------------------------------------------------------------
  *          Public functions
 -----------------------------------------------------------------------------*/
@@ -81,6 +86,9 @@ void cmdSetup(void) {
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
+    cmd_func[CMD_SET_STEER_GAINS] = &cmdSetSteerGains;
+    cmd_func[CMD_SET_STEER_ANGLE] = &cmdSetSteerAngle;
+    cmd_func[CMD_STEER_CONTROL_OFF] = &cmdSteerControlOff;
 
 }
 
@@ -320,6 +328,8 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
 }
 
 
+
+
 void cmdError() {
     int i;
     EmergencyStop();
@@ -333,6 +343,43 @@ void cmdError() {
     }
 }
 
+unsigned char cmdSetSteerGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    int Kp, Kd, ff;
+    int idx = 0;
+
+    Kp = frame[idx] + (frame[idx+1] << 8); idx+=2;
+    Kd = frame[idx] + (frame[idx+1] << 8); idx+=2;
+    ff = frame[idx] + (frame[idx+1] << 8); idx+=2;
+    strCtrlSetGains(Kp, Kd, ff);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_GAINS, 6, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+unsigned char cmdSetSteerAngle(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    // Unpack angle, mode
+    int angle = frame[0] + (frame[1] << 8);
+
+    // Set angle set point, send radio confirmation packet
+    strCtrlSetInput(angle);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_ANGLE, 2, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+unsigned char cmdSteerControlOff(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    strCtrlOff();
+    return 1;
+}
+
 static unsigned char cmdNop(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     return 1;
 }
+

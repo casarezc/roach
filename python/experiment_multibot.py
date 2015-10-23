@@ -51,20 +51,37 @@ def main():
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
     motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
+    steergains = [500, 100, 0]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
-    simpleAltTripod = GaitConfig(motorgains, rightFreq=5, leftFreq=5) # Parameters can be passed into object upon construction, as done here.
+    frequency = 5
+
+    simpleAltTripod = GaitConfig(motorgains, rightFreq=frequency, leftFreq=frequency) # Parameters can be passed into object upon construction, as done here.
     simpleAltTripod.phase = PHASE_180_DEG                             # Or set individually, as here
     simpleAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     simpleAltTripod.deltasRight = [0.25, 0.25, 0.25]
     #simpleAltTripod.deltasTime  = [0.25, 0.25, 0.25] # Not current supported by firmware; time deltas are always exactly [0.25, 0.25, 0.25, 0.25]
     
+    steerLeft = SteerConfig(motorgains, steergains, rightFreq = frequency, leftFreq = frequency)
+    steerLeft.steerangle = 90
+
+    steerStraight = SteerConfig(motorgains, steergains, rightFreq = frequency, leftFreq = frequency)
+    steerStraight.steerangle = 0
+
+    steerRight = SteerConfig(motorgains, steergains, rightFreq = frequency, leftFreq = frequency)
+    steerRight.steerangle = -90
+
     # Configure intra-stride control
-    R1.setGait(simpleAltTripod)
+    # R1.setGait(simpleAltTripod)
+
+    # Configure steering gait
+    # R1.setSteerGait(steerLeft)
+    R1.setSteerGait(steerRight)
+    # R1.setSteerGait(steerStraight)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 2000 #ms
-    EXPERIMENT_LEADIN_TIME_MS  = 100  #ms
+    EXPERIMENT_RUN_TIME_MS     = 5000 #ms
+    EXPERIMENT_LEADIN_TIME_MS  = 1000  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
     
     # Some preparation is needed to cleanly save telemetry data
@@ -93,6 +110,7 @@ def main():
     ######## Motion is initiated here! ########
     R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
+    R1.stopSteering()
     ######## End of motion commands   ########
     
     # Sleep for a lead-out time after any motion

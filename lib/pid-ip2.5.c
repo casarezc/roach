@@ -46,6 +46,14 @@
 // PID control structure
 pidPos pidObjs[NUM_PIDS];
 
+// Steering control structure
+strCtrl pdSteer;
+
+// Steering control temp variables
+long gz_offset = 0;
+long gz_offset_acc = 0;
+int count_steer = 0;
+
 // structure for reference velocity for leg
 pidVelLUT  pidVel[NUM_PIDS*NUM_BUFF];
 pidVelLUT* activePID[NUM_PIDS];     //Pointer arrays for stride buffering
@@ -79,6 +87,7 @@ void pidSetup()
 		initPIDObjPos( &(pidObjs[i]), DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, DEFAULT_KAW, DEFAULT_FF); 
 	}
 	initPIDVelProfile();
+        initStrCtrl( &(pdSteer), DEFAULT_KP, DEFAULT_KD, DEFAULT_FF);
 	SetupTimer1();  // main interrupt used for leg motor PID
 
 	lastMoveTime = 0;
@@ -158,7 +167,7 @@ void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff)
     pid->Ki= Ki;
     pid->Kd = Kd;
     pid->Kaw = Kaw; 
-	pid->feedforward = 0;
+	pid->feedforward = ff;
   pid->output = 0;
     pid->onoff = 0;
 	pid->p_error = 0;
@@ -283,6 +292,50 @@ void calibBatteryOffset(int spindown_ms){
 	pidObjs[1].onoff = tempPidObjsOnOff[1];
 }
 
+/*****************************************************************************************/
+/*****************************************************************************************/
+/*********************** Steering control initialization **********************************/
+/*****************************************************************************************/
+/*****************************************************************************************/
+
+//Initialize the steering control structure
+void initStrCtrl(strCtrl *pd, int Kp, int Kd, int Kff)
+{
+    pd->onoff = 0;
+    pd->Kp = Kp;
+    pd->Kd = Kd;
+    pd->feedforward = Kff;
+    pd->yaw_input = 0;
+    pd->yaw_state = 0;
+    pd->yaw_error = 0;
+    pd->vel_state = 0;
+    pd->vel_error = 0;
+    pd->p = 0;
+    pd->d = 0;
+}
+
+// from cmd.c  set PD gains for steering controller
+void strCtrlSetGains(int Kp, int Kd, int Kff){
+    pdSteer.Kp  = Kp;
+    pdSteer.Kd  = Kd;
+    pdSteer.feedforward = Kff;
+}
+
+// from cmd.c  set reference angle for the controller and turn it on
+void strCtrlSetInput(int input_val){
+    pdSteer.yaw_input = ((long) (input_val))*GYRO_CAL;
+    pdSteer.onoff = 1;
+}
+
+// from cmd.c  Turn off steering controller and reset state variables
+void strCtrlOff(void){
+    pdSteer.onoff = 0;
+    pdSteer.yaw_state = 0;
+    pdSteer.vel_state = 0;
+    pdSteer.p = 0;
+    pdSteer.d = 0;
+    pdSteer.output = 0;
+}
 
 /*****************************************************************************************/
 /*****************************************************************************************/
@@ -336,6 +389,13 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
         if (t1_ticks == T1_MAX) t1_ticks = 0;
         t1_ticks++;
         pidGetState();	// always update state, even if motor is coasting
+        strCtrlGetState(); //always update state, even if steering control is off
+
+        // Only set steering phase adjustment if steering control is on
+        if (pdSteer.onoff == 1){
+            strCtrlSetControl();
+        }
+
         for (j = 0; j< NUM_PIDS; j++) {
         // only update tracking setpoint if time has not yet expired
             if (pidObjs[j].onoff) {
@@ -381,6 +441,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
     _T1IF = 0;
 }
 
+// ----------   PID control functions -----------------
 // update desired velocity and position tracking setpoints for each leg
 void pidGetSetpoint(int j){
     int index; 
@@ -522,24 +583,26 @@ int measurements[NUM_PIDS];
 
 void pidSetControl()
 { int j;
-// 0 = right side
+// 0 = left side
+    // p_input has scaled velocity interpolation to make smoother
+    // p_state is [16].[16]
+    // Adjust pidObjs[0].p_input of left leg to shift phase in the constant velocity gait
+    pidObjs[0].p_error = pidObjs[0].p_input - (long) (pdSteer.output/2) + pidObjs[0].interpolate  - pidObjs[0].p_state;
+    pidObjs[1].p_error = pidObjs[1].p_input + (long) (pdSteer.output/2) + pidObjs[1].interpolate  - pidObjs[1].p_state;
     for(j=0; j < NUM_PIDS; j++)
-   {  //pidobjs[0] : right side
-	// p_input has scaled velocity interpolation to make smoother
-	// p_state is [16].[16]
-        	pidObjs[j].p_error = pidObjs[j].p_input + pidObjs[j].interpolate  - pidObjs[j].p_state;
-            pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state;  // v_input should be revs/sec
-            //Update values
-            UpdatePID(&(pidObjs[j]));
-       } // end of for(j)
+    {  //pidobjs[0] : right side
+        pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state;  // v_input should be revs/sec
+        //Update values
+        UpdatePID(&(pidObjs[j]));
+    } // end of for(j)
 
-		if(pidObjs[0].onoff && pidObjs[1].onoff)  // both motors on to run
-		{
- 		   tiHSetDC(1, pidObjs[0].output); 
-		   tiHSetDC(2, pidObjs[1].output); 
-		} 
-		else // turn off motors if PID loop is off
-		{ tiHSetDC(1,0); tiHSetDC(2,0); }	
+    if(pidObjs[0].onoff && pidObjs[1].onoff)  // both motors on to run
+    {
+        tiHSetDC(1, pidObjs[0].output);
+        tiHSetDC(2, pidObjs[1].output);
+    }
+    else // turn off motors if PID loop is off
+        { tiHSetDC(1,0); tiHSetDC(2,0); }
 }
 
 
@@ -574,4 +637,63 @@ void UpdatePID(pidPos *pid)
 	}      
 }
 
+// ----------   Steering control functions -----------------
 
+// Called from interrupt, get yaw rate, state for steering controller
+void strCtrlGetState(){
+    // If legs aren't moving, record gyro offset to prevent drift in angle measurement
+    // If legs are moving, record yaw velocity and integrate this measurement to compute angle
+    if(pidObjs[0].onoff==0){
+        int gdata[3];
+        mpuGetGyro(gdata);
+        gz_offset_acc += (long) gdata[2];
+        count_steer++;
+
+        if (count_steer>=100){
+            gz_offset = gz_offset_acc/((long) count_steer);
+            gz_offset_acc = 0;
+            count_steer = 0;
+        }
+    }
+    // Otherwise use integrated gyro to measure pitch angle
+    else{
+        int gdata[3];
+        mpuGetGyro(gdata);
+        pdSteer.vel_state = gdata[2];
+        pdSteer.yaw_state += ((long) gdata[2]) - gz_offset;
+    }
+}
+
+void strCtrlSetControl()
+{
+    // Compute pd controller errors
+    // Positive error->increase right steer->decrease left relative to right phase
+    pdSteer.yaw_error = pdSteer.yaw_input - pdSteer.yaw_state; //yaw_error is 16384 counts per degree
+    pdSteer.vel_error = 0 - pdSteer.vel_state;  // vel_error is 16.384 counts/(deg/s)
+    //Update values
+    UpdatePD(&(pdSteer)); //Update values, output is phase shift that is then passed to pid leg trajectory controller
+}
+
+
+void UpdatePD(strCtrl *pd)
+{
+    pd->p = ((long) pd->Kp)*(pd->yaw_error >> 12);  // divide by 4096 to prevent overflow
+    pd->d= ((long) pd->Kd)*((long) pd->vel_error);
+    // better check scale factors
+
+    pd->preSat = ((long) pd->feedforward)*PHASE_TO_LEGPOS
+                + (pd->p >> 4) // divide by 16
+		+ (pd->d >> 6); // divide by 64
+    pd->output = pd->preSat;
+
+// saturate output
+    if (pd->preSat > MAX_RIGHT_PHASE*PHASE_TO_LEGPOS)
+    {
+	pd->output = MAX_RIGHT_PHASE*PHASE_TO_LEGPOS;
+    }
+
+    if (pd->preSat < -MIN_LEFT_PHASE*PHASE_TO_LEGPOS)
+    {
+        pd->output = -MIN_LEFT_PHASE*PHASE_TO_LEGPOS;
+    }
+}

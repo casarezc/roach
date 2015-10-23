@@ -13,6 +13,12 @@
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
 
+//Steering control constants
+#define GYRO_CAL 16384
+#define PHASE_TO_LEGPOS 182
+#define MIN_LEFT_PHASE 50
+#define MAX_RIGHT_PHASE 40
+
 
 /* The back emf constant can be measured by measuring velocity from Hall encoder 
 * 80 rad/sec = 12.5 rev/sec = 834 encPos[].pos/sec
@@ -58,7 +64,26 @@ typedef struct
 	unsigned long expire;		// end of current segment
 	int index;					// right index to moves
 	int leg_stride;
+        //Steering control variables
 } pidPos;
+
+// structure for steering control (phase deviation from alternating tripod)
+typedef struct
+{
+    char onoff; //boolean toggling steering control
+    int Kp, Kd; //proportional, derivative gains (control goal is to maintain heading)
+    int feedforward; //feedforward determining deviation of straight leg phase from 180 deg
+    long yaw_input; //reference yaw angle to track
+    long yaw_state; //angle state from integrated gyro
+    long yaw_error; //angle error
+    int vel_state; //velocity state from gyro
+    int vel_error; //velocity error
+    long p, d; //control contributions from proportional, derivative gains
+    long preSat; //output value before saturation
+    int output; //output phase deviation from alternating tripod
+
+
+} strCtrl;
 
 // structure for velocity control of leg cycle
 
@@ -89,5 +114,13 @@ unsigned char* pidGetTelemetry(void);
 void pidOn(int pid_num);
 void pidZeroPos(int pid_num);
 void calibBatteryOffset(int spindown_ms);
+//Steering control functions
+void initStrCtrl(strCtrl *pd, int Kp, int Kd, int Kff);
+void strCtrlSetGains(int Kp, int Kd, int Kff);
+void strCtrlSetInput(int input_val);
+void strCtrlOff(void);
+void strCtrlGetState();
+void strCtrlSetControl();
+void UpdatePD(strCtrl *pd);
 
 #endif // __PID_H

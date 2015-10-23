@@ -23,21 +23,57 @@ class GaitConfig:
     repeat = None
     deltasLeft = None
     deltasRight = None
-    def __init__(self, motorgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None):
+    steerangle = None
+    def __init__(self, motorgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None, steerangle = None):
         if motorgains == None:
             self.motorgains = [0,0,0,0,0 , 0,0,0,0,0]
         else:
             self.motorgains = motorgains
-        
+
+        if steerangle == None:
+            self.steerangle = 0
+        else:
+            self.steerangle = steerangle
+
         self.duration = duration
         self.rightFreq = rightFreq
         self.leftFreq = leftFreq
         self.phase = phase
         self.repeat = repeat
+
+class SteerConfig:
+    duration = None
+    motorgains = None
+    steergains = None
+    rightFreq = None
+    leftFreq = None
+    phase = PHASE_180_DEG
+    deltasLeft = [0.25, 0.25, 0.25]
+    deltasRight = [0.25, 0.25, 0.25]
+    steerangle = None
+    def __init__(self, motorgains = None, steergains = None, rightFreq = None, leftFreq = None, phase = PHASE_180_DEG, deltasLeft = [0.25, 0.25, 0.25], deltasRight = [0.25, 0.25, 0.25], steerangle = None, duration = None):
+        if motorgains == None:
+            self.motorgains = [0,0,0,0,0 , 0,0,0,0,0]
+        else:
+            self.motorgains = motorgains
+
+        if steergains == None:
+            self.steergains = [0,0,0]
+        else:
+            self.steergains = steergains
+        
+        self.duration = duration
+        self.rightFreq = rightFreq
+        self.leftFreq = leftFreq
+        self.phase = phase
+        self.deltasLeft = deltasLeft
+        self.deltasRight = deltasRight
+        self.steerangle = steerangle
         
         
 class Velociroach:
     motor_gains_set = False
+    steer_gains_set = False
     robot_queried = False
     flash_erased = False
     
@@ -221,7 +257,7 @@ class Velociroach:
 
         sanitized = [item for item in self.telemtryData if item!= []];
         
-        np.savetxt(fileout , np.array(self.telemtryData), self.telemFormatString, delimiter = ',')
+        np.savetxt(fileout , np.array(sanitized), self.telemFormatString, delimiter = ',')
         fileout.close()
         self.clAnnounce()
         print "Telemetry data saved to", self.dataFileName
@@ -232,18 +268,17 @@ class Velociroach:
         today = time.localtime()
         date = str(today.tm_year)+'/'+str(today.tm_mon)+'/'+str(today.tm_mday)+'  '
         date = date + str(today.tm_hour) +':' + str(today.tm_min)+':'+str(today.tm_sec)
-        fileout.write('%  Data file recorded ' + date + '\n')
+        fileout.write('%  experiment.py casarezc/roach steering_ctrl branch Data file recorded ' + date + '\n')
 
-        fileout.write('%  Stride Frequency         = ' +repr( [ self.currentGait.leftFreq, self.currentGait.leftFreq]) + '\n')
-        fileout.write('%  Lead In /Lead Out        = ' + '\n')
+        fileout.write('%  Stride Frequency         = ' +repr( [ self.currentGait.leftFreq, self.currentGait.rightFreq]) + '\n')
         fileout.write('%  Deltas (Fractional)      = ' + repr(self.currentGait.deltasLeft) + ',' + repr(self.currentGait.deltasRight) + '\n')
         fileout.write('%  Phase                    = ' + repr(self.currentGait.phase) + '\n')
-            
-        fileout.write('%  Experiment.py \n')
         fileout.write('%  Motor Gains    = ' + repr(self.currentGait.motorgains) + '\n')
+        fileout.write('%  Steer Gains = ' + repr(self.currentGait.steergains) + '\n')
+        fileout.write('%  Steer angle (deg) = ' + repr(self.currentGait.steerangle) + '\n')
         fileout.write('% Columns: \n')
-        # order for wiring on RF Turner
-        fileout.write('% time | Right Leg Pos | Left Leg Pos | Commanded Right Leg Pos | Commanded Left Leg Pos | DCR | DCL | GyroX | GryoY | GryoZ | AX | AY | AZ | RBEMF | LBEMF | VBatt\n')
+        # order for roach
+        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | DCC | DCD | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | BEMFC | BEMFD | VBatt\n')
         fileout.close()
 
     def setupTelemetryDataTime(self, runtime):
@@ -284,6 +319,22 @@ class Velociroach:
             self.tx( 0, command.SET_PID_GAINS, pack('10h',*gains))
             tries = tries + 1
             time.sleep(0.3)
+
+    def setSteerGains(self, gains, retries = 8):
+        tries = 1
+        self.steerGains = gains
+        while not(self.steer_gains_set) and (tries <= retries):
+            self.clAnnounce()
+            print "Setting steer gains...   ",tries,"/8"
+            self.tx( 0, command.SET_STEER_GAINS, pack('3h',*gains))
+            tries = tries + 1
+            time.sleep(0.3)
+
+    def setSteerAngle(self, angle):
+        self.clAnnounce()
+        print "Setting steer angle to", angle
+        self.tx( 0, command.SET_STEER_ANGLE, pack('h', angle))
+        time.sleep(0.05) 
             
     def setGait(self, gaitConfig):
         self.currentGait = gaitConfig
@@ -297,9 +348,30 @@ class Velociroach:
         
         self.clAnnounce()
         print " ------------------------------------ "
+
+    def setSteerGait(self, steerConfig):
+        self.currentGait = steerConfig
+        
+        self.clAnnounce()
+        print " --- Setting complete steer gait config --- "
+        self.zeroPosition()
+        self.setMotorGains(steerConfig.motorgains)
+        self.setSteerGains(steerConfig.steergains)
+        self.setPhase(steerConfig.phase)
+        self.setVelProfile(steerConfig) #whole object is passed in, due to several references
+        self.setSteerAngle(steerConfig.steerangle)
+        
+        self.clAnnounce()
+        print " ------------------------------------ "
         
     def zeroPosition(self):
         self.tx( 0, command.ZERO_POS, 'zero') #actual data sent in packet is not relevant
+        time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
+
+    def stopSteering(self):
+        self.clAnnounce()
+        print " --- Turning off steering control, resetting angle reference --- "
+        self.tx( 0, command.STEER_CONTROL_OFF, 'off') #actual data sent in packet is not relevant
         time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
         
 ########## Helper functions #################

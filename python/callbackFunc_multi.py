@@ -28,6 +28,8 @@ pktFormat = { \
     command.SET_VEL_PROFILE:        '8h' ,\
     command.WHO_AM_I:               '', \
     command.ZERO_POS:               '=2l', \
+    command.SET_STEER_GAINS:        '3h',\
+    command.SET_STEER_ANGLE:        'h',\
     }
                
 #XBee callback function, called every time a packet is recieved
@@ -139,6 +141,19 @@ def xbee_received(packet):
             for r in shared.ROBOTS:
                 if r.DEST_ADDR_int == src_addr:
                     r.robot_queried = True 
+
+        # SET_STEER_GAINS
+        elif(type == command.SET_STEER_GAINS):
+            gains = unpack(pattern, data)
+            print "Set steering gains to ", gains
+            for r in shared.ROBOTS:
+                if r.DEST_ADDR_int == src_addr:
+                    r.steer_gains_set = True
+
+        # SET_STEER_ANGLE
+        elif(type == command.SET_STEER_ANGLE):
+            angle = unpack(pattern, data)
+            print "Steering control on, set steer angle to ", angle
 
     except KeyboardInterrupt:
         print "\nRecieved Ctrl+C in callbackfunc, exiting."
