@@ -278,7 +278,7 @@ class Velociroach:
         fileout.write('%  Steer angle (deg) = ' + repr(self.currentGait.steerangle) + '\n')
         fileout.write('% Columns: \n')
         # order for roach
-        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | DCC | DCD | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | BEMFC | BEMFD | VBatt\n')
+        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | VBatt\n')
         fileout.close()
 
     def setupTelemetryDataTime(self, runtime):
