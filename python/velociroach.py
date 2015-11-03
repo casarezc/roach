@@ -218,10 +218,10 @@ class Velociroach:
         self.findFileName()
         self.writeFileHeader()
         fileout = open(self.dataFileName, 'a')
-
+        
         sanitized = [item for item in self.telemtryData if item!= []];
         
-        np.savetxt(fileout , np.array(self.telemtryData), self.telemFormatString, delimiter = ',')
+        np.savetxt(fileout , np.array(sanitized), self.telemFormatString, delimiter = ',')
         fileout.close()
         self.clAnnounce()
         print "Telemetry data saved to", self.dataFileName
@@ -285,7 +285,7 @@ class Velociroach:
             tries = tries + 1
             time.sleep(0.3)
             
-    def setGait(self, gaitConfig):
+    def setGait(self, gaitConfig, zero_position = False):
         self.currentGait = gaitConfig
         
         self.clAnnounce()

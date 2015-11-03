@@ -60,7 +60,6 @@
 #include "tih.h"
 #include "ams-enc.h"
 #include "settings.h"
-#include "tests.h" // TODO (fgb) : define/includes need to live elsewhere
 #include "dfmem.h"
 #include "telem.h"
 #include "interrupts.h"
@@ -75,14 +74,8 @@
 #include "carray.h"
 
 
-static Payload rx_payload;
-static MacPacket rx_packet;
-static test_function rx_function;
-
 volatile MacPacket uart_tx_packet;
 volatile unsigned char uart_tx_flag;
-
-volatile CircArray fun_queue;
 
 int main() {
 
@@ -97,7 +90,6 @@ int main() {
     LED_3 = 1;
 
     // Message Passing
-    fun_queue = carrayCreate(FUN_Q_LEN);
     cmdSetup();
 
     // Radio setup
@@ -106,9 +98,10 @@ int main() {
     radioSetSrcAddr(RADIO_SRC_ADDR);
     radioSetSrcPanID(RADIO_PAN_ID);
 
-    uart_tx_packet = NULL;
-    uart_tx_flag = 0;
-    uartInit(&cmdPushFunc);
+    //TODO: Move to UART module, or UART init function.
+    //uart_tx_packet = NULL;
+    //uart_tx_flag = 0;
+    //uartInit(&cmdPushFunc);
 
     // Need delay for encoders to be ready
     delay_ms(100);
@@ -120,46 +113,41 @@ int main() {
     adcSetup();
     pidSetup();
 
-
+    // Power down unused modules
+    PMD3bits.AD2MD = 1;
+    PMD1bits.C1MD = 1;
+    PMD1bits.QEIMD = 1;
+    PMD3bits.I2C2MD = 1;
+    PMD2 = 0xffff; // input/output compare
+    PMD1bits.T2MD = 1;
+    PMD1bits.T3MD = 1;
+    PMD1bits.T4MD = 1;
+    PMD1bits.T5MD = 1;
+    PMD3bits.T6MD = 1;
+    PMD3bits.T7MD = 1;
 
     LED_1 = 0;
+    LED_2 = 0;
     LED_3 = 1;
     while(1){
         // Send outgoing radio packets
         radioProcess();
 
+        //Service pending commands
+        cmdHandleRadioRxBuffer();
+
         // Send outgoing uart packets
-        if(uart_tx_flag) {
-            uartSendPacket(uart_tx_packet);
-            uart_tx_flag = 0;
-        }
+//        if(uart_tx_flag) {
+//            uartSendPacket(uart_tx_packet);
+//            uart_tx_flag = 0;
+//        }
 
-
-        // move received packets to function queue
-        while (!radioRxQueueEmpty()) {
-            // Check for unprocessed packet
-            rx_packet = radioDequeueRxPacket();
-            if(rx_packet != NULL) {
-                cmdPushFunc(rx_packet);
-            }
+        if(radioRxQueueEmpty() && radioTxQueueEmpty())
+        {
+            //There is no "command queue", only the RadioRxQueue
+            Idle(); //Interrupts will bring CPU out of idle in 6 cycles
         }
-
-        // process commands from function queue
-        while(!carrayIsEmpty(fun_queue)) {
-            rx_packet = carrayPopHead(fun_queue);
-            unsigned int rx_src_addr = rx_packet->src_addr.val;
-            if(rx_packet != NULL) {
-               rx_payload = macGetPayload(rx_packet);
-               if(rx_payload != NULL) {
-                   rx_function = (test_function)(rx_payload->test);
-                   if(rx_function != NULL) {
-                       LED_2 = ~LED_2;
-                       (rx_function)(payGetType(rx_payload), payGetStatus(rx_payload), payGetDataLength(rx_payload), payGetData(rx_payload), rx_src_addr);
-                   }
-               }
-               ppoolReturnFullPacket(rx_packet);
-            }
-        }
+   
     }
     return 0;
 }
