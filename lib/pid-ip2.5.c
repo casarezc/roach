@@ -402,6 +402,10 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
             tiHSetDC(OLObjs[0].output_channel, OLObjs[0].pwmDes);
             tiHSetDC(OLObjs[1].output_channel, OLObjs[1].pwmDes);
         }
+        else{
+            tiHSetDC(OLObjs[0].output_channel, 0);
+            tiHSetDC(OLObjs[1].output_channel, 0);
+        }
 
     }
     LED_3 = 0;
