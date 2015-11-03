@@ -46,6 +46,9 @@
 // PID control structure
 pidPos pidObjs[NUM_PIDS];
 
+// Open loop control structure
+OLCtrl OLObjs[NUM_OL];
+
 // structure for reference velocity for leg
 pidVelLUT pidVel[NUM_PIDS*NUM_BUFF];
 pidVelLUT* activePID[NUM_PIDS]; //Pointer arrays for stride buffering
@@ -95,6 +98,14 @@ void pidSetup() {
     // Initialize PID structures before starting Timer1
     pidSetInput(LEFT_LEGS_PID_NUM, 0);
     pidSetInput(RIGHT_LEGS_PID_NUM, 0);
+    
+    // Initialize OL control structures
+    OLObjs[0].pwmDes = 0;
+    OLObjs[1].pwmDes = 0;
+    OLObjs[0].onoff = 0;
+    OLObjs[1].onoff = 0;
+    OLObjs[0].output_channel = MC_CHANNEL_PWM3;
+    OLObjs[1].output_channel = MC_CHANNEL_PWM4;
 
     EnableIntT1; // turn on pid interrupts
 
@@ -371,6 +382,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
                     if (t1_ticks > lastMoveTime) { // turn off if done running all legs
                         pidObjs[0].onoff = 0;
                         pidObjs[1].onoff = 0;
+                        OLOff(0);
                     }
                 }
                 else {
@@ -383,6 +395,12 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
         } else if (pidObjs[0].mode == PID_MODE_PWMPASS) {
             tiHSetDC(pidObjs[0].output_channel, pidObjs[0].pwmDes);
             tiHSetDC(pidObjs[1].output_channel, pidObjs[1].pwmDes);
+        }
+
+        // Set open loop PWM for robot without encoders
+        if (OLObjs[0].onoff) {
+            tiHSetDC(OLObjs[0].output_channel, OLObjs[0].pwmDes);
+            tiHSetDC(OLObjs[1].output_channel, OLObjs[1].pwmDes);
         }
 
     }
@@ -666,5 +684,25 @@ void pidSetMode(unsigned int channel, char mode){
 void pidSetPWMDes(unsigned int channel, int pwm){
     if (channel < NUM_PIDS) {
         pidObjs[channel].pwmDes = pwm;
+    }
+}
+
+//Open loop turn PWM setting on
+void OLOn(unsigned int channel){
+    if (channel < NUM_OL) {
+        OLObjs[channel].onoff = 1;
+    }
+}
+
+void OLOff(unsigned int channel){
+    if (channel < NUM_OL) {
+        OLObjs[channel].onoff = 0;
+    }
+}
+
+//Open loop set PWM
+void OLSetPWMDes(unsigned int channel, int pwm){
+    if (channel < NUM_OL) {
+        OLObjs[channel].pwmDes = pwm;
     }
 }

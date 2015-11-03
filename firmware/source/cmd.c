@@ -55,6 +55,9 @@ static unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, 
 static unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 
+//Open loop motor functions
+static unsigned char cmdSetOLPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+
 //Experiment/Flash Commands
 static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -88,6 +91,7 @@ void cmdSetup(void) {
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
+    cmd_func[CMD_SET_OL_PWM] = &cmdSetOLPWM;
 
 }
 
@@ -181,6 +185,8 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
     
     pidSetMode(LEFT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
     pidSetMode(RIGHT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
+
+    OLOn(0);
 
     pidStartTimedTrial(argsPtr->run_time);
 
@@ -348,6 +354,16 @@ void cmdError() {
         delay_ms(200);
     }
 }
+
+ unsigned char cmdSetOLPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    //Unpack unsigned char* frame into structured values
+    PKT_UNPACK(_args_cmdSetMotorMode, argsPtr, frame);
+
+    OLSetPWMDes(0, argsPtr->thrust1);
+    OLSetPWMDes(1, argsPtr->thrust2);
+
+    return 1;
+ }
 
 static unsigned char cmdNop(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     return 1;

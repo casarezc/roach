@@ -13,6 +13,8 @@
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
 
+#define NUM_OL          2
+
 
 /* The back emf constant can be measured by measuring velocity from Hall encoder 
 * 80 rad/sec = 12.5 rev/sec = 834 encPos[].pos/sec
@@ -80,6 +82,13 @@ typedef struct
 	int onceFlag;
 } pidVelLUT;
 
+typedef struct
+{
+	int pwmDes;	//Desired PWM
+        char onoff;     //On/off flag
+        unsigned char output_channel;
+} OLCtrl;
+
 //Defaults for leg config switches
 //TODO: Check these for consistency with the default wiring diagram for VR
 //Left legs
@@ -142,5 +151,8 @@ void pidStartMotor(unsigned int channel);
 void pidSetTimeFlag(unsigned int channel, char val);
 void pidSetMode(unsigned int channel, char mode);
 void pidSetPWMDes(unsigned int channel, int pwm);
+void OLOn(unsigned int channel);
+void OLOff(unsigned int channel);
+void OLSetPWMDes(unsigned int channel, int pwm);
 
 #endif // __PID_H

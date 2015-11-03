@@ -243,7 +243,7 @@ class Velociroach:
         fileout.write('%  Motor Gains    = ' + repr(self.currentGait.motorgains) + '\n')
         fileout.write('% Columns: \n')
         # order for wiring on RF Turner
-        fileout.write('% time | Right Leg Pos | Left Leg Pos | Commanded Right Leg Pos | Commanded Left Leg Pos | DCR | DCL | GyroX | GryoY | GryoZ | AX | AY | AZ | RBEMF | LBEMF | VBatt\n')
+        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | DCC | DCD | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | BEMFC | BEMFD | VBatt\n')
         fileout.close()
 
     def setupTelemetryDataTime(self, runtime):

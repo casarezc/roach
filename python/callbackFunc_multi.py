@@ -22,7 +22,7 @@ pktFormat = { \
     command.SET_STEERING_GAINS:     '6h', \
     command.SOFTWARE_RESET:         '', \
     command.ERASE_SECTORS:          'L', \
-    command.FLASH_READBACK:         '=LL' +'4l'+'11h', \
+    command.FLASH_READBACK:         '=LL' +'4l'+'15h', \
     command.SLEEP:                  'b', \
     command.ECHO:                   'c' ,\
     command.SET_VEL_PROFILE:        '8h' ,\
