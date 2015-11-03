@@ -54,7 +54,7 @@ def main():
     steergains = [500, 100, 0]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
-    frequency = 5
+    frequency = 1
 
     simpleAltTripod = GaitConfig(motorgains, rightFreq=frequency, leftFreq=frequency) # Parameters can be passed into object upon construction, as done here.
     simpleAltTripod.phase = PHASE_180_DEG                             # Or set individually, as here
@@ -72,16 +72,16 @@ def main():
     steerRight.steerangle = -90
 
     # Configure intra-stride control
-    # R1.setGait(simpleAltTripod)
+    R1.setGait(simpleAltTripod)
 
     # Configure steering gait
     # R1.setSteerGait(steerLeft)
-    R1.setSteerGait(steerRight)
+    # R1.setSteerGait(steerRight)
     # R1.setSteerGait(steerStraight)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 5000 #ms
-    EXPERIMENT_LEADIN_TIME_MS  = 1000  #ms
+    EXPERIMENT_RUN_TIME_MS     = 1000 #ms
+    EXPERIMENT_LEADIN_TIME_MS  = 200  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
     
     # Some preparation is needed to cleanly save telemetry data
@@ -110,7 +110,7 @@ def main():
     ######## Motion is initiated here! ########
     R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
-    R1.stopSteering()
+    # R1.stopSteering()
     ######## End of motion commands   ########
     
     # Sleep for a lead-out time after any motion

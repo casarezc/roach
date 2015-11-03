@@ -16,6 +16,7 @@ PHASE_180_DEG = 0x8000
 
 class GaitConfig:
     motorgains = None
+    steergains = None
     duration = None
     rightFreq = None
     leftFreq = None
@@ -24,11 +25,16 @@ class GaitConfig:
     deltasLeft = None
     deltasRight = None
     steerangle = None
-    def __init__(self, motorgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None, steerangle = None):
+    def __init__(self, motorgains = None, steergains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None, steerangle = None):
         if motorgains == None:
             self.motorgains = [0,0,0,0,0 , 0,0,0,0,0]
         else:
             self.motorgains = motorgains
+
+        if steergains == None:
+            self.steergains = [0,0,0]
+        else:
+            self.steergains = steergains
 
         if steerangle == None:
             self.steerangle = 0

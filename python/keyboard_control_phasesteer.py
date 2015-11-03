@@ -59,7 +59,7 @@ def main():
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
     motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
-    steergains = [750, 100, 0]
+    steergains = [1500, 200, 0]
 
     #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
     #simpleBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
@@ -99,7 +99,7 @@ def main():
     steerRightFast.steerangle = -90
     
     # Set the timings of each segment of the run
-    T = 3000
+    T = 4000
 
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
