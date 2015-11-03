@@ -96,7 +96,13 @@ class Velociroach:
             if (time.time() - eraseStartTime) > timeout:
                 print"Flash erase timeout, retrying;"
                 self.tx( 0, command.ERASE_SECTORS, pack('L',self.numSamples))
-                eraseStartTime = time.time()    
+                eraseStartTime = time.time()   
+
+    def setOLPWM(self, leftPWM, rightPWM):
+        self.clAnnounce()
+        print "Setting trailing robot open loop PWM to Left:", leftPWM ,"Right:", rightPWM
+        temp = [leftPWM, rightPWM]
+        self.tx( 0, command.SET_OL_PWM, pack('2h', *temp))
         
     def setPhase(self, phase):
         self.clAnnounce()

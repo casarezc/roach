@@ -24,7 +24,7 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x20\x52', xb)
+    R1 = Velociroach('\x21\x63', xb)
     R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
@@ -53,14 +53,18 @@ def main():
     motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
+    # Configure gait for front robot
     simpleAltTripod = GaitConfig(motorgains, rightFreq=1, leftFreq=1) # Parameters can be passed into object upon construction, as done here.
     simpleAltTripod.phase = PHASE_180_DEG                             # Or set individually, as here
     simpleAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     simpleAltTripod.deltasRight = [0.25, 0.25, 0.25]
-    #simpleAltTripod.deltasTime  = [0.25, 0.25, 0.25] # Not current supported by firmware; time deltas are always exactly [0.25, 0.25, 0.25, 0.25]
-    
-    # Configure intra-stride control
+
     R1.setGait(simpleAltTripod)
+
+    # Configure open loop pwm settings for rear robot
+    leftPWM = 2000
+    rightPWM = 2000
+    R1.setOLPWM(leftPWM, rightPWM)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 2000 #ms
