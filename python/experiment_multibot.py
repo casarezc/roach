@@ -24,7 +24,7 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x63', xb)
+    R1 = Velociroach('\x21\x64', xb)
     R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
@@ -62,8 +62,9 @@ def main():
     R1.setGait(simpleAltTripod)
 
     # Configure open loop pwm settings for rear robot
-    leftPWM = 2000
+    leftPWM = 1500
     rightPWM = 2000
+    # rightPWM = 0
     R1.setOLPWM(leftPWM, rightPWM)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out

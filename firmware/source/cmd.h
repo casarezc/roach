@@ -25,8 +25,6 @@
 #define CMD_PID_STOP_MOTORS         0x92         
 #define CMD_SET_PHASE               0x93         
 #define CMD_SET_MOTOR_MODE          0x94
-
-#define CMD_SET_OL_PWM              0xC0
 // Redefine
 
 void cmdSetup(void);
@@ -44,11 +42,18 @@ typedef struct{
 
 //cmdSetMotorMode
 typedef struct{
+        int r_num;
 	int thrust1, thrust2;
 } _args_cmdSetMotorMode;
 
+//cmdGetAMSPos
+typedef struct{
+        int r_num;
+} _args_cmdGetAMSPos;
+
 //cmdSetPIDGains
 typedef struct{
+        int r_num;
 	int Kp1, Ki1, Kd1, Kaw1, Kff1;
 	int Kp2, Ki2, Kd2, Kaw2, Kff2;
 } _args_cmdSetPIDGains;
@@ -78,6 +83,7 @@ typedef struct{
 
 //cmdSetVelProfile
 typedef struct{
+    int r_num;
     int16_t periodLeft;
     int16_t deltaL[NUM_VELS];
     int16_t flagLeft;
@@ -88,8 +94,14 @@ typedef struct{
 
 //cmdSetPhase
 typedef struct{
+    int r_num;
     int32_t offset;
 } _args_cmdSetPhase;
+
+//cmdZeroPos
+typedef struct{
+    int r_num;
+} _args_cmdZeroPos;
 
 
 #endif // __CMD_H

@@ -9,11 +9,9 @@
 #define DEFAULT_FF  0
 
 #define GAIN_SCALER         100
-#define NUM_PIDS	2
+#define NUM_PIDS	4
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
-
-#define NUM_OL          2
 
 
 /* The back emf constant can be measured by measuring velocity from Hall encoder 
@@ -82,46 +80,74 @@ typedef struct
 	int onceFlag;
 } pidVelLUT;
 
-typedef struct
-{
-	int pwmDes;	//Desired PWM
-        char onoff;     //On/off flag
-        unsigned char output_channel;
-} OLCtrl;
-
 //Defaults for leg config switches
 //TODO: Check these for consistency with the default wiring diagram for VR
-//Left legs
-#ifndef LEFT_LEGS_PID_NUM
-#define LEFT_LEGS_PID_NUM       0       //PID module index is 0-3
+//Left legs robot 1
+#ifndef LEFT_1_PID_NUM
+#define LEFT_1_PID_NUM       0       //PID module index is 0-3
 #endif
-#ifndef LEFT_LEGS_ENC_NUM
-#define LEFT_LEGS_ENC_NUM       0       //amsEnc module index is 0-3
+#ifndef LEFT_1_ENC_NUM
+#define LEFT_1_ENC_NUM       0       //amsEnc module index is 0-3
 #endif
-#ifndef LEFT_LEGS_ENC_FLIP
-#define LEFT_LEGS_ENC_FLIP      0       //"forward" normal for left
+#ifndef LEFT_1_ENC_FLIP
+#define LEFT_1_ENC_FLIP      0       //"forward" normal for left
 #endif
-#ifndef LEFT_LEGS_PWM_FLIP
-#define LEFT_LEGS_PWM_FLIP      0
+#ifndef LEFT_1_PWM_FLIP
+#define LEFT_1_PWM_FLIP      0
 #endif
-#ifndef LEFT_LEGS_TIH_CHAN
-#define LEFT_LEGS_TIH_CHAN      1       //tiH module index is 1-4
+#ifndef LEFT_1_TIH_CHAN
+#define LEFT_1_TIH_CHAN      1       //tiH module index is 1-4
 #endif
-//Right legs
-#ifndef RIGHT_LEGS_PID_NUM
-#define RIGHT_LEGS_PID_NUM      1       //PID module index is 0-3
+
+//Right legs robot 1
+#ifndef RIGHT_1_PID_NUM
+#define RIGHT_1_PID_NUM      1       //PID module index is 0-3
 #endif
-#ifndef RIGHT_LEGS_ENC_NUM
-#define RIGHT_LEGS_ENC_NUM      1       //amsEnc module index is 0-3
+#ifndef RIGHT_1_ENC_NUM
+#define RIGHT_1_ENC_NUM      1       //amsEnc module index is 0-3
 #endif
-#ifndef RIGHT_LEGS_FLIP
-#define RIGHT_LEGS_FLIP         1       //"forward" reversed for right
+#ifndef RIGHT_1_ENC_FLIP
+#define RIGHT_1_ENC_FLIP     1       //"forward" reversed for right
 #endif
-#ifndef RIGHT_LEGS_PWM_FLIP
-#define RIGHT_LEGS_PWM_FLIP     0
+#ifndef RIGHT_1_PWM_FLIP
+#define RIGHT_1_PWM_FLIP     0
 #endif
-#ifndef RIGHT_LEGS_TIH_CHAN
-#define RIGHT_LEGS_TIH_CHAN     2       //tiH module index is 1-4
+#ifndef RIGHT_1_TIH_CHAN
+#define RIGHT_1_TIH_CHAN     2       //tiH module index is 1-4
+#endif
+
+//Left legs robot 2
+#ifndef LEFT_2_PID_NUM
+#define LEFT_2_PID_NUM       2       //PID module index is 0-3
+#endif
+#ifndef LEFT_2_ENC_NUM
+#define LEFT_2_ENC_NUM       2       //amsEnc module index is 0-3
+#endif
+#ifndef LEFT_2_ENC_FLIP
+#define LEFT_2_ENC_FLIP      0       //"forward" normal for left
+#endif
+#ifndef LEFT_2_PWM_FLIP
+#define LEFT_2_PWM_FLIP      0
+#endif
+#ifndef LEFT_2_TIH_CHAN
+#define LEFT_2_TIH_CHAN      3       //tiH module index is 1-4
+#endif
+
+//Right legs robot 2
+#ifndef RIGHT_2_PID_NUM
+#define RIGHT_2_PID_NUM      3       //PID module index is 0-3
+#endif
+#ifndef RIGHT_2_ENC_NUM
+#define RIGHT_2_ENC_NUM      3       //amsEnc module index is 0-3
+#endif
+#ifndef RIGHT_2_ENC_FLIP
+#define RIGHT_2_ENC_FLIP     1       //"forward" reversed for right
+#endif
+#ifndef RIGHT_2_PWM_FLIP
+#define RIGHT_2_PWM_FLIP     0
+#endif
+#ifndef RIGHT_2_TIH_CHAN
+#define RIGHT_2_TIH_CHAN     4       //tiH module index is 1-4
 #endif
 
 
@@ -151,8 +177,5 @@ void pidStartMotor(unsigned int channel);
 void pidSetTimeFlag(unsigned int channel, char val);
 void pidSetMode(unsigned int channel, char mode);
 void pidSetPWMDes(unsigned int channel, int pwm);
-void OLOn(unsigned int channel);
-void OLOff(unsigned int channel);
-void OLSetPWMDes(unsigned int channel, int pwm);
 
 #endif // __PID_H

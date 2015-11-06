@@ -55,9 +55,6 @@ static unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, 
 static unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 
-//Open loop motor functions
-static unsigned char cmdSetOLPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-
 //Experiment/Flash Commands
 static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -91,7 +88,6 @@ void cmdSetup(void) {
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
-    cmd_func[CMD_SET_OL_PWM] = &cmdSetOLPWM;
 
 }
 
@@ -159,9 +155,22 @@ unsigned char cmdWhoAmI(unsigned char type, unsigned char status, unsigned char 
 
 unsigned char cmdGetAMSPos(unsigned char type, unsigned char status,
         unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    PKT_UNPACK(_args_cmdGetAMSPos, argsPtr, frame);
+
     long motor_count[2];
-    motor_count[0] = pidGetPState(LEFT_LEGS_PID_NUM);
-    motor_count[1] = pidGetPState(RIGHT_LEGS_PID_NUM);
+    if(argsPtr -> r_num == 1){
+        motor_count[0] = pidGetPState(LEFT_1_PID_NUM);
+        motor_count[1] = pidGetPState(RIGHT_1_PID_NUM);
+    }
+    else if(argsPtr -> r_num == 2){
+        motor_count[0] = pidGetPState(LEFT_2_PID_NUM);
+        motor_count[1] = pidGetPState(RIGHT_2_PID_NUM);
+    }
+    else{
+        motor_count[0] = 0;
+        motor_count[1] = 0;
+    }
 
     radioSendData(src_addr, status, CMD_GET_AMS_POS,  //TODO: Robot should respond to source of query, not hardcoded address
             sizeof(motor_count), (unsigned char *)motor_count, 0);
@@ -182,11 +191,6 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
         checkSwapBuff(i);
         pidOn(i);
     }
-    
-    pidSetMode(LEFT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
-    pidSetMode(RIGHT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
-
-    OLOn(0);
 
     pidStartTimedTrial(argsPtr->run_time);
 
@@ -241,11 +245,18 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
     //Unpack unsigned char* frame into structured values
     PKT_UNPACK(_args_cmdSetMotorMode, argsPtr, frame);
 
-
-    pidSetPWMDes(LEFT_LEGS_PID_NUM, argsPtr->thrust1);
-    pidSetPWMDes(RIGHT_LEGS_PID_NUM, argsPtr->thrust2);
-
-    pidSetMode(LEFT_LEGS_PID_NUM,1);
+    if(argsPtr -> r_num == 1){
+        pidSetPWMDes(LEFT_1_PID_NUM, argsPtr->thrust1);
+        pidSetPWMDes(RIGHT_1_PID_NUM, argsPtr->thrust2);
+        pidSetMode(LEFT_1_PID_NUM, PID_MODE_PWMPASS);
+        pidSetMode(RIGHT_1_PID_NUM, PID_MODE_PWMPASS);
+    }
+    else if(argsPtr -> r_num == 2){
+        pidSetPWMDes(LEFT_2_PID_NUM, argsPtr->thrust1);
+        pidSetPWMDes(RIGHT_2_PID_NUM, argsPtr->thrust2);
+        pidSetMode(LEFT_2_PID_NUM, PID_MODE_PWMPASS);
+        pidSetMode(RIGHT_2_PID_NUM, PID_MODE_PWMPASS);
+    }
 
     return 1;
  }
@@ -253,11 +264,21 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
  unsigned char cmdSetPIDGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     //Unpack unsigned char* frame into structured values
     PKT_UNPACK(_args_cmdSetPIDGains, argsPtr, frame);
-    pidSetGains(LEFT_LEGS_PID_NUM,
-            argsPtr->Kp1,argsPtr->Ki1,argsPtr->Kd1,argsPtr->Kaw1, argsPtr->Kff1);
 
-    pidSetGains(RIGHT_LEGS_PID_NUM,
-            argsPtr->Kp2,argsPtr->Ki2,argsPtr->Kd2,argsPtr->Kaw2, argsPtr->Kff2);
+    if(argsPtr -> r_num == 1){
+        pidSetGains(LEFT_1_PID_NUM,
+                argsPtr->Kp1,argsPtr->Ki1,argsPtr->Kd1,argsPtr->Kaw1, argsPtr->Kff1);
+
+        pidSetGains(RIGHT_1_PID_NUM,
+                argsPtr->Kp2,argsPtr->Ki2,argsPtr->Kd2,argsPtr->Kaw2, argsPtr->Kff2);
+    }
+    else if(argsPtr -> r_num == 2){
+        pidSetGains(LEFT_2_PID_NUM,
+                argsPtr->Kp1,argsPtr->Ki1,argsPtr->Kd1,argsPtr->Kaw1, argsPtr->Kff1);
+
+        pidSetGains(RIGHT_2_PID_NUM,
+                argsPtr->Kp2,argsPtr->Ki2,argsPtr->Kd2,argsPtr->Kaw2, argsPtr->Kff2);
+    }
 
     radioSendData(src_addr, status, CMD_SET_PID_GAINS, length, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
 
@@ -286,8 +307,18 @@ unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigne
         vel2[i] = delta2[i] / interval2[i];
     }
 
-    setPIDVelProfile(LEFT_LEGS_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
-    setPIDVelProfile(RIGHT_LEGS_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
+    if(argsPtr -> r_num == 1){
+        setPIDVelProfile(LEFT_1_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
+        setPIDVelProfile(RIGHT_1_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
+        pidSetMode(LEFT_1_PID_NUM ,PID_MODE_CONTROLED);
+        pidSetMode(RIGHT_1_PID_NUM ,PID_MODE_CONTROLED);
+    }
+    else if(argsPtr -> r_num == 2){
+        setPIDVelProfile(LEFT_2_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
+        setPIDVelProfile(RIGHT_2_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
+        pidSetMode(LEFT_2_PID_NUM ,PID_MODE_CONTROLED);
+        pidSetMode(RIGHT_2_PID_NUM ,PID_MODE_CONTROLED);
+    }
 
     //Send confirmation packet
     // TODO : Send confirmation packet with packet index
@@ -297,30 +328,49 @@ unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigne
 unsigned char cmdPIDStartMotors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 
     //All actions have been moved to a PID module function
-    pidStartMotor(LEFT_LEGS_PID_NUM);
-    pidStartMotor(RIGHT_LEGS_PID_NUM);
+    pidStartMotor(LEFT_1_PID_NUM);
+    pidStartMotor(RIGHT_1_PID_NUM);
+    pidStartMotor(LEFT_2_PID_NUM);
+    pidStartMotor(RIGHT_2_PID_NUM);
 
     return 1;
 }
 
 unsigned char cmdPIDStopMotors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 
-    pidOff(LEFT_LEGS_PID_NUM);
-    pidOff(RIGHT_LEGS_PID_NUM);
+    pidOff(LEFT_1_PID_NUM);
+    pidOff(RIGHT_1_PID_NUM);
+    pidOff(LEFT_2_PID_NUM);
+    pidOff(RIGHT_2_PID_NUM);
 
     return 1;
 }
 
 unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    PKT_UNPACK(_args_cmdZeroPos, argsPtr, frame);
+
     long motor_count[2];
-    motor_count[0] = pidGetPState(0);
-    motor_count[1] = pidGetPState(1);
+    if(argsPtr -> r_num == 1){
+        motor_count[0] = pidGetPState(LEFT_1_PID_NUM);
+        motor_count[1] = pidGetPState(RIGHT_1_PID_NUM);
+        pidZeroPos(LEFT_1_PID_NUM);
+        pidZeroPos(RIGHT_1_PID_NUM);
+    }
+    else if(argsPtr -> r_num == 2){
+
+        motor_count[0] = pidGetPState(LEFT_2_PID_NUM);
+        motor_count[1] = pidGetPState(RIGHT_2_PID_NUM);
+        pidZeroPos(LEFT_2_PID_NUM);
+        pidZeroPos(RIGHT_2_PID_NUM);
+    }
+    else{
+        motor_count[0] = 0;
+        motor_count[1] = 0;
+    }
 
     radioSendData(src_addr, status, CMD_ZERO_POS, 
         sizeof(motor_count), (unsigned char *)motor_count, 0);
-
-    pidZeroPos(LEFT_LEGS_PID_NUM);
-    pidZeroPos(RIGHT_LEGS_PID_NUM);
     
     return 1;
 }
@@ -330,13 +380,25 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
     PKT_UNPACK(_args_cmdSetPhase, argsPtr, frame);
 
     long p_state[2], error;
-    p_state[0] = pidGetPState(LEFT_LEGS_PID_NUM);
-    p_state[1] = pidGetPState(RIGHT_LEGS_PID_NUM);
-    
-    error = argsPtr->offset - ( (p_state[0] & 0x0000FFFF) - (p_state[1] & 0x0000FFFF) );
+    if(argsPtr -> r_num == 1){
+        p_state[0] = pidGetPState(LEFT_1_PID_NUM);
+        p_state[1] = pidGetPState(RIGHT_1_PID_NUM);
 
-    pidSetPInput(LEFT_LEGS_PID_NUM, p_state[0] + error/2);
-    pidSetPInput(RIGHT_LEGS_PID_NUM, p_state[1] - error/2);
+        error = argsPtr->offset - ( (p_state[0] & 0x0000FFFF) - (p_state[1] & 0x0000FFFF) );
+
+        pidSetPInput(LEFT_1_PID_NUM, p_state[0] + error/2);
+        pidSetPInput(RIGHT_1_PID_NUM, p_state[1] - error/2);
+    }
+
+    if(argsPtr -> r_num == 2){
+        p_state[0] = pidGetPState(LEFT_2_PID_NUM);
+        p_state[1] = pidGetPState(RIGHT_2_PID_NUM);
+
+        error = argsPtr->offset - ( (p_state[0] & 0x0000FFFF) - (p_state[1] & 0x0000FFFF) );
+
+        pidSetPInput(LEFT_2_PID_NUM, p_state[0] + error/2);
+        pidSetPInput(RIGHT_2_PID_NUM, p_state[1] - error/2);
+    }
 
     return 1;
 }
@@ -354,16 +416,6 @@ void cmdError() {
         delay_ms(200);
     }
 }
-
- unsigned char cmdSetOLPWM(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
-    //Unpack unsigned char* frame into structured values
-    PKT_UNPACK(_args_cmdSetMotorMode, argsPtr, frame);
-
-    OLSetPWMDes(0, argsPtr->thrust1);
-    OLSetPWMDes(1, argsPtr->thrust2);
-
-    return 1;
- }
 
 static unsigned char cmdNop(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     return 1;

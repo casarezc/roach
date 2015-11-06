@@ -21,7 +21,6 @@
 //externs added back in for VR telem porting (pullin 10/9/14)
 extern int bemf[NUM_PIDS];
 extern pidPos pidObjs[NUM_PIDS];
-extern OLCtrl OLObjs[NUM_OL];
 
 //void vrTelemGetData(unsigned char* ptr) {
 void vrTelemGetData(vrTelemStruct_t* ptr) {
@@ -36,18 +35,22 @@ void vrTelemGetData(vrTelemStruct_t* ptr) {
     mpuGetXl(xldata);
 
     //Motion control
-    ptr->posL = pidObjs[0].p_state;
-    ptr->posR = pidObjs[1].p_state;
-    ptr->composL = pidObjs[0].p_input + pidObjs[0].interpolate;
-    ptr->composR = pidObjs[1].p_input + pidObjs[1].interpolate;
-    ptr->dcL = pidObjs[0].output; // left
-    ptr->dcR = pidObjs[1].output; // right
-    ptr->dcC = OLObjs[0].pwmDes;
-    ptr->dcD = OLObjs[1].pwmDes;
-    ptr->bemfL = bemf[0];
-    ptr->bemfR = bemf[1];
-    ptr->bemfC = (int) adcGetMotorC();
-    ptr->bemfD = (int) adcGetMotorD();
+    ptr->posL1 = pidObjs[0].p_state;
+    ptr->posR1 = pidObjs[1].p_state;
+    ptr->composL1 = pidObjs[0].p_input + pidObjs[0].interpolate;
+    ptr->composR1 = pidObjs[1].p_input + pidObjs[1].interpolate;
+    ptr->posL2 = pidObjs[2].p_state;
+    ptr->posR2 = pidObjs[3].p_state;
+    ptr->composL2 = pidObjs[2].p_input + pidObjs[2].interpolate;
+    ptr->composR2 = pidObjs[3].p_input + pidObjs[3].interpolate;
+    ptr->dcL1 = pidObjs[0].output; // left 1
+    ptr->dcR1 = pidObjs[1].output; // right 1
+    ptr->dcL2 = pidObjs[2].output; // left 2
+    ptr->dcR2 = pidObjs[3].output; // right 2
+    ptr->bemfL1 = bemf[0];
+    ptr->bemfR1 = bemf[1];
+    ptr->bemfL2 = bemf[2];
+    ptr->bemfR2 = bemf[3];
 
     //gyro and XL
     ptr->gyroX = gdata[0];
