@@ -61,7 +61,7 @@ typedef struct{
 //cmdSoftwareReset
 //no arguments
 
-//cmdcmdStartTimedRun
+//cmdStartTimedRun
 typedef struct{
     uint16_t run_time;
 } _args_cmdStartTimedRun;

@@ -529,7 +529,7 @@ void pidGetState() {
     int measurements[NUM_PIDS];
     // Battery: AN0, MotorA AN8, MotorB AN9, MotorC AN10, MotorD AN11
     for (i = 0; i < NUM_PIDS; i++) {
-        measurements[i] = pidObjs[i].inputOffset - adcGetMotor(pidObjs[i].output_channel); // watch sign for A/D? unsigned int -> signed?
+        measurements[i] = bemf[i]; // watch sign for A/D? unsigned int -> signed?
 
 
         //Get motor speed reading on every interrupt - A/D conversion triggered by PWM timer to read Vm when transistor is off
@@ -601,6 +601,13 @@ void pidSetControl() {
             tiHSetDC(pidObjs[j].output_channel, pidObjs[j].pwmDes);
         }
         else{
+            if(pidObjs[j].mode == PID_MODE_CONTROLED){
+                pidObjs[j].p_error = pidObjs[j].p_input + pidObjs[j].interpolate - pidObjs[j].p_state;
+                pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state; // v_input should be revs/sec
+                //Update values
+                UpdatePID(&(pidObjs[j]));
+            }
+
             tiHSetDC(pidObjs[j].output_channel, 0);
         }
     }// end of for(j)

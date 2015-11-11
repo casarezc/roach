@@ -271,6 +271,8 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
 
         pidSetGains(RIGHT_1_PID_NUM,
                 argsPtr->Kp2,argsPtr->Ki2,argsPtr->Kd2,argsPtr->Kaw2, argsPtr->Kff2);
+
+        radioSendData(src_addr, status, CMD_SET_PID_GAINS, length, frame, 0);
     }
     else if(argsPtr -> r_num == 2){
         pidSetGains(LEFT_2_PID_NUM,
@@ -278,9 +280,11 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
 
         pidSetGains(RIGHT_2_PID_NUM,
                 argsPtr->Kp2,argsPtr->Ki2,argsPtr->Kd2,argsPtr->Kaw2, argsPtr->Kff2);
+        
+        radioSendData(src_addr, status, CMD_SET_PID_GAINS, length, frame, 0);
     }
 
-    radioSendData(src_addr, status, CMD_SET_PID_GAINS, length, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+     //TODO: Robot should respond to source of query, not hardcoded address
 
     return 1; //success
 }
@@ -312,16 +316,22 @@ unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigne
         setPIDVelProfile(RIGHT_1_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
         pidSetMode(LEFT_1_PID_NUM ,PID_MODE_CONTROLED);
         pidSetMode(RIGHT_1_PID_NUM ,PID_MODE_CONTROLED);
+
+        radioSendData(src_addr, status, CMD_SET_VEL_PROFILE, length, frame, 0);
     }
     else if(argsPtr -> r_num == 2){
         setPIDVelProfile(LEFT_2_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
         setPIDVelProfile(RIGHT_2_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
         pidSetMode(LEFT_2_PID_NUM ,PID_MODE_CONTROLED);
         pidSetMode(RIGHT_2_PID_NUM ,PID_MODE_CONTROLED);
+
+        radioSendData(src_addr, status, CMD_SET_VEL_PROFILE, length, frame, 0);
     }
 
     //Send confirmation packet
     // TODO : Send confirmation packet with packet index
+    
+    
     return 1; //success
 }
 
@@ -388,9 +398,11 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
 
         pidSetPInput(LEFT_1_PID_NUM, p_state[0] + error/2);
         pidSetPInput(RIGHT_1_PID_NUM, p_state[1] - error/2);
+
+        radioSendData(src_addr, status, CMD_SET_PHASE, length, frame, 0);
     }
 
-    if(argsPtr -> r_num == 2){
+    else if(argsPtr -> r_num == 2){
         p_state[0] = pidGetPState(LEFT_2_PID_NUM);
         p_state[1] = pidGetPState(RIGHT_2_PID_NUM);
 
@@ -398,6 +410,8 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
 
         pidSetPInput(LEFT_2_PID_NUM, p_state[0] + error/2);
         pidSetPInput(RIGHT_2_PID_NUM, p_state[1] - error/2);
+        
+        radioSendData(src_addr, status, CMD_SET_PHASE, length, frame, 0);
     }
 
     return 1;
