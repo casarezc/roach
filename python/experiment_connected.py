@@ -64,16 +64,16 @@ def main():
     straightGait.rightFreq_1 = freq_1
     straightGait.leftFreq_1 = freq_1
     straightGait.phase_1 = PHASE_180_DEG 
-    simpleAltTripod.deltasLeft_1 = [0.25, 0.25, 0.25]
-    simpleAltTripod.deltasRight_1 = [0.25, 0.25, 0.25]
+    straightGait.deltasLeft_1 = [0.25, 0.25, 0.25]
+    straightGait.deltasRight_1 = [0.25, 0.25, 0.25]
 
     # Configure gait for rear robot
     straightGait.motorgains_2 = motorgains_2
     straightGait.rightFreq_2 = freq_2
     straightGait.leftFreq_2 = freq_2
     straightGait.phase_2 = PHASE_180_DEG 
-    simpleAltTripod.deltasLeft_2 = [0.25, 0.25, 0.25]
-    simpleAltTripod.deltasRight_2 = [0.25, 0.25, 0.25]
+    straightGait.deltasLeft_2 = [0.25, 0.25, 0.25]
+    straightGait.deltasRight_2 = [0.25, 0.25, 0.25]
 
     # Set gait
     R1.setGait(straightGait)

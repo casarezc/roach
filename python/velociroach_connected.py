@@ -60,6 +60,8 @@ class GaitConfig:
 class Velociroach_Connected:
     motor_gains_set_1 = False
     motor_gains_set_2 = False
+    encoders_zeroed_1 = False
+    encoders_zeroed_2 = False
     robot_queried = False
     flash_erased = False
     
@@ -275,7 +277,7 @@ class Velociroach_Connected:
         while not(self.motor_gains_set_1) and (tries <= retries):
             self.clAnnounce()
             print "Setting front motor gains...   ",tries,"/8"
-            temp = [rnum, gains_1]
+            temp = [rnum] + gains_1
             self.tx( 0, command.SET_PID_GAINS, pack('11h',*temp))
             tries = tries + 1
             time.sleep(0.3)
@@ -286,21 +288,27 @@ class Velociroach_Connected:
         while not(self.motor_gains_set_2) and (tries <= retries):
             self.clAnnounce()
             print "Setting rear motor gains...   ",tries,"/8"
-            temp = [rnum, gains_2]
+            temp = [rnum] + gains_2 
             self.tx( 0, command.SET_PID_GAINS, pack('11h',*temp))
             tries = tries + 1
             time.sleep(0.3)
 
-    def zeroPosition(self):
-        rnum = 1
-        print "Zeroing front encoders"
-        self.tx( 0, command.ZERO_POS, pack('h',rnum))
-        time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
+    def zeroPosition(self, retries = 8):
+        tries = 1
+        while not(self.encoders_zeroed_1) and (tries <= retries):
+            self.clAnnounce()
+            print "Zeroing front encoders...",tries,"/8"
+            self.tx( 0, command.ZERO_POS, pack('h',1))
+            tries = tries + 1
+            time.sleep(0.3) #built-in holdoff, since reset apparently takes > 50ms
 
-        rnum = 2
-        print "Zeroing rear encoders"
-        self.tx( 0, command.ZERO_POS, pack('h',rnum))
-        time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
+        tries = 1
+        while not(self.encoders_zeroed_2) and (tries <= retries):
+            self.clAnnounce()
+            print "Zeroing rear encoders...",tries,"/8"
+            self.tx( 0, command.ZERO_POS, pack('h',2))
+            tries = tries + 1
+            time.sleep(0.3) #built-in holdoff, since reset apparently takes > 50ms
 
     def setPhase(self, phase_1, phase_2):
         

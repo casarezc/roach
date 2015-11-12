@@ -360,23 +360,24 @@ unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char
 
     PKT_UNPACK(_args_cmdZeroPos, argsPtr, frame);
 
-    long motor_count[2];
+    long motor_count[3];
+    motor_count[0] = (long) argsPtr -> r_num;
     if(argsPtr -> r_num == 1){
-        motor_count[0] = pidGetPState(LEFT_1_PID_NUM);
-        motor_count[1] = pidGetPState(RIGHT_1_PID_NUM);
+        motor_count[1] = pidGetPState(LEFT_1_PID_NUM);
+        motor_count[2] = pidGetPState(RIGHT_1_PID_NUM);
         pidZeroPos(LEFT_1_PID_NUM);
         pidZeroPos(RIGHT_1_PID_NUM);
     }
     else if(argsPtr -> r_num == 2){
 
-        motor_count[0] = pidGetPState(LEFT_2_PID_NUM);
-        motor_count[1] = pidGetPState(RIGHT_2_PID_NUM);
+        motor_count[1] = pidGetPState(LEFT_2_PID_NUM);
+        motor_count[2] = pidGetPState(RIGHT_2_PID_NUM);
         pidZeroPos(LEFT_2_PID_NUM);
         pidZeroPos(RIGHT_2_PID_NUM);
     }
     else{
-        motor_count[0] = 0;
         motor_count[1] = 0;
+        motor_count[2] = 0;
     }
 
     radioSendData(src_addr, status, CMD_ZERO_POS, 

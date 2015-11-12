@@ -25,9 +25,9 @@ pktFormat = { \
     command.FLASH_READBACK:         '=LL' +'8l'+'15h', \
     command.SLEEP:                  'b', \
     command.ECHO:                   'c' ,\
-    command.SET_VEL_PROFILE:        '9h' ,\
+    command.SET_VEL_PROFILE:        '13h' ,\
     command.WHO_AM_I:               '', \
-    command.ZERO_POS:               '=2l', \
+    command.ZERO_POS:               '=3l', \
     command.SET_PHASE:               '=hl', \
     }
                
@@ -132,9 +132,17 @@ def xbee_received(packet):
 
         # ZERO_POS
         elif type == command.ZERO_POS:
-            motor = unpack(pattern,data)
-            print 'AMS zeros established; Previous motor positions:',
+            temp = unpack(pattern,data)
+            rnum = temp[0]
+            motor = temp[1:]
+            print 'AMS zeros', rnum ,'established; Previous motor positions:',
             print motor
+            if rnum == 1:
+                r.encoders_zeroed_1 = True
+            elif rnum == 2:
+                r.encoders_zeroed_2 = True
+            else:
+                print "Invalid robot number"
             
         # SET_VEL_PROFILE
         elif (type == command.SET_VEL_PROFILE):
