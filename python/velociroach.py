@@ -12,6 +12,7 @@ from math import ceil,floor
 import numpy as np
 
 # TODO: check with firmware if this value is actually correct
+PHASE_0_DEG   = 0x0000
 PHASE_180_DEG = 0x8000
 
 class GaitConfig:
@@ -343,7 +344,7 @@ class Velociroach:
             tries = tries + 1
             time.sleep(0.3)
             
-    def setGait(self, gaitConfig):
+    def setGait(self, gaitConfig, zero_position = False):
         self.currentGait = gaitConfig
         
         self.clAnnounce()

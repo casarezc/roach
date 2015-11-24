@@ -4,10 +4,16 @@ branches:
   only:
     - master
 
+sudo: false
+
+addons:
+  apt:
+    packages:
+    - libc6:i386
+    - xorg
+    - xserver-xorg-video-dummy  
+    
 before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y libc6:i386
-  - sudo apt-get install -y xorg xserver-xorg-video-dummy
   - wget http://www.eecs.berkeley.edu/~pullin/travis/xorg.conf
   - Xorg -noreset -logfile ./10.log -config ./xorg.conf :10 &
 
@@ -18,8 +24,8 @@ install:
 
 # Setup step, get PIC gcc compiler and libs
 before_script:
- - git clone https://github.com/biomimetics/imageproc-lib
- - git clone https://github.com/biomimetics/imageproc-settings
+ - git clone https://github.com/apullin/imageproc-lib
+ - git clone https://github.com/apullin/imageproc-settings
 
 # Change this to your needs
 script:

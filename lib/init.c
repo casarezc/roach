@@ -105,7 +105,7 @@ void SetupTimer1(void)
 {
     unsigned int T1CON1value, T1PERvalue;
     T1CON1value = T1_ON & T1_SOURCE_INT & T1_PS_1_8 & T1_GATE_OFF &
-                  T1_SYNC_EXT_OFF & T1_INT_PRIOR_2;
+                  T1_SYNC_EXT_OFF & T1_INT_PRIOR_2 & T1_IDLE_CON;
     T1PERvalue = 0x03E8; //clock period = 0.0002s = ((T1PERvalue * prescaler)/FCY) (5000Hz)
   	t1_ticks = 0;
     OpenTimer1(T1CON1value, T1PERvalue);
@@ -114,7 +114,7 @@ void SetupTimer1(void)
 void SetupTimer2(void)
 {
     unsigned int T2CON1value, T2PERvalue;
-    T2CON1value = T2_ON & T2_SOURCE_INT & T2_PS_1_8 & T2_GATE_OFF;
+    T2CON1value = T2_ON & T2_SOURCE_INT & T2_PS_1_8 & T2_GATE_OFF & T2_IDLE_CON;
     T2PERvalue = 0xC350; // clock period = 0.01s = ((T1PERvalue * prescaler)/FCY) (100Hz)
     OpenTimer2(T2CON1value, T2PERvalue);
 }

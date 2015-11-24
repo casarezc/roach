@@ -8,14 +8,15 @@
  * modified Jan. 2012 to include median filter on back emf
  * modified Jan. 2013 to include AMS Hall encoder, and MPU 6000 gyro
  */
+#include <xc.h>
+#include "timer.h"
+#include "settings.h"
 #include "pid-ip2.5.h"
 #include "dfmem.h"
-#include "timer.h"
 #include "adc_pid.h"
 #include "pwm.h"
 #include "led.h"
 #include "adc.h"
-#include "p33Fxxxx.h"
 #include "sclock.h"
 #include "ams-enc.h"
 #include "tih.h"
@@ -49,8 +50,8 @@ pidPos pidObjs[NUM_PIDS];
 piWinch piObjs[NUM_PI_NO_AMS];
 
 // structure for reference velocity for leg
-pidVelLUT  pidVel[NUM_PIDS*NUM_BUFF];
-pidVelLUT* activePID[NUM_PIDS];     //Pointer arrays for stride buffering
+pidVelLUT pidVel[NUM_PIDS*NUM_BUFF];
+pidVelLUT* activePID[NUM_PIDS]; //Pointer arrays for stride buffering
 pidVelLUT* nextPID[NUM_PIDS];
 
 #define T1_MAX 0xffffff  // max before rollover of 1 ms counter
@@ -63,8 +64,6 @@ int seqIndex;
 char calib_flag = 0;   // flag is set if doing calibration
 long offsetAccumulatorL, offsetAccumulatorR, offsetAccumulatorW;
 unsigned int offsetAccumulatorCounter;
-
-
 
 // 2 last readings for median filter
 int measLast1[NUM_PIDS];
@@ -121,8 +120,9 @@ void pidSetup()
 
 
 //Returns pointer to non-active buffer
-pidVelLUT* otherBuff(pidVelLUT* array, pidVelLUT* ptr){
-    if( ptr >= &(array[NUM_PIDS])){
+
+pidVelLUT* otherBuff(pidVelLUT* array, pidVelLUT* ptr) {
+    if (ptr >= &(array[NUM_PIDS])) {
         return ptr - NUM_PIDS;
     } else {
         return ptr + NUM_PIDS;
@@ -133,56 +133,57 @@ pidVelLUT* otherBuff(pidVelLUT* array, pidVelLUT* ptr){
 // set expire time for first segment in pidSetInput - use start time from MoveClosedLoop
 // set points and velocities for one revolution of leg
 // called from pidSetup()
-void initPIDVelProfile(){
-    int i,j;
+
+void initPIDVelProfile() {
+    int i, j;
     pidVelLUT* tempPID;
-    for(j = 0; j < NUM_PIDS; j++){
-        pidObjs[j].index = 0;  // point to first velocity
-        pidObjs[j].interpolate = 0; 
-        pidObjs[j].leg_stride = 0;  // set initial leg count
-        activePID[j] = &(pidVel[j]);    //Initialize buffer pointers
+    for (j = 0; j < NUM_PIDS; j++) {
+        pidObjs[j].index = 0; // point to first velocity
+        pidObjs[j].interpolate = 0;
+        pidObjs[j].leg_stride = 0; // set initial leg count
+        activePID[j] = &(pidVel[j]); //Initialize buffer pointers
         nextPID[j] = NULL;
         tempPID = otherBuff(pidVel, activePID[j]);
-        for(i = 0; i < NUM_VELS; i++){
-            tempPID->interval[i]= 100;
-            tempPID->delta[i]= 0;
-            tempPID->vel[i]= 0;   
+        for (i = 0; i < NUM_VELS; i++) {
+            tempPID->interval[i] = 100;
+            tempPID->delta[i] = 0;
+            tempPID->vel[i] = 0;
         }
         tempPID->onceFlag = 0;
         nextPID[j] = tempPID;
         pidObjs[j].p_input = 0; // initialize first set point 
-        pidObjs[j].v_input = (int)(((long) pidVel[j].vel[0] * K_EMF) >>8);  //initialize first velocity, scaled
+        pidObjs[j].v_input = (int) (((long) pidVel[j].vel[0] * K_EMF) >> 8); //initialize first velocity, scaled
     }
 }
 
 
 // called from cmd.c
-void setPIDVelProfile(int pid_num, int *interval, int *delta, int *vel, int onceFlag){
+
+void setPIDVelProfile(int pid_num, int *interval, int *delta, int *vel, int onceFlag) {
     pidVelLUT* tempPID;
     int i;
     tempPID = otherBuff(pidVel, activePID[pid_num]);
-    for (i = 0; i < NUM_VELS; i++)
-    {
-        tempPID->interval[i]= interval[i];
-        tempPID->delta[i]= delta[i];
-        tempPID->vel[i]= vel[i];
+    for (i = 0; i < NUM_VELS; i++) {
+        tempPID->interval[i] = interval[i];
+        tempPID->delta[i] = delta[i];
+        tempPID->vel[i] = vel[i];
     }
     tempPID->onceFlag = onceFlag;
-    if (activePID[pid_num]->onceFlag == 0){
+    if (activePID[pid_num]->onceFlag == 0) {
         nextPID[pid_num] = tempPID;
     }
 }
 
 // called from pidSetup()
-void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff)
-{
+
+void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
     pid->p_input = 0;
     pid->v_input = 0;
     pid->p = 0;
     pid->i = 0;
     pid->d = 0;
     pid->Kp = Kp;
-    pid->Ki= Ki;
+    pid->Ki = Ki;
     pid->Kd = Kd;
     pid->Kaw = Kaw; 
 	pid->feedforward = ff;
@@ -211,34 +212,35 @@ void initPIObjPos(piWinch *pi, int Kp, int Ki, int Kaw, int ff)
 
 
 
-// called from set thrust closed loop, etc. Thrust 
-void pidSetInput(int pid_num, int input_val){
-unsigned long temp;	
-/*      ******   use velocity setpoint + throttle for compatibility between Hall and Pullin code *****/
-/* otherwise, miss first velocity set point */
-    pidObjs[pid_num].v_input = input_val + (int)(( (long)pidVel[pid_num].vel[0] * K_EMF) >> 8);	//initialize first velocity ;
+// called from set thrust closed loop, etc. Thrust
+
+void pidSetInput(int pid_num, int input_val) {
+    unsigned long temp;
+    /*      ******   use velocity setpoint + throttle for compatibility between Hall and Pullin code *****/
+    /* otherwise, miss first velocity set point */
+    pidObjs[pid_num].v_input = input_val + (int) (((long) pidVel[pid_num].vel[0] * K_EMF) >> 8); //initialize first velocity ;
     pidObjs[pid_num].start_time = t1_ticks;
     //zero out running PID values
     pidObjs[pid_num].i_error = 0;
     pidObjs[pid_num].p = 0;
     pidObjs[pid_num].i = 0;
     pidObjs[pid_num].d = 0;
-	//Seed the median filter
-	measLast1[pid_num] =input_val;
-	measLast2[pid_num] =input_val;
+    //Seed the median filter
+    measLast1[pid_num] = input_val;
+    measLast2[pid_num] = input_val;
 
-// set initial time for next move set point 
-/*   need to set index =0 initial values */
-/* position setpoints start at 0 (index=0), then interpolate until setpoint 1 (index =1), etc */
-	temp = 0;
-	pidObjs[pid_num].expire = temp + (long) pidVel[pid_num].interval[0];   // end of first interval
-	pidObjs[pid_num].interpolate = 0;	
-/*	pidObjs[pid_num].p_input += pidVel[pid_num].delta[0];	//update to first set point
-***  this should be set only after first .expire time to avoid initial transients */
-	pidObjs[pid_num].index =0; // reset setpoint index
-// set first move at t = 0
-//	pidVel[0].expire = temp;   // right side
-//	pidVel[1].expire = temp;   // left side
+    // set initial time for next move set point
+    /*   need to set index =0 initial values */
+    /* position setpoints start at 0 (index=0), then interpolate until setpoint 1 (index =1), etc */
+    temp = 0;
+    pidObjs[pid_num].expire = temp + (long) pidVel[pid_num].interval[0]; // end of first interval
+    pidObjs[pid_num].interpolate = 0;
+    /*	pidObjs[pid_num].p_input += pidVel[pid_num].delta[0];	//update to first set point
+     ***  this should be set only after first .expire time to avoid initial transients */
+    pidObjs[pid_num].index = 0; // reset setpoint index
+    // set first move at t = 0
+    //	pidVel[0].expire = temp;   // right side
+    //	pidVel[1].expire = temp;   // left side
 
 }
 
@@ -261,7 +263,7 @@ void piSetInput(int pi_num, int input_val){
 void pidStartTimedTrial(unsigned int run_time){
     unsigned long temp;
 
-    temp = t1_ticks;  // need atomic read due to interrupt  
+    temp = t1_ticks; // need atomic read due to interrupt
     pidObjs[0].run_time = run_time;
     pidObjs[1].run_time = run_time;
     piObjs[0].run_time = run_time;
@@ -273,12 +275,18 @@ void pidStartTimedTrial(unsigned int run_time){
 }
 
 // from cmd.c  PID set gains
-void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff){
-    pidObjs[pid_num].Kp  = Kp;
-    pidObjs[pid_num].Ki  = Ki;
-    pidObjs[pid_num].Kd  = Kd;
+
+void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff) {
+    pidObjs[pid_num].Kp = Kp;
+    pidObjs[pid_num].Ki = Ki;
+    pidObjs[pid_num].Kd = Kd;
     pidObjs[pid_num].Kaw = Kaw;
-	pidObjs[pid_num].feedforward = ff;
+    pidObjs[pid_num].feedforward = ff;
+}
+
+void pidOn(int pid_num) {
+    pidObjs[pid_num].onoff = PID_ON;
+    t1_ticks = 0;
 }
 
 void piSetGains(int pi_num, int Kp, int Ki, int Kaw, int ff){
@@ -298,16 +306,17 @@ void piOn(int pi_num){
 }
 
 // zero position setpoint for both motors (avoids big offset errors)
-void pidZeroPos(int pid_num){ 
-// disable interrupts to reset state variables
-	DisableIntT1; // turn off pid interrupts
-	amsEncoderResetPos(); //  reinitialize rev count and relative zero encoder position for both motors
-	pidObjs[pid_num].p_state = 0;
-// reset position setpoint as well
-	pidObjs[pid_num].p_input = 0;
-	pidObjs[pid_num].v_input = 0;
-	pidObjs[pid_num].leg_stride = 0; // strides also reset 
-	EnableIntT1; // turn on pid interrupts
+
+void pidZeroPos(int pid_num) {
+    // disable interrupts to reset state variables
+    DisableIntT1; // turn off pid interrupts
+    amsEncoderResetPos(); //  reinitialize rev count and relative zero encoder position for both motors
+    pidObjs[pid_num].p_state = 0;
+    // reset position setpoint as well
+    pidObjs[pid_num].p_input = 0;
+    pidObjs[pid_num].v_input = 0;
+    pidObjs[pid_num].leg_stride = 0; // strides also reset
+    EnableIntT1; // turn on pid interrupts
 }
 
 // find zero load point for winch ir sensor
@@ -378,6 +387,7 @@ void calibBatteryOffset(int spindown_ms){
 /*****************************************************************************************/
 /*********************** Stop Motor and Interrupts *********************************************/
 /*****************************************************************************************/
+
 /*****************************************************************************************/
 void EmergencyStop(void)
 {
@@ -389,7 +399,7 @@ void EmergencyStop(void)
        SetDCMCPWM(MC_CHANNEL_PWM2, 0, 0);
        SetDCMCPWM(MC_CHANNEL_PWM3, 0, 0);
 }
-	
+
 
 // -------------------------   control  loop section  -------------------------------
 
@@ -411,18 +421,16 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
 
     //Telemetry save, at 1Khz
     //TODO: Break coupling between PID module and telemetry triggering
-    if(interrupt_count == 3) {
+    if (interrupt_count == 3) {
         telemSaveNow();
     }
     //Update IMU
     //TODO: Break coupling between PID module and IMU update
-    if(interrupt_count == 4) {
+    if (interrupt_count == 4) {
         mpuBeginUpdate();
         amsEncoderStartAsyncRead();
-    }
-    //PID controller update
-    else if(interrupt_count == 5)
-    {
+    }        //PID controller update
+    else if (interrupt_count == 5) {
         interrupt_count = 0;
         
         if(pidObjs[0].angle_trig != 0){
@@ -432,20 +440,20 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
 
         if (t1_ticks == T1_MAX) t1_ticks = 0;
         t1_ticks++;
-        pidGetState();	// always update state, even if motor is coasting
-        for (j = 0; j< NUM_PIDS; j++) {
-        // only update tracking setpoint if time has not yet expired
+        pidGetState(); // always update state, even if motor is coasting
+        for (j = 0; j < NUM_PIDS; j++) {
+            // only update tracking setpoint if time has not yet expired
             if (pidObjs[j].onoff) {
-                if (pidObjs[j].timeFlag){
-                    if (pidObjs[j].start_time + pidObjs[j].run_time >= t1_ticks){
+                if (pidObjs[j].timeFlag) {
+                    if (pidObjs[j].start_time + pidObjs[j].run_time >= t1_ticks) {
                         pidGetSetpoint(j);
                     }
-                    if(t1_ticks > lastMoveTime){ // turn off if done running all legs
+                    if (t1_ticks > lastMoveTime) { // turn off if done running all legs
                         pidObjs[0].onoff = 0;
                         pidObjs[1].onoff = 0;
-                    } 
-                } 
-                else {                 
+                    }
+                }
+                else {
                     pidGetSetpoint(j);
                 }
             }
@@ -493,27 +501,28 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
 }
 
 // update desired velocity and position tracking setpoints for each leg
-void pidGetSetpoint(int j){
-    int index; 
-    index = pidObjs[j].index;		
-	// update desired position between setpoints, scaled by 256
-	pidObjs[j].interpolate += (long)activePID[j]->vel[index];
 
-	if (t1_ticks >= pidObjs[j].expire){ // time to reach previous setpoint has passed
-		pidObjs[j].interpolate = 0;	
-		pidObjs[j].p_input += activePID[j]->delta[index];	//update to next set point
+void pidGetSetpoint(int j) {
+    int index;
+    index = pidObjs[j].index;
+    // update desired position between setpoints, scaled by 256
+    pidObjs[j].interpolate += (long) activePID[j]->vel[index];
+
+    if (t1_ticks >= pidObjs[j].expire) { // time to reach previous setpoint has passed
+        pidObjs[j].interpolate = 0;
+        pidObjs[j].p_input += activePID[j]->delta[index]; //update to next set point
         pidObjs[j].index++;
-            
+
         if (pidObjs[j].index >= NUM_VELS) {
-             pidObjs[j].index = 0;
-             pidObjs[j].leg_stride++;  // one full leg revolution
-    /**** maybe need to handle round off in position set point ***/
-             checkSwapBuff(j);
-        }  
-		pidObjs[j].expire += activePID[j]->interval[pidObjs[j].index];  // expire time for next interval
-        pidObjs[j].v_input = (activePID[j]->vel[pidObjs[j].index]);    //update to next velocity 
-	}
-}   
+            pidObjs[j].index = 0;
+            pidObjs[j].leg_stride++; // one full leg revolution
+            /**** maybe need to handle round off in position set point ***/
+            checkSwapBuff(j);
+        }
+        pidObjs[j].expire += activePID[j]->interval[pidObjs[j].index]; // expire time for next interval
+        pidObjs[j].v_input = (activePID[j]->vel[pidObjs[j].index]); //update to next velocity
+    }
+}
 
 void checkSwapBuff(int j){
     if(nextPID[j] != NULL){    //Swap pointer if not null
@@ -596,99 +605,130 @@ void checkPitchStopCondition(){
 }
 
  // select either back emf or backwd diff for vel est
+=======
+// select either back emf or backwd diff for vel est
+>>>>>>> master-2
 
 #define VEL_BEMF 0
 
 /* update state variables including motor position and velocity */
 
-void pidGetState()
-{   int i;
-	long p_state; 
-	unsigned long time_start, time_end; 
-//	calib_flag = 0;  //BEMF disable
-// get diff amp offset with motor off at startup time
-	if(calib_flag)
-	{ 	
-		offsetAccumulatorL += adcGetMotorA();  
-		offsetAccumulatorR += adcGetMotorB();   
-		offsetAccumulatorCounter++; 	}
- 
-// choose velocity estimate  
+void pidGetState() {
+    int i;
+    long p_state;
+    int enc_num;
+    int encPosition, encOticks;
+    unsigned int encOffset;
+
+    unsigned long time_start, time_end;
+    //	calib_flag = 0;  //BEMF disable
+    // get diff amp offset with motor off at startup time
+    if (calib_flag) {
+        offsetAccumulatorL += adcGetMotorA();
+        offsetAccumulatorR += adcGetMotorB();
+        offsetAccumulatorCounter++;
+    }
+
+    // choose velocity estimate
 #if VEL_BEMF == 0    // use first difference on position for velocity estimate
-	long oldpos[NUM_PIDS], velocity;
-	for(i=0; i<NUM_PIDS; i++)
-	{ oldpos[i] = pidObjs[i].p_state; }
+    long oldpos[NUM_PIDS], velocity;
+    for (i = 0; i < NUM_PIDS; i++) {
+        oldpos[i] = pidObjs[i].p_state;
+    }
 #endif
-	
-	time_start =  sclockGetTime();
+
+    time_start = sclockGetTime();
     bemf[0] = pidObjs[0].inputOffset - adcGetMotorA(); // watch sign for A/D? unsigned int -> signed?
     bemf[1] = pidObjs[1].inputOffset - adcGetMotorB(); // MotorB
-// only works to +-32K revs- might reset after certain number of steps? Should wrap around properly
-	for(i =0; i<NUM_PIDS; i++)
-	{     p_state = (long)(encPos[i].pos << 2);		// pos 14 bits 0x0 -> 0x3fff
-	      p_state = p_state + (encPos[i].oticks << 16);
-		p_state = p_state - (long)(encPos[i].offset <<2); 	// subtract offset to get zero position
-		if (i==0)
-		{
-			pidObjs[i].p_state = p_state; //fix for encoder alignment
-		}
-		else
-		{
-			pidObjs[i].p_state = -p_state;
-		}
-		
-	}
+    // only works to +-32K revs- might reset after certain number of steps? Should wrap around properly
+    for (i = 0; i < NUM_PIDS; i++) {
+        enc_num = pidObjs[i].encoder_num;
+        
+        encPosition = amsEncoderGetPos(enc_num);
+        encOticks = amsEncoderGetOticks(enc_num);
+        encOffset = amsEncoderGetOffset(enc_num);
 
-	time_end = sclockGetTime() - time_start;
+        p_state =  (long)encPosition << 2; // pos 14 bits 0x0 -> 0x3fff
+        p_state = p_state - ((long)encOffset << 2); // subtract offset to get zero position
+        p_state = p_state + ((long)encOticks << 16);
+
+        pidObjs[i].p_state = p_state;
+        
+        if(pidObjs[i].p_state_flip){
+            pidObjs[i].p_state = -pidObjs[i].p_state;
+        }
+
+    }
+
+    time_end = sclockGetTime() - time_start;
 
 
 #if VEL_BEMF == 0    // use first difference on position for velocity estimate
-	for(i=0; i<NUM_PIDS; i++)
-	{	velocity = pidObjs[i].p_state - oldpos[i];  // Encoder ticks per ms
-	    if (velocity > 0x7fff) velocity = 0x7fff; // saturate to int
-		if(velocity < -0x7fff) velocity = -0x7fff;	
-		pidObjs[i].v_state = (int) velocity;
-	}
+    for (i = 0; i < NUM_PIDS; i++) {
+        velocity = pidObjs[i].p_state - oldpos[i]; // Encoder ticks per ms
+        if (velocity > 0x7fff) velocity = 0x7fff; // saturate to int
+        if (velocity < -0x7fff) velocity = -0x7fff;
+        pidObjs[i].v_state = (int) velocity;
+    }
 #endif
 
- // choose velocity estimate  
+    // choose velocity estimate
 
 #if VEL_BEMF == 1
-int measurements[NUM_PIDS];
-// Battery: AN0, MotorA AN8, MotorB AN9, MotorC AN10, MotorD AN11
-	measurements[0] = pidObjs[0].inputOffset - adcGetMotorA(); // watch sign for A/D? unsigned int -> signed?
-     	measurements[1] = pidObjs[1].inputOffset - adcGetMotorB(); // MotorB
+    int measurements[NUM_PIDS];
+    // Battery: AN0, MotorA AN8, MotorB AN9, MotorC AN10, MotorD AN11
+    measurements[0] = pidObjs[0].inputOffset - adcGetMotorA(); // watch sign for A/D? unsigned int -> signed?
+    measurements[1] = pidObjs[1].inputOffset - adcGetMotorB(); // MotorB
 
-	
-//Get motor speed reading on every interrupt - A/D conversion triggered by PWM timer to read Vm when transistor is off
-// when motor is loaded, sometimes see motor short so that  bemf=offset voltage
-// get zero sometimes - open circuit brush? Hence try median filter
-	for(i = 0; i<2; i++) 	// median filter
-	{	if(measurements[i] > measLast1[i])	
-		{	if(measLast1[i] > measLast2[i]) {bemf[i] = measLast1[i];}  // middle value is median
-			else // middle is smallest
-	     		{ if(measurements[i] > measLast2[i]) {bemf[i] = measLast2[i];} // 3rd value is median
-	        	   else{ bemf[i] = measurements[i];}  // first value is median
-            	}
-      	}           
-		else  // first is not biggest
-		{	if(measLast1[i] < measLast2[i]) {bemf[i] = measLast1[i];}  // middle value is median
-			else  // middle is biggest
-	     		{    if(measurements[i] < measLast2[i]) {bemf[i] = measLast2[i];} // 3rd value is median
-		     		else
-				{ bemf[i] = measurements[i];  // first value is median			 
-				}
-			}
-		}
-	} // end for
-// store old values
-	measLast2[0] = measLast1[0];  measLast1[0] = measurements[0];
-	measLast2[1] = measLast1[1];  measLast1[1] = measurements[1];
-   	pidObjs[0].v_state = bemf[0]; 
-	pidObjs[1].v_state = bemf[1];  //  might also estimate from deriv of pos data
+
+    //Get motor speed reading on every interrupt - A/D conversion triggered by PWM timer to read Vm when transistor is off
+    // when motor is loaded, sometimes see motor short so that  bemf=offset voltage
+    // get zero sometimes - open circuit brush? Hence try median filter
+    for (i = 0; i < 2; i++) // median filter
+    {
+        if (measurements[i] > measLast1[i]) {
+            if (measLast1[i] > measLast2[i]) {
+                bemf[i] = measLast1[i];
+            }// middle value is median
+            else // middle is smallest
+            {
+                if (measurements[i] > measLast2[i]) {
+                    bemf[i] = measLast2[i];
+                }// 3rd value is median
+                else {
+                    bemf[i] = measurements[i];
+                } // first value is median
+            }
+        }
+        else // first is not biggest
+        {
+            if (measLast1[i] < measLast2[i]) {
+                bemf[i] = measLast1[i];
+            }// middle value is median
+            else // middle is biggest
+            {
+                if (measurements[i] < measLast2[i]) {
+                    bemf[i] = measLast2[i];
+                }// 3rd value is median
+                else {
+                    bemf[i] = measurements[i]; // first value is median
+                }
+            }
+        }
+    } // end for
+    // store old values
+    measLast2[0] = measLast1[0];
+    measLast1[0] = measurements[0];
+    measLast2[1] = measLast1[1];
+    measLast1[1] = measurements[1];
+    pidObjs[0].v_state = bemf[0];
+    pidObjs[1].v_state = bemf[1]; //  might also estimate from deriv of pos data
     //if((measurements[0] > 0) || (measurements[1] > 0)) {
-    if((measurements[0] > 0)) { LED_BLUE = 1;}
-    else{ LED_BLUE = 0;}
+    if ((measurements[0] > 0)) {
+        LED_BLUE = 1;
+    } else {
+        LED_BLUE = 0;
+    }
 #endif
 }
 
