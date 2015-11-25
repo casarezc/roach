@@ -110,19 +110,19 @@ void pidSetup()
 	lastMoveTime = 0;
 
         //TODO: This should be generalized fo there is no sense of "left" and "right" here
-        pidObjs[LEFT_1_PID_NUM].output_channel  = LEFT_1_TIH_CHAN;
-        pidObjs[LEFT_1_PID_NUM].p_state_flip    = LEFT_1_ENC_FLIP;
-        pidObjs[LEFT_1_PID_NUM].encoder_num     = LEFT_1_ENC_NUM;
-        pidObjs[LEFT_1_PID_NUM].pwm_flip        = LEFT_1_PWM_FLIP;
+        pidObjs[LEFT_LEGS_PID_NUM].output_channel  = LEFT_LEGS_TIH_CHAN;
+        pidObjs[LEFT_LEGS_PID_NUM].p_state_flip    = LEFT_LEGS_ENC_FLIP;
+        pidObjs[LEFT_LEGS_PID_NUM].encoder_num     = LEFT_LEGS_ENC_NUM;
+        pidObjs[LEFT_LEGS_PID_NUM].pwm_flip        = LEFT_LEGS_PWM_FLIP;
 
-        pidObjs[RIGHT_1_PID_NUM].output_channel = RIGHT_1_TIH_CHAN;
-        pidObjs[RIGHT_1_PID_NUM].p_state_flip   = RIGHT_1_ENC_FLIP;
-        pidObjs[RIGHT_1_PID_NUM].encoder_num    = RIGHT_1_ENC_NUM;
-        pidObjs[RIGHT_1_PID_NUM].pwm_flip       = RIGHT_1_PWM_FLIP;
+        pidObjs[RIGHT_LEGS_PID_NUM].output_channel = RIGHT_LEGS_TIH_CHAN;
+        pidObjs[RIGHT_LEGS_PID_NUM].p_state_flip   = RIGHT_LEGS_ENC_FLIP;
+        pidObjs[RIGHT_LEGS_PID_NUM].encoder_num    = RIGHT_LEGS_ENC_NUM;
+        pidObjs[RIGHT_LEGS_PID_NUM].pwm_flip       = RIGHT_LEGS_PWM_FLIP;
 
         // Initialize PID structures before starting Timer1
-        pidSetInput(LEFT_1_PID_NUM, 0);
-        pidSetInput(RIGHT_1_PID_NUM, 0);
+        pidSetInput(LEFT_LEGS_PID_NUM, 0);
+        pidSetInput(RIGHT_LEGS_PID_NUM, 0);
 
         piObjs[WINCH_PI_NUM].output_channel     = WINCH_TIH_CHAN;
         piObjs[WINCH_PI_NUM].pwm_flip           = WINCH_PWM_FLIP;
