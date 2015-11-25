@@ -201,7 +201,7 @@ class Velociroach_Connected:
         self.VERBOSE = False
         self.clAnnounce()
         print "Started telemetry download"
-        self.tx( 0, command.FLASH_READBACK, pack('=L',self.numSamples))
+        self.tx( 0, command.FLASH_READBACK, pack('L',self.numSamples))
                 
         dlStart = time.time()
         shared.last_packet_time = dlStart
@@ -229,7 +229,7 @@ class Velociroach_Connected:
                     print "Started telemetry download"
                     dlStart = time.time()
                     shared.last_packet_time = dlStart
-                    self.tx( 0, command.FLASH_READBACK, pack('=L',self.numSamples))
+                    self.tx( 0, command.FLASH_READBACK, pack('L',self.numSamples))
                 else: #retry == false
                     print "Not trying telemetry download."          
 
