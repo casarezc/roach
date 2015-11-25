@@ -102,7 +102,9 @@ typedef struct
 	int feedforward;
         int Kp, Ki;
 	int Kaw;  // anti-windup gain
-	//Leg control variables
+	//Configuration parameters
+        unsigned char output_channel;
+        unsigned char pwm_flip;
 } piWinch;
 
 // structure for velocity control of leg cycle
@@ -128,10 +130,10 @@ typedef struct
 #define LEFT_LEGS_ENC_FLIP      0       //"forward" normal for left
 #endif
 #ifndef LEFT_LEGS_PWM_FLIP
-#define LEFT_LEGS_PWM_FLIP      1
+#define LEFT_LEGS_PWM_FLIP      0
 #endif
 #ifndef LEFT_LEGS_TIH_CHAN
-#define LEFT_LEGS_TIH_CHAN      2       //tiH module index is 1-4
+#define LEFT_LEGS_TIH_CHAN      1       //tiH module index is 1-4
 #endif
 //Right legs
 #ifndef RIGHT_LEGS_PID_NUM
@@ -147,7 +149,18 @@ typedef struct
 #define RIGHT_LEGS_PWM_FLIP     0
 #endif
 #ifndef RIGHT_LEGS_TIH_CHAN
-#define RIGHT_LEGS_TIH_CHAN     1       //tiH module index is 1-4
+#define RIGHT_LEGS_TIH_CHAN     2       //tiH module index is 1-4
+#endif
+
+//Winch
+#ifndef WINCH_PI_NUM
+#define WINCH_PI_NUM      0       //PI module index is 0-3
+#endif
+#ifndef WINCH_PWM_FLIP
+#define WINCH_PWM_FLIP    0
+#endif
+#ifndef WINCH_TIH_CHAN
+#define WINCH_TIH_CHAN    3       //tiH module index is 1-4
 #endif
 
 
@@ -175,7 +188,9 @@ void checkPitchStopCondition();
 void EmergencyStop(void);
 unsigned char* pidGetTelemetry(void);
 void pidOn(int pid_num);
-void piOn(int pid_num);
+void pidOff(int pid_num);
+void piOn(int pi_num);
+void piOff(int pi_num);
 void pidZeroPos(int pid_num);
 void piSetSensorOffset(int pi_num);
 void calibBatteryOffset(int spindown_ms);
@@ -185,5 +200,12 @@ void pidStartMotor(unsigned int channel);
 void pidSetTimeFlag(unsigned int channel, char val);
 void pidSetMode(unsigned int channel, char mode);
 void pidSetPWMDes(unsigned int channel, int pwm);
+
+void pidSetPitchThresh(unsigned int channel, char angle);
+void pidSetPitchTrigger(unsigned int channel, char mode);
+
+int piGetSensorOffset(unsigned int channel);
+void piSetTimeFlag(unsigned int channel, char val);
+void piSetMode(unsigned int channel, char mode);
 
 #endif // __PID_H

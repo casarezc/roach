@@ -190,32 +190,28 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
         checkSwapBuff(i);
         pidOn(i);
     }
-    pidObjs[0].mode = 0;
-    piObjs[0].onoff = 0;
-    pidStartTimedTrial(run_time);
+
+    piOff(0);
+    pidStartTimedTrial(argsPtr->run_time);
 
     return 1;
 }
 
 unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
-    unsigned int run_time = frame[0] + (frame[1] << 8);
+    PKT_UNPACK(_args_cmdStartTimedRunWinch, argsPtr, frame);
 
     int i;
     for (i = 0; i < NUM_PIDS; i++){
-        pidObjs[i].timeFlag = 1;
+        pidSetTimeFlag(i,1);
         pidSetInput(i, 0);
         checkSwapBuff(i);
         pidOn(i);
     }
 
-    
-    piObjs[0].timeFlag = 1;
-    piSetInput(0,(int) piObjs[0].p_input); //Make sure start time initializes correctly. This also decouples setting winch load, mode from starting a run
+    piSetTimeFlag(0, 1);
     piOn(0);
-    
 
-    pidObjs[0].mode = 0;
-    pidStartTimedTrial(run_time);
+    pidStartTimedTrial(argsPtr->run_time);
 
     return 1;
 }
@@ -273,6 +269,7 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
     pidSetPWMDes(RIGHT_LEGS_PID_NUM, argsPtr->thrust2);
 
     pidSetMode(LEFT_LEGS_PID_NUM,1);
+    pidSetMode(RIGHT_LEGS_PID_NUM,1);
 
     return 1;
  }
@@ -315,6 +312,8 @@ unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigne
 
     setPIDVelProfile(LEFT_LEGS_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
     setPIDVelProfile(RIGHT_LEGS_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
+    pidSetMode(LEFT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
+    pidSetMode(RIGHT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
 
     //Send confirmation packet
     // TODO : Send confirmation packet with packet index
@@ -340,8 +339,8 @@ unsigned char cmdPIDStopMotors(unsigned char type, unsigned char status, unsigne
 
 unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     long motor_count[2];
-    motor_count[0] = pidGetPState(0);
-    motor_count[1] = pidGetPState(1);
+    motor_count[0] = pidGetPState(LEFT_LEGS_PID_NUM);
+    motor_count[1] = pidGetPState(RIGHT_LEGS_PID_NUM);
 
     radioSendData(src_addr, status, CMD_ZERO_POS, 
         sizeof(motor_count), (unsigned char *)motor_count, 0);
@@ -373,14 +372,9 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
 // =============================================================================================================
 
  unsigned char cmdSetPIGainsWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
-    int Kp, Ki, Kaw, ff;
-    int idx = 0;
+    PKT_UNPACK(_args_cmdSetPIGainsWinch, argsPtr, frame);
 
-    Kp = frame[idx] + (frame[idx+1] << 8); idx+=2;
-    Ki = frame[idx] + (frame[idx+1] << 8); idx+=2;
-    Kaw = frame[idx] + (frame[idx+1] << 8); idx+=2;
-    ff = frame[idx] + (frame[idx+1] << 8);
-    piSetGains(0,Kp,Ki,Kaw, ff);
+    piSetGains(0, argsPtr->Kp,argsPtr->Ki,argsPtr->Kaw, argsPtr->ff);
 
     radioSendData(src_addr, status, CMD_SET_PI_GAINS_WINCH, 8, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
@@ -390,12 +384,10 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
 }
 
  unsigned char cmdSetWinchLoad(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    PKT_UNPACK(_args_cmdSetWinchLoad, argsPtr, frame);
 
-    int load = frame[0] + (frame[1] << 8);
-    int mode = frame[2] + (frame[3] << 8);
-
-    piSetInput(0,load);
-    piObjs[0].mode = (char) mode;
+    piSetInput(WINCH_PI_NUM, argsPtr->load);
+    piSetMode(WINCH_PI_NUM,(char) argsPtr->mode);
 
     radioSendData(src_addr, status, CMD_SET_WINCH_LOAD, 4, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
@@ -411,9 +403,9 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
 
     // Store in an array the previous and current sensor offset, send them both over radio in response
 
-    sensorOffset[0] = piObjs[0].sensorOffset;
+    sensorOffset[0] = piGetSensorOffset(0);
     piSetSensorOffset(0);
-    sensorOffset[1] = piObjs[0].sensorOffset;
+    sensorOffset[1] = piGetSensorOffset(0);
 
     radioSendData(src_addr, status, CMD_ZERO_LOAD_CELL, sizeof(sensorOffset), (unsigned char *)sensorOffset, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
@@ -424,13 +416,11 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
 
    unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 
-    // Unpack angle, mode
-    int angle = frame[0] + (frame[1] << 8);
-    int mode = frame[2] + (frame[3] << 8);
+    PKT_UNPACK(_args_cmdSetPitchThresh, argsPtr, frame);
 
     // Set angle set point and angle trigger, send radio confirmation packet
-    pidObjs[0].angle_setpt = (char) angle;
-    pidObjs[0].angle_trig = (char) mode;
+    pidSetPitchThresh(0, (char) argsPtr->angle);
+    pidSetPitchTrigger(0, (char) argsPtr->mode);
 
     radioSendData(src_addr, status, CMD_SET_PITCH_THRESH, 4, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
@@ -458,23 +448,3 @@ void cmdError() {
 static unsigned char cmdNop(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     return 1;
 }
-
-// ==== Deprecated Commands ====================================================================================
-// =============================================================================================================
-
-unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
-    int thrust1 = frame[0] + (frame[1] << 8);
-    int thrust2 = frame[2] + (frame[3] << 8);
-    unsigned int run_time_ms = frame[4] + (frame[5] << 8);
-
-    DisableIntT1;   // since PID interrupt overwrites PWM values
-
-    tiHSetDC(1, thrust1);
-    tiHSetDC(2, thrust2);
-    delay_ms(run_time_ms);
-    tiHSetDC(1,0);
-    tiHSetDC(2,0);
-
-    EnableIntT1;
-    return 1;
- }
