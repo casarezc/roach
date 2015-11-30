@@ -12,6 +12,7 @@ from math import ceil,floor
 import numpy as np
 
 # TODO: check with firmware if this value is actually correct
+PHASE_0_DEG   = 0x0000
 PHASE_180_DEG = 0x8000
 
 class GaitConfig:
@@ -260,7 +261,7 @@ class Velociroach:
         self.findFileName()
         self.writeFileHeader()
         fileout = open(self.dataFileName, 'a')
-
+        
         sanitized = [item for item in self.telemtryData if item!= []];
         
         np.savetxt(fileout , np.array(sanitized), self.telemFormatString, delimiter = ',')
@@ -342,7 +343,7 @@ class Velociroach:
         self.tx( 0, command.SET_STEER_ANGLE, pack('h', angle))
         time.sleep(0.05) 
             
-    def setGait(self, gaitConfig):
+    def setGait(self, gaitConfig, zero_position = False):
         self.currentGait = gaitConfig
         
         self.clAnnounce()

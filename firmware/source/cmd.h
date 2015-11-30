@@ -4,6 +4,10 @@
 
 #include "mac_packet.h"
 #include "cmd_const.h"
+#include "stdint.h"
+
+//// Includes here should be to provide TYPES and ENUMS only
+#include "pid-ip2.5.h"
 
 #define CMD_TEST_RADIO              0x00
 #define CMD_TEST_MPU                0x06
@@ -28,7 +32,66 @@
 // Redefine
 
 void cmdSetup(void);
-void cmdPushFunc(MacPacket rx_packet);
+void cmdHandleRadioRxBuffer(void);
+//void cmdPushFunc(MacPacket rx_packet);
+
+
+/////// Argument structures
+
+//cmdSetThrustOpenLoop
+typedef struct{
+	int channel, dc;
+} _args_cmdSetThrustOpenLoop;
+
+
+//cmdSetMotorMode
+typedef struct{
+	int thrust1, thrust2;
+} _args_cmdSetMotorMode;
+
+//cmdSetPIDGains
+typedef struct{
+	int Kp1, Ki1, Kd1, Kaw1, Kff1;
+	int Kp2, Ki2, Kd2, Kaw2, Kff2;
+} _args_cmdSetPIDGains;
+
+//cmdSoftwareReset
+//no arguments
+
+//cmdcmdStartTimedRun
+typedef struct{
+    uint16_t run_time;
+} _args_cmdStartTimedRun;
+
+//cmdStartTelemetry
+typedef struct{
+    uint32_t numSamples;
+} _args_cmdStartTelemetry;
+
+//cmdEraseSector
+typedef struct{
+    uint32_t samples;
+} _args_cmdEraseSector;
+
+//cmdFlashReadback
+typedef struct{
+    uint32_t samples;
+} _args_cmdFlashReadback;
+
+//cmdSetVelProfile
+typedef struct{
+    int16_t periodLeft;
+    int16_t deltaL[NUM_VELS];
+    int16_t flagLeft;
+    int16_t periodRight;
+    int16_t deltaR[NUM_VELS];
+    int16_t flagRight;
+} _args_cmdSetVelProfile;
+
+//cmdSetPhase
+typedef struct{
+    int32_t offset;
+} _args_cmdSetPhase;
 
 
 #endif // __CMD_H
