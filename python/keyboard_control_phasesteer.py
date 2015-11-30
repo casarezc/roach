@@ -29,8 +29,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x62', xb)
-    # R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
     PHASE_LEFT = 23666
     PHASE_RIGHT = 41870
     STRIDE_FREQ = 5

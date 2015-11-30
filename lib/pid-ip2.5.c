@@ -68,7 +68,7 @@ int seqIndex;
 
 //for battery voltage:
 char calib_flag = 0; // flag is set if doing calibration
-long offsetAccumulatorL, offsetAccumulatorR;
+long offsetAccumulatorPID[NUM_PIDS];
 unsigned int offsetAccumulatorCounter;
 
 // 2 last readings for median filter
@@ -90,9 +90,21 @@ void pidSetup()
 	SetupTimer1();  // main interrupt used for leg motor PID
 
 	lastMoveTime = 0;
-//  initialize PID structures before starting Timer1
-	pidSetInput(0,0);
-	pidSetInput(1,0);
+
+        //TODO: This should be generalized fo there is no sense of "left" and "right" here
+        pidObjs[LEFT_LEGS_PID_NUM].output_channel  = LEFT_LEGS_TIH_CHAN;
+        pidObjs[LEFT_LEGS_PID_NUM].p_state_flip    = LEFT_LEGS_ENC_FLIP;
+        pidObjs[LEFT_LEGS_PID_NUM].encoder_num     = LEFT_LEGS_ENC_NUM;
+        pidObjs[LEFT_LEGS_PID_NUM].pwm_flip        = LEFT_LEGS_PWM_FLIP;
+
+        pidObjs[RIGHT_LEGS_PID_NUM].output_channel = RIGHT_LEGS_TIH_CHAN;
+        pidObjs[RIGHT_LEGS_PID_NUM].p_state_flip   = RIGHT_LEGS_ENC_FLIP;
+        pidObjs[RIGHT_LEGS_PID_NUM].encoder_num    = RIGHT_LEGS_ENC_NUM;
+        pidObjs[RIGHT_LEGS_PID_NUM].pwm_flip       = RIGHT_LEGS_PWM_FLIP;
+
+        // Initialize PID structures before starting Timer1
+        pidSetInput(LEFT_LEGS_PID_NUM, 0);
+        pidSetInput(RIGHT_LEGS_PID_NUM, 0);
 	
 	EnableIntT1; // turn on pid interrupts
 
@@ -168,8 +180,8 @@ void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
     pid->Ki = Ki;
     pid->Kd = Kd;
     pid->Kaw = Kaw; 
-	pid->feedforward = ff;
-  pid->output = 0;
+    pid->feedforward = ff;
+    pid->output = 0;
     pid->onoff = 0;
     pid->p_error = 0;
     pid->v_error = 0;
@@ -215,12 +227,13 @@ void pidSetInput(int pid_num, int input_val) {
 
 void pidStartTimedTrial(unsigned int run_time) {
     unsigned long temp;
+    int j;
 
     temp = t1_ticks; // need atomic read due to interrupt
-    pidObjs[0].run_time = run_time;
-    pidObjs[1].run_time = run_time;
-    pidObjs[0].start_time = temp;
-    pidObjs[1].start_time = temp;
+    for (j = 0; j < NUM_PIDS; j++) {
+        pidObjs[j].run_time = run_time;
+        pidObjs[j].start_time = temp;
+    }
     if ((temp + (unsigned long) run_time) > lastMoveTime) {
         lastMoveTime = temp + (unsigned long) run_time;
     } // set run time to max requested time
@@ -268,44 +281,55 @@ void pidZeroPos(int pid_num) {
 void calibBatteryOffset(int spindown_ms) {
     long temp; // could be + or -
     unsigned int battery_voltage;
+    int j;
     // save current PWM config
     int tempPDC1 = PDC1;
     int tempPDC2 = PDC2;
+    int tempPDC3 = PDC3;
+    int tempPDC4 = PDC4;
     PDC1 = 0;
-    PDC2 = 0; /* SFR for PWM? */
+    PDC2 = 0;
+    PDC3 = 0;
+    PDC4 = 0; /* SFR for PWM? */
 
     // save current PID status, and turn off PID control
     short tempPidObjsOnOff[NUM_PIDS];
-    tempPidObjsOnOff[0] = pidObjs[0].onoff;
-    tempPidObjsOnOff[1] = pidObjs[1].onoff;
-    pidObjs[0].onoff = 0;
-    pidObjs[1].onoff = 0;
+    for (j = 0; j < NUM_PIDS; j++) {
+        tempPidObjsOnOff[j] = pidObjs[j].onoff;
+        pidObjs[j].onoff = PID_OFF;
+    }
 
     delay_ms(spindown_ms); //motor spin-down
     LED_RED = 1;
-    offsetAccumulatorL = 0;
-    offsetAccumulatorR = 0;
+
+    for (j = 0; j < NUM_PIDS; j++) {
+        offsetAccumulatorPID[j] = 0;
+    }
+
     offsetAccumulatorCounter = 0; // updated inside servo loop
+
     calib_flag = 1; // enable calibration
     while (offsetAccumulatorCounter < 100); // wait for 100 samples
     calib_flag = 0; // turn off calibration
-    battery_voltage = adcGetVbatt();
-    //Left
-    temp = offsetAccumulatorL;
-    temp = temp / (long) offsetAccumulatorCounter;
-    pidObjs[0].inputOffset = (int) temp;
 
-    //Right
-    temp = offsetAccumulatorR;
-    temp = temp / (long) offsetAccumulatorCounter;
-    pidObjs[1].inputOffset = (int) temp;
+    battery_voltage = adcGetVbatt();
+
+    //Cycle through pid indices and set offsets
+    for (j = 0; j < NUM_PIDS; j++) {
+        temp = offsetAccumulatorPID[j];
+        temp = temp / (long) offsetAccumulatorCounter;
+        pidObjs[j].inputOffset = (int) temp;
+    }
 
     LED_RED = 0;
     // restore PID values
     PDC1 = tempPDC1;
     PDC2 = tempPDC2;
-    pidObjs[0].onoff = tempPidObjsOnOff[0];
-    pidObjs[1].onoff = tempPidObjsOnOff[1];
+    PDC3 = tempPDC3;
+    PDC4 = tempPDC4;
+    for (j = 0; j < NUM_PIDS; j++) {
+        pidObjs[j].onoff = tempPidObjsOnOff[j];
+    }
 }
 
 /*****************************************************************************************/
@@ -360,11 +384,15 @@ void strCtrlOff(void){
 
 /*****************************************************************************************/
 void EmergencyStop(void) {
-    pidSetInput(0, 0);
-    pidSetInput(1, 0);
+    int j;
+    for (j = 0; j < NUM_PIDS; j++) {
+        pidSetInput(j, 0);
+    }
     DisableIntT1; // turn off pid interrupts
-    SetDCMCPWM(MC_CHANNEL_PWM1, 0, 0); // set PWM to zero
+    SetDCMCPWM(MC_CHANNEL_PWM1, 0, 0);    // set PWM to zero
     SetDCMCPWM(MC_CHANNEL_PWM2, 0, 0);
+    SetDCMCPWM(MC_CHANNEL_PWM3, 0, 0);
+    SetDCMCPWM(MC_CHANNEL_PWM4, 0, 0);
 }
 
 
@@ -382,6 +410,7 @@ extern volatile MacPacket uart_tx_packet;
 extern volatile unsigned char uart_tx_flag;
 
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
+    int i;
     int j;
     LED_3 = 1;
     interrupt_count++;
@@ -418,8 +447,9 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
                         pidGetSetpoint(j);
                     }
                     if (t1_ticks > lastMoveTime) { // turn off if done running all legs
-                        pidObjs[0].onoff = 0;
-                        pidObjs[1].onoff = 0;
+                        for (i = 0; i < NUM_PIDS; i++) {
+                            pidObjs[i].onoff = 0;
+                        }
                     }
                 }
                 else {
@@ -427,12 +457,8 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
                 }
             }
         }
-        if (pidObjs[0].mode == PID_MODE_CONTROLED) {
-            pidSetControl();
-        } else if (pidObjs[0].mode == PID_MODE_PWMPASS) {
-            tiHSetDC(pidObjs[0].output_channel, pidObjs[0].pwmDes);
-            tiHSetDC(pidObjs[1].output_channel, pidObjs[1].pwmDes);
-        }
+
+        pidSetControl();
 
     }
     LED_3 = 0;
@@ -499,8 +525,9 @@ void pidGetState() {
     //	calib_flag = 0;  //BEMF disable
     // get diff amp offset with motor off at startup time
     if (calib_flag) {
-        offsetAccumulatorL += adcGetMotorA();
-        offsetAccumulatorR += adcGetMotorB();
+        for (i = 0; i < NUM_PIDS; i++) {
+            offsetAccumulatorPID[i] += adcGetMotor(pidObjs[i].output_channel);
+        }
         offsetAccumulatorCounter++;
     }
 
@@ -513,12 +540,12 @@ void pidGetState() {
 #endif
 
     time_start = sclockGetTime();
-    bemf[0] = pidObjs[0].inputOffset - adcGetMotorA(); // watch sign for A/D? unsigned int -> signed?
-    bemf[1] = pidObjs[1].inputOffset - adcGetMotorB(); // MotorB
     // only works to +-32K revs- might reset after certain number of steps? Should wrap around properly
     for (i = 0; i < NUM_PIDS; i++) {
+        bemf[i] = pidObjs[i].inputOffset - adcGetMotor(pidObjs[i].output_channel); // watch sign for A/D? unsigned int -> signed?
+
         enc_num = pidObjs[i].encoder_num;
-        
+
         encPosition = amsEncoderGetPos(enc_num);
         encOticks = amsEncoderGetOticks(enc_num);
         encOffset = amsEncoderGetOffset(enc_num);
@@ -528,7 +555,7 @@ void pidGetState() {
         p_state = p_state + ((long)encOticks << 16);
 
         pidObjs[i].p_state = p_state;
-        
+
         if(pidObjs[i].p_state_flip){
             pidObjs[i].p_state = -pidObjs[i].p_state;
         }
@@ -552,15 +579,13 @@ void pidGetState() {
 #if VEL_BEMF == 1
     int measurements[NUM_PIDS];
     // Battery: AN0, MotorA AN8, MotorB AN9, MotorC AN10, MotorD AN11
-    measurements[0] = pidObjs[0].inputOffset - adcGetMotorA(); // watch sign for A/D? unsigned int -> signed?
-    measurements[1] = pidObjs[1].inputOffset - adcGetMotorB(); // MotorB
+    for (i = 0; i < NUM_PIDS; i++) {
+        measurements[i] = bemf[i]; // watch sign for A/D? unsigned int -> signed?
 
 
-    //Get motor speed reading on every interrupt - A/D conversion triggered by PWM timer to read Vm when transistor is off
-    // when motor is loaded, sometimes see motor short so that  bemf=offset voltage
-    // get zero sometimes - open circuit brush? Hence try median filter
-    for (i = 0; i < 2; i++) // median filter
-    {
+        //Get motor speed reading on every interrupt - A/D conversion triggered by PWM timer to read Vm when transistor is off
+        // when motor is loaded, sometimes see motor short so that  bemf=offset voltage
+        // get zero sometimes - open circuit brush? Hence try median filter
         if (measurements[i] > measLast1[i]) {
             if (measLast1[i] > measLast2[i]) {
                 bemf[i] = measLast1[i];
@@ -590,14 +615,11 @@ void pidGetState() {
                 }
             }
         }
-    } // end for
     // store old values
-    measLast2[0] = measLast1[0];
-    measLast1[0] = measurements[0];
-    measLast2[1] = measLast1[1];
-    measLast1[1] = measurements[1];
-    pidObjs[0].v_state = bemf[0];
-    pidObjs[1].v_state = bemf[1]; //  might also estimate from deriv of pos data
+    measLast2[i] = measLast1[i];
+    measLast1[i] = measurements[i];
+    pidObjs[i].v_state = bemf[i];
+    }
     //if((measurements[0] > 0) || (measurements[1] > 0)) {
     if ((measurements[0] > 0)) {
         LED_BLUE = 1;
@@ -616,34 +638,26 @@ void pidSetControl()
     // Adjust pidObjs[0].p_input of left leg to shift phase in the constant velocity gait
     pidObjs[0].p_error = pidObjs[0].p_input - (long) (pdSteer.output/2) + pidObjs[0].interpolate  - pidObjs[0].p_state;
     pidObjs[1].p_error = pidObjs[1].p_input + (long) (pdSteer.output/2) + pidObjs[1].interpolate  - pidObjs[1].p_state;
-    for(j=0; j < NUM_PIDS; j++)
-    {  //pidobjs[0] : right side
-        pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state;  // v_input should be revs/sec
-        //Update values
-        UpdatePID(&(pidObjs[j]));
+    for(j=0; j < NUM_PIDS; j++){
+        if((pidObjs[j].mode == PID_MODE_CONTROLED)&&(pidObjs[j].onoff == PID_ON)){
+            pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state;  // v_input should be revs/sec
+            //Update values
+            UpdatePID(&(pidObjs[j]));
+            if(pidObjs[j].pwm_flip){
+                tiHSetDC(pidObjs[j].output_channel, -pidObjs[j].output);
+            }
+            else{
+                tiHSetDC(pidObjs[j].output_channel, pidObjs[j].output);
+            }
+        }
+        else if((pidObjs[j].mode == PID_MODE_PWMPASS)&&(pidObjs[j].onoff == PID_ON)){
+            tiHSetDC(pidObjs[j].output_channel, pidObjs[j].pwmDes);
+        }
+        else{
+            pidObjs[j].output = 0;
+            tiHSetDC(pidObjs[j].output_channel, 0);
+        }
     } // end of for(j)
-
-    if (pidObjs[0].onoff && pidObjs[1].onoff) // both motors on to run
-    {
-        if(pidObjs[0].pwm_flip){
-            tiHSetDC(pidObjs[0].output_channel, -pidObjs[0].output);
-        }
-        else{
-            tiHSetDC(pidObjs[0].output_channel, pidObjs[0].output);
-        }
-        
-        if(pidObjs[1].pwm_flip){
-            tiHSetDC(pidObjs[1].output_channel, -pidObjs[1].output);
-        }
-        else{
-            tiHSetDC(pidObjs[1].output_channel, pidObjs[1].output);
-        }
-    }
-    else // turn off motors if PID loop is off
-    {
-        tiHSetDC(pidObjs[0].output_channel, 0);
-        tiHSetDC(pidObjs[1].output_channel, 0);
-    }
 }
 
 void UpdatePID(pidPos *pid) {
@@ -734,5 +748,50 @@ void UpdatePD(strCtrl *pd)
     if (pd->preSat < -MIN_LEFT_PHASE*PHASE_TO_LEGPOS)
     {
         pd->output = -MIN_LEFT_PHASE*PHASE_TO_LEGPOS;
+    }
+}
+
+//TODO: Controller design, this function was created specifically to remove existing externs.
+long pidGetPState(unsigned int channel) {
+    if (channel < NUM_PIDS) {
+        return pidObjs[channel].p_state;
+    } else {
+        return 0;
+    }
+}
+void pidSetPInput(unsigned int channel, long p_input) {
+    if (channel < NUM_PIDS) {
+        pidObjs[channel].p_input = p_input;
+    }
+}
+
+//TODO: Controller design, this function was created specifically to remove existing externs.
+void pidStartMotor(unsigned int channel){
+    if (channel < NUM_PIDS) {
+        pidObjs[channel].timeFlag = 0;
+        pidSetInput(channel, 0);
+        pidObjs[channel].p_input = pidObjs[channel].p_state;
+        pidOn(channel);
+    }
+
+}
+
+//TODO: Controller design, this function was created specifically to remove existing externs.
+void pidSetTimeFlag(unsigned int channel, char val){
+    if (channel < NUM_PIDS) {
+        pidObjs[channel].timeFlag = val;
+    }
+}
+
+//TODO: Controller design, this function was created specifically to remove existing externs.
+void pidSetMode(unsigned int channel, char mode){
+    if (channel < NUM_PIDS) {
+        pidObjs[channel].mode = mode;
+    }
+}
+
+void pidSetPWMDes(unsigned int channel, int pwm){
+    if (channel < NUM_PIDS) {
+        pidObjs[channel].pwmDes = pwm;
     }
 }

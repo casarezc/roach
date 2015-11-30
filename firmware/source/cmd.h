@@ -58,7 +58,7 @@ typedef struct{
 //cmdSoftwareReset
 //no arguments
 
-//cmdcmdStartTimedRun
+//cmdStartTimedRun
 typedef struct{
     uint16_t run_time;
 } _args_cmdStartTimedRun;
@@ -93,5 +93,14 @@ typedef struct{
     int32_t offset;
 } _args_cmdSetPhase;
 
+//cmdSetSteerGains
+typedef struct{
+	int Kp, Kd, ff;
+} _args_cmdSetSteerGains;
+
+//cmdSetSteerAngle
+typedef struct{
+	int angle;
+} _args_cmdSetSteerAngle;
 
 #endif // __CMD_H

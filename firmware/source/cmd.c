@@ -9,7 +9,6 @@
 #include "blink.h"
 #include "payload.h"
 #include "mac_packet.h"
-#include "dfmem.h"
 #include "radio.h"
 #include "dfmem.h"
 #include "version.h"
@@ -186,9 +185,6 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
         checkSwapBuff(i);
         pidOn(i);
     }
-    
-    pidSetMode(LEFT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
-    pidSetMode(RIGHT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
 
     pidStartTimedTrial(argsPtr->run_time);
 
@@ -248,6 +244,7 @@ unsigned char cmdSetThrustOpenLoop(unsigned char type, unsigned char status, uns
     pidSetPWMDes(RIGHT_LEGS_PID_NUM, argsPtr->thrust2);
 
     pidSetMode(LEFT_LEGS_PID_NUM,1);
+    pidSetMode(RIGHT_LEGS_PID_NUM,1);
 
     return 1;
  }
@@ -290,6 +287,8 @@ unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigne
 
     setPIDVelProfile(LEFT_LEGS_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
     setPIDVelProfile(RIGHT_LEGS_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
+    pidSetMode(LEFT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
+    pidSetMode(RIGHT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
 
     //Send confirmation packet
     // TODO : Send confirmation packet with packet index
@@ -315,8 +314,8 @@ unsigned char cmdPIDStopMotors(unsigned char type, unsigned char status, unsigne
 
 unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
     long motor_count[2];
-    motor_count[0] = pidGetPState(0);
-    motor_count[1] = pidGetPState(1);
+    motor_count[0] = pidGetPState(LEFT_LEGS_PID_NUM);
+    motor_count[1] = pidGetPState(RIGHT_LEGS_PID_NUM);
 
     radioSendData(src_addr, status, CMD_ZERO_POS, 
         sizeof(motor_count), (unsigned char *)motor_count, 0);
@@ -360,13 +359,9 @@ void cmdError() {
 }
 
 unsigned char cmdSetSteerGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
-    int Kp, Kd, ff;
-    int idx = 0;
+    PKT_UNPACK(_args_cmdSetSteerGains, argsPtr, frame);
 
-    Kp = frame[idx] + (frame[idx+1] << 8); idx+=2;
-    Kd = frame[idx] + (frame[idx+1] << 8); idx+=2;
-    ff = frame[idx] + (frame[idx+1] << 8); idx+=2;
-    strCtrlSetGains(Kp, Kd, ff);
+    strCtrlSetGains(argsPtr->Kp, argsPtr->Kd, argsPtr->ff);
 
     radioSendData(src_addr, status, CMD_SET_STEER_GAINS, 6, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
@@ -377,11 +372,10 @@ unsigned char cmdSetSteerGains(unsigned char type, unsigned char status, unsigne
 
 unsigned char cmdSetSteerAngle(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 
-    // Unpack angle, mode
-    int angle = frame[0] + (frame[1] << 8);
+    PKT_UNPACK(_args_cmdSetSteerAngle, argsPtr, frame);
 
     // Set angle set point, send radio confirmation packet
-    strCtrlSetInput(angle);
+    strCtrlSetInput(argsPtr->angle);
 
     radioSendData(src_addr, status, CMD_SET_STEER_ANGLE, 2, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
