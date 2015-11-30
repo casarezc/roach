@@ -26,7 +26,7 @@ EXIT_WAIT   = False
 # PHASE_RIGHT = 41870
 PHASE_LEFT = 20024
 PHASE_RIGHT = 45511
-STRIDE_FREQ = 5
+STRIDE_FREQ = 1
 
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
@@ -71,7 +71,7 @@ def main():
     #winchPWM = 0
 
     ## Set up different gaits to be used in the trials
-    slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    slowBound = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
     slowBound.winchgains = winchgains
     slowBound.phase = 0
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
@@ -81,7 +81,7 @@ def main():
     # Mode = 0 PI, Mode = 1 Unwind
     # slowBound.winchSetpoint = 7000
     # slowBound.winchMode = 0
-    slowBound.winchSetpoint = 3000
+    slowBound.winchSetpoint = 1000
     slowBound.winchMode = 0
 
     fastBound = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
@@ -140,8 +140,8 @@ def main():
     T = 2000
     T_LEAD_OUT = 1000
 
-    STOP_ANGLE = 10
-    ANGLE_TRIGGER = 2
+    STOP_ANGLE = 30
+    ANGLE_TRIGGER = 1
 
 
 
@@ -170,14 +170,16 @@ def main():
 
     time.sleep(0.1)
 
-    # R1.zeroLoadCell()
-    # R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER);
+    R1.zeroLoadCell()
+    R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER);
     # R1.setGait(fastBound)
-    R1.setGait(slowAltTripod)
+    R1.setGait(slowBound)
     # R1.setGait(slowLeftTurn)
     # R1.setGait(slowRightTurn)
-    # R1.startTimedRunWinch( T )
-    R1.startTimedRun( T )
+
+
+    R1.startTimedRunWinch( T )
+    # R1.startTimedRun( T )
 
     ## Save data after runs
     for r in shared.ROBOTS:
