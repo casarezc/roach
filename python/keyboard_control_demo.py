@@ -22,8 +22,10 @@ EXIT_WAIT   = False
 def menu():
     print "-------------------------------------"
     print "Keyboard control October 22 2015"
-    print " a:slow left    s:slow straight   d:slow right    w:slow alt tripod   t:fast alt tripod"
-    print " f:fast left    g:fast straight   h:fast right    q: quit"
+    print " Slow phase-locked steering--a:left    s:straight   d:right    w:alt tripod "
+    print " Fast phase-locked steering--f:left    g:straight   h:right    t:alt tripod "
+    print " Top  speed  skid  steering--j:left    k:bound      l:right    i:alt tripod "
+    print "q: quit"
 
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
@@ -67,7 +69,7 @@ def main():
 
     ## Set up different gaits to be used in the trials
 
-    frequency = 5
+    frequency = 2
     slowAltTripod = GaitConfig(motorgains, rightFreq=frequency, leftFreq=frequency)
     slowAltTripod.phase = PHASE_180_DEG
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
@@ -82,7 +84,7 @@ def main():
     steerRightSlow = SteerConfig(motorgains, steergains, rightFreq = frequency, leftFreq = frequency)
     steerRightSlow.steerangle = -90
 
-    frequency = 8
+    frequency = 5
 
     fastAltTripod = GaitConfig(motorgains, rightFreq=frequency, leftFreq=frequency)
     fastAltTripod.phase = PHASE_180_DEG
@@ -97,6 +99,29 @@ def main():
 
     steerRightFast = SteerConfig(motorgains, steergains, rightFreq = frequency, leftFreq = frequency)
     steerRightFast.steerangle = -90
+
+
+    frequency = 10
+
+    topSpeedAltTripod = GaitConfig(motorgains, rightFreq=frequency, leftFreq=frequency)
+    topSpeedAltTripod.phase = PHASE_180_DEG
+    topSpeedAltTripod.deltasLeft = [0.25, 0.25, 0.25]
+    topSpeedAltTripod.deltasRight = [0.25, 0.25, 0.25]
+
+    topSpeedBound = GaitConfig(motorgains, rightFreq=frequency, leftFreq=frequency)
+    topSpeedBound.phase = 0
+    topSpeedBound.deltasLeft = [0.25, 0.25, 0.25]
+    topSpeedBound.deltasRight = [0.25, 0.25, 0.25]
+
+    topSpeedLeft = GaitConfig(motorgains, rightFreq=frequency, leftFreq=frequency/2)
+    topSpeedLeft.phase = 0
+    topSpeedLeft.deltasLeft = [0.25, 0.25, 0.25]
+    topSpeedLeft.deltasRight = [0.25, 0.25, 0.25]
+
+    topSpeedRight = GaitConfig(motorgains, rightFreq=frequency/2, leftFreq=frequency)
+    topSpeedRight.phase = 0
+    topSpeedRight.deltasLeft = [0.25, 0.25, 0.25]
+    topSpeedRight.deltasRight = [0.25, 0.25, 0.25]
     
     # Set the timings of each segment of the run
     T = 4000
@@ -153,6 +178,18 @@ def main():
             R1.startTimedRun( T )
         elif keypress == 't':
             R1.setGait(fastAltTripod)
+            R1.startTimedRun( T )
+        elif keypress == 'j':
+            R1.setSteerGait(topSpeedLeft)
+            R1.startTimedRun( T )
+        elif keypress == 'k':
+            R1.setSteerGait(topSpeedBound)
+            R1.startTimedRun( T )
+        elif keypress == 'l':
+            R1.setSteerGait(topSpeedRight)
+            R1.startTimedRun( T )
+        elif keypress == 'i':
+            R1.setGait(topSpeedAltTripod)
             R1.startTimedRun( T )
         elif (keypress == 'q') or (ord(keypress) == 26):
             print "Exit."
