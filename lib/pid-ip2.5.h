@@ -10,9 +10,9 @@
 
 #define GAIN_SCALER     100
 // Load cell calibration
-#define K_LOAD_CELL_1   26      //hundreth of a gram per count
-#define K_LOAD_CELL_2   76
-#define SWITCH_LOAD_CELL 662
+#define K_LOAD_CELL_1   22      //hundreth of a gram per count
+#define K_LOAD_CELL_2   48
+#define SWITCH_LOAD_CELL 690
 #define NUM_PIDS	2
 #define NUM_PI_NO_AMS   1
 #define NUM_VELS	4 // 8 velocity setpoints per cycle

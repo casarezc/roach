@@ -55,20 +55,20 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [5000,400,200,0,200, 5000,400,200,0,200]
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [140, 40, 20, 0] 
+    winchgains = [60, 30, 10, 0] 
 
     ## Set up different gaits to be used in the trials
-    slowBoundTaut = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    slowBoundTaut = GaitConfig(motorgains, rightFreq=0.5, leftFreq=0.5)
     slowBoundTaut.winchgains = winchgains
     slowBoundTaut.phase = 0
     slowBoundTaut.deltasLeft = [0.25, 0.25, 0.25]
     slowBoundTaut.deltasRight = [0.25, 0.25, 0.25]
 
-    slowBoundTaut.winchSetpoint = 1000
+    slowBoundTaut.winchSetpoint = 10000
     slowBoundTaut.winchMode = 0
 
     slowBoundConnect = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
@@ -82,22 +82,29 @@ def main():
 
     holdBack = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
     holdBack.phase = 0                          
-    holdBack.deltasLeft = [0.25, 0, 0]
-    holdBack.deltasRight = [0.25, 0, 0]
+    holdBack.deltasLeft = [0.5, 0, 0]
+    holdBack.deltasRight = [0.5, 0, 0]
 
     medBound = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
     medBound.phase = 0                          
     medBound.deltasLeft = [0.25, 0.25, 0.25]
     medBound.deltasRight = [0.25, 0.25, 0.25]
 
+    STOP_ANGLE_1 = 0
+    ANGLE_TRIGGER_1 = 0
+
+    STOP_ANGLE_2 = 0
+    ANGLE_TRIGGER_2 = 0
+
+    R1.setPitchThresh(STOP_ANGLE_1, ANGLE_TRIGGER_1)
+    R2.setPitchThresh(STOP_ANGLE_2, ANGLE_TRIGGER_2)
     
     # Set the timings of each segment of the run
-    TLEADOUT = 1500
-    T1 = 500
-    T2 = 500
+    TLEADOUT = 2000
+    T2 = 2000
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = 4*TLEADOUT + T1 + 4*T2
+    EXPERIMENT_SAVE_TIME_MS     = TLEADOUT + 2*T2
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -108,7 +115,7 @@ def main():
     
         print ""
 
-    R2.zeroLoadCell()
+    # R2.zeroLoadCell()
 
     print "  ***************************"
     print "  *******    READY    *******"
@@ -142,8 +149,8 @@ def main():
         print "  ***************************"
         print "  *******   STAGE 2  *******"
         print "  ***************************"
-        R2.setGait(slowBoundConnect)
-        R1.setGait(medBound)
+        R2.setGait(slowBoundTaut)
+        R1.setGait(holdBack)
         R2.startTimedRunWinch( T2 )
         R1.startTimedRun( T2 )
 

@@ -51,11 +51,11 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [140, 40, 20, 0] 
+    winchgains = [40, 20, 5, 0] 
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
@@ -65,7 +65,8 @@ def main():
     windWinch.phase = 0
     windWinch.deltasLeft = [0.25, 0.25, 0.25]
     windWinch.deltasRight = [0.25, 0.25, 0.25]
-    windWinch.winchSetpoint = 6000
+    # windWinch.winchSetpoint = 5000
+    windWinch.winchSetpoint = 10000
     windWinch.winchMode = 0
 
 
@@ -86,7 +87,7 @@ def main():
     
         print ""
 
-    R1.zeroLoadCell()
+    # R1.zeroLoadCell()
 
     print "  ***************************"
     print "  *******    READY    *******"

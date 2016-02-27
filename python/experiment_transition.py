@@ -51,10 +51,10 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [5000,400,200,0,200, 5000,400,200,0,200]
 
     ## Set up gait to be used in transition
-    fastBound = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
+    fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
     fastBound.phase = 0
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBound.deltasRight = [0.25, 0.25, 0.25]

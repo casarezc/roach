@@ -55,53 +55,60 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [5000,400,200,0,200, 5000,400,200,0,200]
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [140, 40, 20, 0] 
+    # winchgains = [140, 40, 20, 0] 
+    winchgains = [60, 30, 10, 0]  
 
     ## Set up different gaits to be used in the trials
 
-    holdCenterConnect = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
-    holdCenterConnect.winchgains = winchgains
-    holdCenterConnect.phase = 0                          
-    holdCenterConnect.deltasLeft = [1, 0, 0]
-    holdCenterConnect.deltasRight = [1, 0, 0]
+    # holdCenterConnect = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
+    # holdCenterConnect.winchgains = winchgains
+    # holdCenterConnect.phase = 0                          
+    # holdCenterConnect.deltasLeft = [1, 0, 0]
+    # holdCenterConnect.deltasRight = [1, 0, 0]
 
-    holdCenterConnect.winchSetpoint = 10000
-    holdCenterConnect.winchMode = 0
+    # holdCenterConnect.winchSetpoint = 26000
+    # holdCenterConnect.winchMode = 0
 
-    r1BoundS1 = GaitConfig(motorgains, rightFreq=12, leftFreq=12)
-    r1BoundS1.phase = 0
-    r1BoundS1.deltasLeft = [0.25, 0.25, 0.25]
-    r1BoundS1.deltasRight = [0.25, 0.25, 0.25]
 
     # Note successful trial did not require this second phase
-    r1BoundS2 = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
-    r1BoundS2.phase = 0
-    r1BoundS2.deltasLeft = [0.25, 0.25, 0.25]
-    r1BoundS2.deltasRight = [0.25, 0.25, 0.25]
+    r1Bound = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
+    r1Bound.phase = 0
+    r1Bound.deltasLeft = [0.25, 0.25, 0.25]
+    r1Bound.deltasRight = [0.25, 0.25, 0.25]
 
-
-    r2Bound = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
+    r2Bound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
+    r2Bound.winchgains = winchgains
     r2Bound.phase = 0
     r2Bound.deltasLeft = [0.25, 0.25, 0.25]
     r2Bound.deltasRight = [0.25, 0.25, 0.25]
 
+    r2Bound.winchSetpoint = 15000
+    r2Bound.winchMode = 0
+
+    STOP_ANGLE_1 = 0
+    ANGLE_TRIGGER_1 = 0
+
+    STOP_ANGLE_2 = 0
+    ANGLE_TRIGGER_2 = 0
+
+    R1.setPitchThresh(STOP_ANGLE_1, ANGLE_TRIGGER_1)
+    R2.setPitchThresh(STOP_ANGLE_2, ANGLE_TRIGGER_2)
+
     
     # Set the timings of each segment of the run
     TPREP = 2000
-    TLEADOUT = 1500
+    TLEADOUT = 2000
     T1 = 1000
-    T2 = 1000
+    T2 = 2000
 
     # Set angle trigger parameters
-    STOP_ANGLE = 20
-    ANGLE_TRIGGER = 2
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = 2*TLEADOUT + 3*T1 + 3*T2
+    EXPERIMENT_SAVE_TIME_MS     = TLEADOUT + 2*T2
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -113,19 +120,19 @@ def main():
         print ""
 
 
-    nextFlag = 0
+    # nextFlag = 0
 
-    R2.zeroLoadCell()
+    # R2.zeroLoadCell()
 
-    while(nextFlag == 0):
-        raw_input("  Press ENTER to prepare experiment ...")
-        print "  ***************************"
-        print "  *********   PREP   ********"
-        print "  ***************************"
-        R2.setGait(holdCenterConnect)
-        R2.startTimedRunWinch( TPREP )
+    # while(nextFlag == 0):
+    #     raw_input("  Press ENTER to prepare experiment ...")
+    #     print "  ***************************"
+    #     print "  *********   PREP   ********"
+    #     print "  ***************************"
+    #     R2.setGait(holdCenterConnect)
+    #     R2.startTimedRunWinch( TPREP )
 
-        nextFlag = int(raw_input(" Move on to stage 1 (1 or 0)?: "))
+    #     nextFlag = int(raw_input(" Move on to stage 1 (1 or 0)?: "))
 
     nextFlag = 0
 
@@ -143,27 +150,26 @@ def main():
     time.sleep(0.1)
 
 
-    while(nextFlag == 0):
-        print "  ***************************"
-        print "  *******   STAGE 1   *******"
-        print "  ***************************"
-        R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER)
-        R1.setGait(r1BoundS1)
-        R2.setGait(r2Bound)
-        R2.startTimedRun( T1 )
-        R1.startTimedRun( T1 )
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 1   *******"
+    #     print "  ***************************"
+    #     R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER)
+    #     R1.setGait(r1BoundS1)
+    #     R2.setGait(r2Bound)
+    #     R2.startTimedRun( T1 )
+    #     R1.startTimedRun( T1 )
 
-        nextFlag = int(raw_input(" Move on to stage 2 (1 or 0)?: "))
+    #     nextFlag = int(raw_input(" Move on to stage 2 (1 or 0)?: "))
 
     nextFlag = 0
     while(nextFlag == 0):
         print "  ***************************"
-        print "  *******   STAGE 2   *******"
+        print "  *******   STAGE 1   *******"
         print "  ***************************"
-        R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER)
-        R1.setGait(r1BoundS2)
+        R1.setGait(r1Bound)
         R2.setGait(r2Bound)
-        R2.startTimedRun( T2 )
+        R2.startTimedRunWinch( T2 )
         R1.startTimedRun( T2 )
 
         nextFlag = int(raw_input(" Exit (1 or 0)?: "))

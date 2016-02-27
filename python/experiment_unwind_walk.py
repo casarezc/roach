@@ -24,13 +24,17 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1 = Velociroach('\x21\x62', xb)
+    R2 = Velociroach('\x21\x63', xb)
+    # R1.SAVE_DATA = False
+    # R2.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    R2.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
     shared.ROBOTS.append(R1) #This is necessary so callbackfunc can reference robots
+    shared.ROBOTS.append(R2)
     shared.xb = xb           #This is necessary so callbackfunc can halt before exit
 
     # Send resets
@@ -51,31 +55,70 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [5000,400,200,0,200, 5000,400,200,0,200]
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [140, 40, 20, 0] 
-    #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
+    winchgains = [60, 30, 10, 0] 
 
-    # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
-    # Mode = 0 PI, Mode = 1 Unwind
-    unwindWinch = GaitConfig(motorgains, rightFreq=0, leftFreq=0)
-    unwindWinch.winchgains = winchgains
-    unwindWinch.phase = 0
-    unwindWinch.deltasLeft = [0.25, 0.25, 0.25]
-    unwindWinch.deltasRight = [0.25, 0.25, 0.25]
-    unwindWinch.winchSetpoint = 2000
-    unwindWinch.winchMode = 1
+    ## Set up different gaits to be used in the trials
 
+    holdCenterConnect = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
+    holdCenterConnect.winchgains = winchgains
+    holdCenterConnect.phase = 0                          
+    holdCenterConnect.deltasLeft = [1, 0, 0]
+    holdCenterConnect.deltasRight = [1, 0, 0]
+
+    holdCenterConnect.winchSetpoint = 12500
+    holdCenterConnect.winchMode = 0
+
+    slowBoundRelease = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
+    slowBoundRelease.winchgains = winchgains
+    slowBoundRelease.phase = 0                          
+    slowBoundRelease.deltasLeft = [0.25, 0.25, 0.25]
+    slowBoundRelease.deltasRight = [0.25, 0.25, 0.25]
+
+    slowBoundRelease.winchSetpoint =  5000
+    slowBoundRelease.winchMode = 1
+
+    holdCenterRelease = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
+    holdCenterRelease.winchgains = winchgains
+    holdCenterRelease.phase = 0                          
+    holdCenterRelease.deltasLeft = [0.25, 0, 0]
+    holdCenterRelease.deltasRight = [0.25, 0, 0]
+
+    holdCenterRelease.winchSetpoint = 220
+    holdCenterRelease.winchMode = 1
+
+    r1Bound = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
+    r1Bound.phase = 0
+    r1Bound.deltasLeft = [0.25, 0.25, 0.25]
+    r1Bound.deltasRight = [0.25, 0.25, 0.25]
+
+    holdBack = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
+    holdBack.phase = 0                          
+    holdBack.deltasLeft = [0.25, 0, 0]
+    holdBack.deltasRight = [0.25, 0, 0]
 
     
     # Set the timings of each segment of the run
-    T = 500
-    T_LEAD_OUT = 1000
+    TPREP = 2000
+    TLEADOUT = 2000
+    T1 = 1000
+    T2 = 4000
+
+    # Set angle trigger parameters
+    STOP_ANGLE_1 = -30
+    ANGLE_TRIGGER_1 = 2
+
+    STOP_ANGLE_2 = 0
+    ANGLE_TRIGGER_2 = 0
+
+    R1.setPitchThresh(STOP_ANGLE_1, ANGLE_TRIGGER_1)
+    R2.setPitchThresh(STOP_ANGLE_2, ANGLE_TRIGGER_2)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = T + T_LEAD_OUT
+    EXPERIMENT_SAVE_TIME_MS     = TLEADOUT + T2
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -86,7 +129,21 @@ def main():
     
         print ""
 
-    # R1.zeroLoadCell()
+
+    # nextFlag = 0
+
+    # R2.zeroLoadCell()
+
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *********   PREP   ********"
+    #     print "  ***************************"
+    #     R2.setGait(holdCenterConnect)
+    #     R2.startTimedRunWinch( TPREP )
+
+    #     nextFlag = int(raw_input(" Move on to stage 1 (1 or 0)?: "))
+
+    nextFlag = 0
 
     print "  ***************************"
     print "  *******    READY    *******"
@@ -100,20 +157,42 @@ def main():
             r.startTelemetrySave()
 
     time.sleep(0.1)
-    nextFlag = 0
+
+
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 1   *******"
+    #     print "  ***************************"
+    #     R1.setGait(r1Bound)
+    #     R2.setGait(slowBoundRelease)
+    #     R2.startTimedRunWinch( T1 )
+    #     R1.startTimedRun( T1 )
+
+    #     nextFlag = int(raw_input(" Move to stage 2 (1 or 0)?: "))
+
+    nextFlag  = 0
+    # R2.zeroLoadCell()
     while(nextFlag == 0):
         print "  ***************************"
-        print "  ***** Winch Unwinding *****"
+        print "  *******   STAGE 2   *******"
         print "  ***************************"
-        R1.setGait(unwindWinch)
-        R1.startTimedRunWinch( T )
+        R1.setGait(r1Bound)
+        # R2.setGait(slowBoundRelease)
+        R2.setGait(holdCenterRelease)
+        R2.startTimedRunWinch( T2 )
+        R1.startTimedRun( T2 )
+
         nextFlag = int(raw_input(" Exit (1 or 0)?: "))
+
 
     ## Save data after runs
     for r in shared.ROBOTS:
+        retry_flag = 1
         if r.SAVE_DATA:
-            raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry()
+            while(retry_flag == 1):
+                raw_input("Press Enter to start telemetry read-back ...")
+                r.downloadTelemetry()
+                retry_flag = int(raw_input(" Retry (1 or 0)?: "))
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

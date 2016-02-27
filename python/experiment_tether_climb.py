@@ -26,9 +26,9 @@ def main():
     
     R1 = Velociroach('\x21\x62', xb)
     R2 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = False
+    R1.SAVE_DATA = False
     # R2.SAVE_DATA = False
-    R1.SAVE_DATA = True
+    # R1.SAVE_DATA = True
     R2.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
@@ -55,38 +55,53 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [5000,400,200,0,200, 5000,400,200,0,200]
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [140, 40, 20, 0] 
+    winchgains = [60, 30, 10, 0] 
 
     ## Set up different gaits to be used in the trials
 
-    tetherClimb = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
+    fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
+    fastBound.winchgains = winchgains
+    fastBound.phase = 0
+    fastBound.deltasLeft = [0.25, 0.25, 0.25]
+    fastBound.deltasRight = [0.25, 0.25, 0.25]
+
+    tetherClimb = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
     tetherClimb.winchgains = winchgains
     tetherClimb.phase = 0                          
     tetherClimb.deltasLeft = [0.25, 0.25, 0.25]
     tetherClimb.deltasRight = [0.25, 0.25, 0.25]
 
-    tetherClimb.winchSetpoint = 500
+    tetherClimb.winchSetpoint = 15000
     tetherClimb.winchMode = 0
 
     
     # Set the timings of each segment of the run
-    TLEADOUT = 1500
-    T1 = 2000
-    T2 = 3000
+    TLEADOUT = 2000
+    T1 = 3000
+    T2 = 2000
 
-    # Set angle trigger parameters
-    STOP_ANGLE_1 = 60
-    ANGLE_TRIGGER_1 = 1
+    # # Set angle trigger parameters
+    # STOP_ANGLE_1 = 60
+    # ANGLE_TRIGGER_1 = 1
 
-    STOP_ANGLE_2 = -5
+    # STOP_ANGLE_2 = -5
+    # ANGLE_TRIGGER_2 = 2
+
+    STOP_ANGLE_1 = 0
+    ANGLE_TRIGGER_1 = 0
+
+    STOP_ANGLE_2 = -60
     ANGLE_TRIGGER_2 = 2
 
+    R1.setPitchThresh(STOP_ANGLE_1, ANGLE_TRIGGER_1)
+    R2.setPitchThresh(STOP_ANGLE_2, ANGLE_TRIGGER_2)
+
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = 3*TLEADOUT + T1 + T2
+    EXPERIMENT_SAVE_TIME_MS     = TLEADOUT + 2*T2
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -100,7 +115,7 @@ def main():
 
     nextFlag = 0
 
-    R2.zeroLoadCell()
+    # R2.zeroLoadCell()
 
     print "  ***************************"
     print "  *******    READY    *******"
@@ -116,23 +131,22 @@ def main():
     time.sleep(0.1)
 
 
-    while(nextFlag == 0):
-        print "  ***************************"
-        print "  *******   STAGE 1   *******"
-        print "  ***************************"
-        R2.setPitchThresh(STOP_ANGLE_1, ANGLE_TRIGGER_1)
-        R2.setGait(tetherClimb)
-        R2.startTimedRunWinch( T1 )
+    # while(nextFlag == 0):
+    #     print "  ***************************"
+    #     print "  *******   STAGE 1   *******"
+    #     print "  ***************************"
+    #     R2.setGait(fastBound)
+    #     R2.startTimedRun( T1 )
 
-        nextFlag = int(raw_input(" Stage 2 (1 or 0)?: "))
+    #     nextFlag = int(raw_input(" Exit (1 or 0)?: "))
 
     nextFlag = 0
-    tetherClimb.winchSetpoint = 15000
+    # tetherClimb.winchSetpoint = 15000
     while(nextFlag == 0):
         print "  ***************************"
         print "  *******   STAGE 2   *******"
         print "  ***************************"
-        R2.setPitchThresh(STOP_ANGLE_2, ANGLE_TRIGGER_2)
+        R2.setPitchThresh(0, 0)
         R2.setGait(tetherClimb)
         R2.startTimedRunWinch( T2 )
 

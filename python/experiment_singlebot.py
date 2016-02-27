@@ -31,7 +31,7 @@ STRIDE_FREQ = 1
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x62', xb)
+    R1 = Velociroach('\x21\x63', xb)
     R1.SAVE_DATA = True
     # R1.SAVE_DATA = False
                             
@@ -58,7 +58,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
+    motorgains = [5000,400,200,0,200, 5000,400,200,0,200]
     # motorgains = [0,0,0,0,2200, 0, 0, 0, 0, 0]
 
     # Winch gains format:
@@ -81,11 +81,10 @@ def main():
     # Mode = 0 PI, Mode = 1 Unwind
     # slowBound.winchSetpoint = 7000
     # slowBound.winchMode = 0
-    slowBound.winchSetpoint = 1000
+    slowBound.winchSetpoint = 5000
     slowBound.winchMode = 0
 
-    fastBound = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
-    fastBound.winchgains = winchgains
+    fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
     fastBound.phase = 0
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBound.deltasRight = [0.25, 0.25, 0.25]
@@ -122,11 +121,10 @@ def main():
     holdCenter.deltasLeft = [0, 0, 0]
     holdCenter.deltasRight = [0, 0, 0]
 
-    holdBack = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdBack.winchgains = winchgains
+    holdBack = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
     holdBack.phase = 0                          
-    holdBack.deltasLeft = [0.25, 0, 0]
-    holdBack.deltasRight = [0.25, 0, 0]
+    holdBack.deltasLeft = [0.5, 0, 0]
+    holdBack.deltasRight = [0.5, 0, 0]
 
     holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
     holdBackLong.winchgains = [40, 20, 20, 0]
@@ -140,8 +138,8 @@ def main():
     T = 2000
     T_LEAD_OUT = 1000
 
-    STOP_ANGLE = 30
-    ANGLE_TRIGGER = 1
+    STOP_ANGLE = -20
+    ANGLE_TRIGGER = 0
 
 
 
@@ -170,15 +168,17 @@ def main():
 
     time.sleep(0.1)
 
-    R1.zeroLoadCell()
+    # R1.zeroLoadCell()
     R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER);
-    # R1.setGait(fastBound)
-    R1.setGait(slowBound)
+
+    # R1.setGait(holdBack)
+    R1.setGait(fastBound)
+    # R1.setGait(slowBound)
     # R1.setGait(slowLeftTurn)
     # R1.setGait(slowRightTurn)
 
 
-    R1.startTimedRunWinch( T )
+    R1.startTimedRun( T )
     # R1.startTimedRun( T )
 
     ## Save data after runs

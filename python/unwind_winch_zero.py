@@ -65,7 +65,7 @@ def main():
     unwindWinch.phase = 0
     unwindWinch.deltasLeft = [0.25, 0.25, 0.25]
     unwindWinch.deltasRight = [0.25, 0.25, 0.25]
-    unwindWinch.winchSetpoint = 1000
+    unwindWinch.winchSetpoint = 2000
     unwindWinch.winchMode = 1
 
 

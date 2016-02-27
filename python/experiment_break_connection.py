@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -51,31 +51,32 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [5000,400,200,0,200, 5000,400,200,0,200]
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [140, 40, 20, 0] 
+    winchgains = [60, 30, 10, 0]  
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
     # Mode = 0 PI, Mode = 1 Unwind
-    unwindWinch = GaitConfig(motorgains, rightFreq=0, leftFreq=0)
-    unwindWinch.winchgains = winchgains
-    unwindWinch.phase = 0
-    unwindWinch.deltasLeft = [0.25, 0.25, 0.25]
-    unwindWinch.deltasRight = [0.25, 0.25, 0.25]
-    unwindWinch.winchSetpoint = 2000
-    unwindWinch.winchMode = 1
+    windWinch = GaitConfig(motorgains, rightFreq=0, leftFreq=0)
+    windWinch.winchgains = winchgains
+    windWinch.phase = 0
+    windWinch.deltasLeft = [0.25, 0.25, 0.25]
+    windWinch.deltasRight = [0.25, 0.25, 0.25]
+    windWinch.winchSetpoint = 22500
+    windWinch.winchMode = 0
 
 
     
     # Set the timings of each segment of the run
-    T = 500
-    T_LEAD_OUT = 1000
+    T1 = 200
+    T2 = 1000
+    T_LEAD_OUT = 1500
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = T + T_LEAD_OUT
+    EXPERIMENT_SAVE_TIME_MS     = 2*T1 + 2*T2 + T_LEAD_OUT
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -103,10 +104,21 @@ def main():
     nextFlag = 0
     while(nextFlag == 0):
         print "  ***************************"
-        print "  ***** Winch Unwinding *****"
+        print "  *** Breaking Connection ***"
         print "  ***************************"
-        R1.setGait(unwindWinch)
-        R1.startTimedRunWinch( T )
+        R1.setGait(windWinch)
+        R1.startTimedRunWinch( T1 )
+        nextFlag = int(raw_input(" Next (1 or 0)?: "))
+
+    nextFlag  = 0
+    windWinch.winchSetpoint = 10000
+
+    while(nextFlag == 0):
+        print "  ***************************"
+        print "  ****** Easing tension *****"
+        print "  ***************************"
+        R1.setGait(windWinch)
+        R1.startTimedRunWinch( T2 )
         nextFlag = int(raw_input(" Exit (1 or 0)?: "))
 
     ## Save data after runs
