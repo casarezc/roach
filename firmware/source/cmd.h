@@ -28,6 +28,9 @@
 #define CMD_SET_JUMPER_PWM                 0xC3
 #define CMD_JUMPER_START_MOTOR             0xC4
 #define CMD_JUMPER_STOP_MOTOR              0xC5
+#define CMD_SET_SHELL_PWM                  0xC6
+#define CMD_SHELL_START_MOTOR              0xC7
+#define CMD_SHELL_STOP_MOTOR               0xC8
 // Redefine
 
 void cmdSetup(void);

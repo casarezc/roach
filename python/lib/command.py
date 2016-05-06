@@ -77,5 +77,8 @@ START_TIMED_RUN_JUMP_PWM    =  0xC2
 SET_JUMPER_PWM              =  0xC3
 JUMPER_START_MOTOR          =  0xC4
 JUMPER_STOP_MOTOR           =  0xC5
+SET_SHELL_PWM               =  0xC6
+SHELL_START_MOTOR           =  0xC7
+SHELL_STOP_MOTOR            =  0xC8
 
 # CMD values of 0xF0(240) - 0xFF(255) are reserved for future use

@@ -3,7 +3,7 @@
 authors: C. Casarez
 
 This script will run an open loop PWM setting keyboard control of a robot with drive motors and (left, right) on motor channels A,B 
-of the imageProc and jumper motor on motor channel C. There 
+of the imageProc and jumper motor on motor channel C.
 
 """
 from lib import command
@@ -23,9 +23,11 @@ EXIT_WAIT   = False
 
 def menu():
     print "---------------------------------------------------------------------------"
-    print "Keyboard control June 26 2015"
+    print "Keyboard control May 6 2016"
     print " w:+speed    s:-speed   a:+left  d:+right"
-    print " z:wind jumper    x:unwind jumper  c:jumper off  v: all motors off q: quit"
+    print " z:wind jumper    x:unwind jumper  c:jumper off"  
+    print " f:extend shell   g:retract shell  h:shell off"
+    print " v: all motors off     q: quit"
     print " r: start data save"
     print "---------------------------------------------------------------------------"
 
@@ -36,8 +38,10 @@ def main():
     EXPERIMENT_SAVE_TIME_MS     = 10000
 
     # Set constants for setting various PWMs
-    WIND_PWM = 3000
-    UNWIND_PWM = -3000
+    WIND_PWM = 700
+    UNWIND_PWM = -700
+    SHELL_EXTEND_PWM = 800
+    SHELL_RETRACT_PWM = -800
     DRIVE_PWM_INTERVAL = 200
     ########################################################################################################
 
@@ -75,6 +79,7 @@ def main():
     left_PWM = 0
     right_PWM = 0
     jump_PWM = 0
+    shell_PWM = 0
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -129,10 +134,23 @@ def main():
         elif keypress == 'c':
             R1.stopJumperMotor()
             jump_PWM = 0
+        elif keypress == 'f':
+            if shell_PWM == 0:
+                R1.startShellMotor()
+            shell_PWM = SHELL_EXTEND_PWM
+        elif keypress == 'g':
+            if shell_PWM == 0:
+                R1.startShellMotor()
+            shell_PWM = SHELL_RETRACT_PWM
+        elif keypress == 'h':
+            R1.stopShellMotor()
+            shell_PWM = 0
         elif keypress == 'v':
             R1.stopJumperMotor()
             R1.stopDriveMotors()
+            R1.stopShellMotor()
             jump_PWM = 0
+            shell_PWM = 0
             left_PWM = 0
             right_PWM = 0
         elif keypress == 'r':
@@ -144,6 +162,7 @@ def main():
                     print "Data saving disabled"
         elif (keypress == 'q') or (ord(keypress) == 26):
             R1.stopJumperMotor()
+            R1.stopShellMotor()
             R1.stopDriveMotors()
             print "Exit."
             exit_flag = True
@@ -152,6 +171,10 @@ def main():
             jump_PWM  = 4000
         if jump_PWM < -4000:
             jump_PWM  = -4000
+        if shell_PWM > 4000:
+            shell_PWM  = 4000
+        if shell_PWM < -4000:
+            shell_PWM  = -4000
         if left_PWM > 4000:
             left_PWM  = 4000
         if left_PWM < -4000:
@@ -161,6 +184,7 @@ def main():
         if right_PWM < -4000:
             right_PWM  = -4000
         R1.setJumperPWM(jump_PWM)
+        R1.setShellPWM(shell_PWM)
         R1.setDrivePWM(left_PWM, right_PWM)
 
         time.sleep(0.2)

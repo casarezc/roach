@@ -359,9 +359,23 @@ class Velociroach:
         self.clAnnounce()
         print "Stopping jumper motor"
 
+    def startShellMotor(self):
+        self.tx( 0 , command.SHELL_START_MOTOR, 'start')
+        self.clAnnounce()
+        print "Starting shell motor"
+
+    def stopShellMotor(self):
+        self.tx( 0 , command.SHELL_STOP_MOTOR, 'stop')
+        self.clAnnounce()
+        print "Stopping shell motor"
+
     def setJumperPWM(self, jumpPWM):
         self.tx( 0 , command.SET_JUMPER_PWM, pack('h',jumpPWM))
         print "Setting jumper PWM to ",jumpPWM," out of 4096"
+
+    def setShellPWM(self, shellPWM):
+        self.tx( 0 , command.SET_SHELL_PWM, pack('h',shellPWM))
+        print "Setting shell PWM to ",shellPWM," out of 4096"
         
 ########## Helper functions #################
 #TODO: find a home for these? Possibly in BaseStation class (pullin, abuchan)

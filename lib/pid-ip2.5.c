@@ -447,28 +447,30 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
         }
 
         // Only execute winch measurements if the pi object is turned on
-        if(piObjs[0].onoff){
+        for (j = 0; j< NUM_PI_NO_AMS; j++) {
+            if(piObjs[j].onoff){
 
-            if (piObjs[0].timeFlag){
-                    if (piObjs[0].start_time + piObjs[0].run_time >= t1_ticks){
-                        piGetState();
-                    }
-                    if(t1_ticks > lastMoveTime){ // turn off if done running all legs
-                        piObjs[0].onoff = 0;
-                    }
+                if (piObjs[j].timeFlag){
+                        if (piObjs[j].start_time + piObjs[j].run_time >= t1_ticks){
+                            piGetState();
+                        }
+                        if(t1_ticks > lastMoveTime){ // turn off if done running all legs
+                            piObjs[j].onoff = 0;
+                        }
+                }
+
             }
 
-        }
-
-        if (piObjs[0].mode == 0)
-        {
-        piSetControl();
-        } else if ((piObjs[0].mode == 1)&(piObjs[0].onoff == 1))
-        {
-            tiHSetDC(3, piObjs[0].pwmDes);
-        } else if ((piObjs[0].mode == 1)&(piObjs[0].onoff == 0))
-        {
-            tiHSetDC(3, 0);
+            if (piObjs[j].mode == 0)
+            {
+            piSetControl();
+            } else if ((piObjs[j].mode == 1)&(piObjs[j].onoff == 1))
+            {
+                tiHSetDC(j+3, piObjs[j].pwmDes);
+            } else if ((piObjs[j].mode == 1)&(piObjs[j].onoff == 0))
+            {
+                tiHSetDC(j+3, 0);
+            }
         }
 
         if(pidObjs[0].onoff) {
@@ -630,9 +632,9 @@ int measurements[NUM_PIDS];
 
 void ADXL377GetAcc()
 {
-    ADXL377[0] = adcGetAccx;
-    ADXL377[1] = adcGetAccy;
-    ADXL377[2] = adcGetAccz;
+    ADXL377[0] = adcGetAccx();
+    ADXL377[1] = adcGetAccy();
+    ADXL377[2] = adcGetAccz();
 }
 
 void piGetState()
@@ -745,12 +747,19 @@ void piSetControl()
             UpdatePI(&(piObjs[j]));
        } // end of for(j)
 
-		if(piObjs[0].onoff)  // both motors on to run
+		if(piObjs[0].onoff)
 		{
  		   tiHSetDC(3, piObjs[0].output);
 		}
 		else // turn off motors if PID loop is off
 		{ tiHSetDC(3,0); }
+
+                if(piObjs[1].onoff)  // both motors on to run
+		{
+ 		   tiHSetDC(4, piObjs[1].output);
+		}
+		else // turn off motors if PID loop is off
+		{ tiHSetDC(4,0); }
 }
 
 
