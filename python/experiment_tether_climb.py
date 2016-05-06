@@ -75,7 +75,7 @@ def main():
     tetherClimb.deltasLeft = [0.25, 0.25, 0.25]
     tetherClimb.deltasRight = [0.25, 0.25, 0.25]
 
-    tetherClimb.winchSetpoint = 15000
+    tetherClimb.winchSetpoint = 10000
     tetherClimb.winchMode = 0
 
     

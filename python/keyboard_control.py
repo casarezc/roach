@@ -85,7 +85,7 @@ def main():
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBound.deltasRight = [0.25, 0.25, 0.25]
 
-    slowAltTripod = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
+    slowAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
     slowAltTripod.phase = PHASE_180_DEG                          
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
@@ -95,12 +95,12 @@ def main():
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    slowRightTurn = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
+    slowRightTurn = GaitConfig(motorgains, rightFreq=1, leftFreq=2)
     slowRightTurn.phase = PHASE_RIGHT                        
     slowRightTurn.deltasLeft = [0.25, 0.25, 0.25]
     slowRightTurn.deltasRight = [0.25, 0.25, 0.25]
 
-    slowLeftTurn = GaitConfig(motorgains, rightFreq=STRIDE_FREQ, leftFreq=STRIDE_FREQ)
+    slowLeftTurn = GaitConfig(motorgains, rightFreq=2, leftFreq=1)
     slowLeftTurn.phase = PHASE_LEFT                         
     slowLeftTurn.deltasLeft = [0.25, 0.25, 0.25]
     slowLeftTurn.deltasRight = [0.25, 0.25, 0.25]
@@ -116,7 +116,7 @@ def main():
     fastLeftTurn.deltasRight = [0.25, 0.25, 0.25]
     
     # Set the timings of each segment of the run
-    T = 1000
+    T = 4000
 
 
     # example , 0.1s lead in + 2s run + 0.1s lead out

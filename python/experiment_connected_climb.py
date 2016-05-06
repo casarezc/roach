@@ -26,10 +26,10 @@ def main():
     
     R1 = Velociroach('\x21\x62', xb)
     R2 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = False
-    # R2.SAVE_DATA = False
-    R1.SAVE_DATA = True
-    R2.SAVE_DATA = True
+    R1.SAVE_DATA = False
+    R2.SAVE_DATA = False
+    # R1.SAVE_DATA = True
+    # R2.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -86,7 +86,7 @@ def main():
     r2Bound.deltasLeft = [0.25, 0.25, 0.25]
     r2Bound.deltasRight = [0.25, 0.25, 0.25]
 
-    r2Bound.winchSetpoint = 15000
+    r2Bound.winchSetpoint = 7500
     r2Bound.winchMode = 0
 
     STOP_ANGLE_1 = 0

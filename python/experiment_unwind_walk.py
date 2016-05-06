@@ -26,10 +26,10 @@ def main():
     
     R1 = Velociroach('\x21\x62', xb)
     R2 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = False
-    # R2.SAVE_DATA = False
-    R1.SAVE_DATA = True
-    R2.SAVE_DATA = True
+    R1.SAVE_DATA = False
+    R2.SAVE_DATA = False
+    # R1.SAVE_DATA = True
+    # R2.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -78,7 +78,7 @@ def main():
     slowBoundRelease.deltasLeft = [0.25, 0.25, 0.25]
     slowBoundRelease.deltasRight = [0.25, 0.25, 0.25]
 
-    slowBoundRelease.winchSetpoint =  5000
+    slowBoundRelease.winchSetpoint =  500
     slowBoundRelease.winchMode = 1
 
     holdCenterRelease = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
@@ -87,7 +87,7 @@ def main():
     holdCenterRelease.deltasLeft = [0.25, 0, 0]
     holdCenterRelease.deltasRight = [0.25, 0, 0]
 
-    holdCenterRelease.winchSetpoint = 220
+    holdCenterRelease.winchSetpoint = 500
     holdCenterRelease.winchMode = 1
 
     r1Bound = GaitConfig(motorgains, rightFreq=4, leftFreq=4)

@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    #R1.SAVE_DATA = False
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -55,7 +55,7 @@ def main():
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [40, 20, 5, 0] 
+    winchgains = [60, 30, 10, 0] 
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     # Load input units in hundreths of grams (multiple of K_LOAD_CELL)
@@ -65,15 +65,15 @@ def main():
     windWinch.phase = 0
     windWinch.deltasLeft = [0.25, 0.25, 0.25]
     windWinch.deltasRight = [0.25, 0.25, 0.25]
-    # windWinch.winchSetpoint = 5000
-    windWinch.winchSetpoint = 10000
+    windWinch.winchSetpoint = 5000
+    # windWinch.winchSetpoint = 10000
     windWinch.winchMode = 0
 
 
     
     # Set the timings of each segment of the run
-    T = 2000
-    T_LEAD_OUT = 1000
+    T = 4000
+    T_LEAD_OUT = 2000
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = T + T_LEAD_OUT

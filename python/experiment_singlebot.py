@@ -59,11 +59,11 @@ def main():
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
     motorgains = [5000,400,200,0,200, 5000,400,200,0,200]
-    # motorgains = [0,0,0,0,2200, 0, 0, 0, 0, 0]
+    # motorgains = [0,0,0,0,1000, 0, 0, 0, 0, 1000]
 
     # Winch gains format:
     #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [140, 40, 20, 0] 
+    winchgains = [60, 30, 10, 0] 
     #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
 
     #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
@@ -71,7 +71,7 @@ def main():
     #winchPWM = 0
 
     ## Set up different gaits to be used in the trials
-    slowBound = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
+    slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
     slowBound.winchgains = winchgains
     slowBound.phase = 0
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
@@ -81,8 +81,8 @@ def main():
     # Mode = 0 PI, Mode = 1 Unwind
     # slowBound.winchSetpoint = 7000
     # slowBound.winchMode = 0
-    slowBound.winchSetpoint = 5000
-    slowBound.winchMode = 0
+    #slowBound.winchSetpoint = 5000
+    #slowBound.winchMode = 0
 
     fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
     fastBound.phase = 0
@@ -135,7 +135,7 @@ def main():
 
     
     # Set the timings of each segment of the run
-    T = 2000
+    T = 5000
     T_LEAD_OUT = 1000
 
     STOP_ANGLE = -20
@@ -172,7 +172,7 @@ def main():
     R1.setPitchThresh(STOP_ANGLE, ANGLE_TRIGGER);
 
     # R1.setGait(holdBack)
-    R1.setGait(fastBound)
+    R1.setGait(slowBound)
     # R1.setGait(slowBound)
     # R1.setGait(slowLeftTurn)
     # R1.setGait(slowRightTurn)
