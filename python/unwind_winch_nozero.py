@@ -65,13 +65,13 @@ def main():
     unwindWinch.phase = 0
     unwindWinch.deltasLeft = [0.25, 0.25, 0.25]
     unwindWinch.deltasRight = [0.25, 0.25, 0.25]
-    unwindWinch.winchSetpoint = 1000
+    unwindWinch.winchSetpoint = 500
     unwindWinch.winchMode = 1
 
 
     
     # Set the timings of each segment of the run
-    T = 4000
+    T = 5000
     T_LEAD_OUT = 1000
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
