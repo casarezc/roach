@@ -71,7 +71,7 @@ def main():
 
     
     # Set the timings of each segment of the run
-    T = 5000
+    T = 10000
     T_LEAD_OUT = 1000
 
     # example , 0.1s lead in + 2s run + 0.1s lead out

@@ -65,7 +65,7 @@ def main():
     windWinch.phase = 0
     windWinch.deltasLeft = [0.25, 0.25, 0.25]
     windWinch.deltasRight = [0.25, 0.25, 0.25]
-    windWinch.winchSetpoint = 5000
+    windWinch.winchSetpoint = 10000
     # windWinch.winchSetpoint = 10000
     windWinch.winchMode = 0
 
