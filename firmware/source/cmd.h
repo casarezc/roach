@@ -28,11 +28,6 @@
 
 #define CMD_SET_PITCH_THRESH        0xB0
 
-#define CMD_SET_PI_GAINS_WINCH             0xC0
-#define CMD_SET_WINCH_LOAD                 0xC1
-#define CMD_ZERO_LOAD_CELL                 0xC2
-#define CMD_START_TIMED_RUN_WINCH          0xC3
-
 // Redefine
 
 void cmdSetup(void);
@@ -53,12 +48,6 @@ typedef struct{
 	int thrust1, thrust2;
 } _args_cmdSetMotorMode;
 
-//cmdSetWinchLoad
-typedef struct{
-	int load;
-        int mode;
-} _args_cmdSetWinchLoad;
-
 //cmdSetPitchThresh
 typedef struct{
 	int angle;
@@ -71,11 +60,6 @@ typedef struct{
 	int Kp2, Ki2, Kd2, Kaw2, Kff2;
 } _args_cmdSetPIDGains;
 
-//cmdSetPIGainsWinch
-typedef struct{
-	int Kp, Ki, Kaw, ff;
-} _args_cmdSetPIGainsWinch;
-
 //cmdSoftwareReset
 //no arguments
 
@@ -83,11 +67,6 @@ typedef struct{
 typedef struct{
     uint16_t run_time;
 } _args_cmdStartTimedRun;
-
-//cmdStartTimedRunWinch
-typedef struct{
-    uint16_t run_time;
-} _args_cmdStartTimedRunWinch;
 
 //cmdStartTelemetry
 typedef struct{

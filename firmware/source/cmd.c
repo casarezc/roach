@@ -57,16 +57,10 @@ static unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsig
 
 //Experiment/Flash Commands
 static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-static unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-
-//Winch commands
-static unsigned char cmdSetPIGainsWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-static unsigned char cmdSetWinchLoad(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-static unsigned char cmdZeroLoadCell(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 /*-----------------------------------------------------------------------------
  *          Public functions
 -----------------------------------------------------------------------------*/
@@ -85,20 +79,16 @@ void cmdSetup(void) {
     cmd_func[CMD_SET_MOTOR_MODE] = &cmdSetMotorMode;
     cmd_func[CMD_PID_START_MOTORS] = &cmdPIDStartMotors;
     cmd_func[CMD_SET_PID_GAINS] = &cmdSetPIDGains;
-    cmd_func[CMD_SET_PI_GAINS_WINCH] = &cmdSetPIGainsWinch;
     cmd_func[CMD_GET_AMS_POS] = &cmdGetAMSPos;
     cmd_func[CMD_START_TELEMETRY] = &cmdStartTelemetry;
     cmd_func[CMD_ERASE_SECTORS] = &cmdEraseSectors;
     cmd_func[CMD_FLASH_READBACK] = &cmdFlashReadback;
     cmd_func[CMD_SET_VEL_PROFILE] = &cmdSetVelProfile;
-    cmd_func[CMD_SET_WINCH_LOAD] = &cmdSetWinchLoad;
-    cmd_func[CMD_ZERO_LOAD_CELL] = &cmdZeroLoadCell;
     cmd_func[CMD_SET_PITCH_THRESH] = &cmdSetPitchThresh;
     cmd_func[CMD_WHO_AM_I] = &cmdWhoAmI;
     cmd_func[CMD_ZERO_POS] = &cmdZeroPos;   
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
-    cmd_func[CMD_START_TIMED_RUN_WINCH] = &cmdStartTimedRunWinch;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
 
 }
@@ -130,25 +120,6 @@ void cmdHandleRadioRxBuffer(void) {
 
     return;
 }
-
-
-//void cmdPushFunc(MacPacket rx_packet) {
-//    Payload rx_payload;
-//    unsigned char command;
-//
-//    rx_payload = macGetPayload(rx_packet);
-//    if(rx_payload != NULL) {
-//        command = payGetType(rx_payload);
-//
-//        if( (command < MAX_CMD_FUNC) && (cmd_func[command] != NULL) ) {
-//            rx_payload->test = cmd_func[command];
-//            carrayAddTail(fun_queue, rx_packet);
-//        } else {
-//            cmdError();   // halt on error - could also just ignore....
-//        }
-//    }
-//}
-
 
 // send robot info when queried
 unsigned char cmdWhoAmI(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
@@ -190,26 +161,6 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
         checkSwapBuff(i);
         pidOn(i);
     }
-
-    piOff(0);
-    pidStartTimedTrial(argsPtr->run_time);
-
-    return 1;
-}
-
-unsigned char cmdStartTimedRunWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
-    PKT_UNPACK(_args_cmdStartTimedRunWinch, argsPtr, frame);
-
-    int i;
-    for (i = 0; i < NUM_PIDS; i++){
-        pidSetTimeFlag(i,1);
-        pidSetInput(i, 0);
-        checkSwapBuff(i);
-        pidOn(i);
-    }
-
-    piSetTimeFlag(0, 1);
-    piOn(0);
 
     pidStartTimedTrial(argsPtr->run_time);
 
@@ -368,51 +319,8 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
     return 1;
 }
 
-// ==== Winch Commands =========================================================================================
+// ==== Behavior Commands +=====================================================================================
 // =============================================================================================================
-
- unsigned char cmdSetPIGainsWinch(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
-    PKT_UNPACK(_args_cmdSetPIGainsWinch, argsPtr, frame);
-
-    piSetGains(0, argsPtr->Kp,argsPtr->Ki,argsPtr->Kaw, argsPtr->ff);
-
-    radioSendData(src_addr, status, CMD_SET_PI_GAINS_WINCH, 8, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
-    //Send confirmation packet
-    // WARNING: Will fail at high data throughput
-    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
-    return 1; //success
-}
-
- unsigned char cmdSetWinchLoad(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
-    PKT_UNPACK(_args_cmdSetWinchLoad, argsPtr, frame);
-
-    piSetInput(WINCH_PI_NUM, argsPtr->load);
-    piSetMode(WINCH_PI_NUM,(char) argsPtr->mode);
-
-    radioSendData(src_addr, status, CMD_SET_WINCH_LOAD, 4, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
-    //Send confirmation packet
-    // WARNING: Will fail at high data throughput
-    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
-    return 1; //success
-}
-
-
-  unsigned char cmdZeroLoadCell(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
-
-    int sensorOffset[2];
-
-    // Store in an array the previous and current sensor offset, send them both over radio in response
-
-    sensorOffset[0] = piGetSensorOffset(0);
-    piSetSensorOffset(0);
-    sensorOffset[1] = piGetSensorOffset(0);
-
-    radioSendData(src_addr, status, CMD_ZERO_LOAD_CELL, sizeof(sensorOffset), (unsigned char *)sensorOffset, 0); //TODO: Robot should respond to source of query, not hardcoded address
-    //Send confirmation packet
-    // WARNING: Will fail at high data throughput
-    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
-    return 1; //success
-}
 
    unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 

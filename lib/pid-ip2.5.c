@@ -47,7 +47,6 @@
 
 // PID control structure
 pidPos pidObjs[NUM_PIDS];
-piWinch piObjs[NUM_PI_NO_AMS];
 
 // structure for reference velocity for leg
 pidVelLUT pidVel[NUM_PIDS*NUM_BUFF];
@@ -63,21 +62,14 @@ int seqIndex;
 //for battery voltage:
 char calib_flag = 0;   // flag is set if doing calibration
 long offsetAccumulatorPID[NUM_PIDS];
-long offsetAccumulatorPI[NUM_PI_NO_AMS];
 unsigned int offsetAccumulatorCounter;
 
 // 2 last readings for median filter
 int measLast1[NUM_PIDS];
 int measLast2[NUM_PIDS];
-int measLast1PI[NUM_PI_NO_AMS];
-int measLast2PI[NUM_PI_NO_AMS];
 
 // Declaration of bemf variables
 int bemf[NUM_PIDS];
-int bemfextra[2];
-
-// Declaration of load cell reading
-int vloadcell;
 
 // Declaration of variables used to calculate pitch angle conditions
 long pitch_angle = 0;
@@ -101,9 +93,6 @@ void pidSetup()
 		initPIDObjPos( &(pidObjs[i]), DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, DEFAULT_KAW, DEFAULT_FF); 
 	}
 
-        for(i = 0; i < NUM_PI_NO_AMS; i++){
-		initPIObjPos( &(piObjs[i]), DEFAULT_KP, DEFAULT_KI, DEFAULT_KAW, DEFAULT_FF);
-	}
 	initPIDVelProfile();
 	SetupTimer1();  // main interrupt used for leg motor PID
 
@@ -123,13 +112,6 @@ void pidSetup()
         // Initialize PID structures before starting Timer1
         pidSetInput(LEFT_LEGS_PID_NUM, 0);
         pidSetInput(RIGHT_LEGS_PID_NUM, 0);
-
-        piObjs[WINCH_PI_NUM].output_channel     = WINCH_TIH_CHAN;
-        piObjs[WINCH_PI_NUM].pwm_flip           = WINCH_PWM_FLIP;
-
-        // Initialize PI structure
-        piSetInput(WINCH_PI_NUM,0);
-        piSetSensorOffset(0);
 	
 	EnableIntT1; // turn on pid interrupts
 
@@ -216,25 +198,6 @@ void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
     pid->output_channel = 0;
 }
 
-void initPIObjPos(piWinch *pi, int Kp, int Ki, int Kaw, int ff)
-{
-    pi->p_input = 0;
-    pi->p = 0;
-    pi->i = 0;
-    pi->Kp = Kp;
-    pi->Ki= Ki;
-    pi->Kaw = Kaw;
-    pi->feedforward = ff;
-    pi->output = 0;
-    pi->onoff = 0;
-    pi->p_error = 0;
-    pi->i_error = 0;
-
-    pi->output_channel = 0;
-}
-
-
-
 // called from set thrust closed loop, etc. Thrust
 
 void pidSetInput(int pid_num, int input_val) {
@@ -267,22 +230,6 @@ void pidSetInput(int pid_num, int input_val) {
 
 }
 
-// called from set thrust closed loop, etc. Thrust
-void piSetInput(int pi_num, int input_val){
-    piObjs[pi_num].start_time = t1_ticks;
-    //zero out running PID values
-    piObjs[pi_num].i_error = 0;
-    piObjs[pi_num].p = 0;
-    piObjs[pi_num].i = 0;
-    piObjs[pi_num].p_input = ((long) input_val);
-    //Seed the median filters
-    bemfextra[0] = 0; // MotorC
-    bemfextra[1] = 0; // MotorD
-    measLast1PI[pi_num] = 0;
-    measLast2PI[pi_num] = 0;
-
-}
-
 void pidStartTimedTrial(unsigned int run_time){
     unsigned long temp;
     int j;
@@ -292,11 +239,6 @@ void pidStartTimedTrial(unsigned int run_time){
     for (j = 0; j < NUM_PIDS; j++) {
         pidObjs[j].run_time = run_time;
         pidObjs[j].start_time = temp;
-    }
-
-    for (j = 0; j < NUM_PI_NO_AMS; j++) {
-        piObjs[j].run_time = run_time;
-        piObjs[j].start_time = temp;
     }
 
     if ((temp + (unsigned long) run_time) > lastMoveTime){
@@ -324,23 +266,6 @@ void pidOff(int pid_num) {
     t1_ticks = 0;
 }
 
-void piSetGains(int pi_num, int Kp, int Ki, int Kaw, int ff){
-    piObjs[pi_num].Kp  = Kp;
-    piObjs[pi_num].Ki  = Ki;
-    piObjs[pi_num].Kaw = Kaw;
-    piObjs[pi_num].feedforward = ff;
-}
-
-void piOn(int pi_num){
-    piObjs[pi_num].onoff = PID_ON;
-    t1_ticks = 0;
-}
-
-void piOff(int pi_num){
-    piObjs[pi_num].onoff = PID_OFF;
-    t1_ticks = 0;
-}
-
 // zero position setpoint for both motors (avoids big offset errors)
 
 void pidZeroPos(int pid_num) {
@@ -354,13 +279,6 @@ void pidZeroPos(int pid_num) {
     pidObjs[pid_num].leg_stride = 0; // strides also reset
     EnableIntT1; // turn on pid interrupts
 }
-
-// find zero load point for winch ir sensor
-void piSetSensorOffset(int pi_num){
-// disable interrupts to reset state variables
-    piObjs[pi_num].sensorOffset = adcGetVload();
-}
-
 
 // calibrate A/D offset, using PWM synchronized A/D reads inside 
 // timer 1 interrupt loop
@@ -387,21 +305,11 @@ void calibBatteryOffset(int spindown_ms) {
         pidObjs[j].onoff = PID_OFF;
     }
 
-    short tempPiObjsOnOff[NUM_PI_NO_AMS];
-    for (j = 0; j < NUM_PI_NO_AMS; j++) {
-        tempPiObjsOnOff[j] = piObjs[j].onoff;
-        piObjs[j].onoff = PID_OFF;
-    }
-
     delay_ms(spindown_ms); //motor spin-down
     LED_RED = 1;
 
     for (j = 0; j < NUM_PIDS; j++) {
         offsetAccumulatorPID[j] = 0;
-    }
-
-    for (j = 0; j < NUM_PI_NO_AMS; j++) {
-        offsetAccumulatorPI[j] = 0;
     }
 
     offsetAccumulatorCounter = 0; // updated inside servo loop
@@ -419,12 +327,6 @@ void calibBatteryOffset(int spindown_ms) {
         pidObjs[j].inputOffset = (int) temp;
     }
 
-    for (j = 0; j < NUM_PI_NO_AMS; j++) {
-        temp = offsetAccumulatorPI[j];
-        temp = temp / (long) offsetAccumulatorCounter;
-        piObjs[j].bemfOffset = (int) temp;
-    }
-
     LED_RED = 0;
     // restore PID values
     PDC1 = tempPDC1;
@@ -433,10 +335,6 @@ void calibBatteryOffset(int spindown_ms) {
     PDC4 = tempPDC4;
     for (j = 0; j < NUM_PIDS; j++) {
         pidObjs[j].onoff = tempPidObjsOnOff[j];
-    }
-
-    for (j = 0; j < NUM_PI_NO_AMS; j++) {
-        piObjs[j].onoff = tempPiObjsOnOff[j];
     }
 }
 
@@ -452,10 +350,6 @@ void EmergencyStop(void)
     int j;
     for (j = 0; j < NUM_PIDS; j++) {
         pidSetInput(j, 0);
-    }
-
-    for (j = 0; j < NUM_PI_NO_AMS; j++) {
-        piSetInput(j, 0);
     }
 
     DisableIntT1; // turn off pid interrupts
@@ -527,22 +421,6 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
         }
 
         pidSetControl();
-
-        // Always execute winch measurements/control even if the pi object is turned off
-        piGetState();
-        for (j = 0; j < NUM_PI_NO_AMS; j++) {
-            if(piObjs[0].onoff){
-                if (piObjs[0].timeFlag){
-                    if(t1_ticks > lastMoveTime){ // turn off if done running all legs
-                        for (i = 0; i < NUM_PI_NO_AMS; i++) {
-                            piObjs[i].onoff = 0;
-                        }
-                    }
-                }
-            }
-        }
-
-        piSetControl();
 
 //        if(pidObjs[0].onoff) {
             //telemGetPID();
@@ -655,14 +533,12 @@ void checkPitchStopCondition(){
         if(pitch_angle > ((long) pidObjs[0].angle_setpt)*16384){
             pidObjs[0].onoff = 0;
             pidObjs[1].onoff = 0;
-            piObjs[0].onoff = 0;
         }
     }
     else if (pidObjs[0].angle_trig == 2){
         if(pitch_angle < ((long) pidObjs[0].angle_setpt)*16384){
             pidObjs[0].onoff = 0;
             pidObjs[1].onoff = 0;
-            piObjs[0].onoff = 0;
         }
     }
 }
@@ -787,62 +663,6 @@ void pidGetState() {
 #endif
 }
 
-void piGetState()
-{   int i;
-
-//	calib_flag = 0;  //BEMF disable
-// get diff amp offset with motor off at startup time
-    if(calib_flag){
-        for (i = 0; i < NUM_PI_NO_AMS; i++) {
-            offsetAccumulatorPI[i] += adcGetMotor(piObjs[i].output_channel);
-        }
-    }
-
-    bemfextra[0] = piObjs[0].bemfOffset - adcGetMotor(piObjs[0].output_channel);
-    bemfextra[1] = piObjs[0].bemfOffset - adcGetMotor(4); // MotorD
-
-    vloadcell = adcGetVload(); // Load cell
-
-int measurements[NUM_PI_NO_AMS];
-// Battery: AN0, MotorA AN8, MotorB AN9, MotorC AN10, MotorD AN11
-	measurements[0] = bemfextra[0]; // watch sign for A/D? unsigned int -> signed?
-
-
-//Get motor speed reading on every interrupt - A/D conversion triggered by PWM timer to read Vm when transistor is off
-// when motor is loaded, sometimes see motor short so that  bemf=offset voltage
-// get zero sometimes - open circuit brush? Hence try median filter
-	for(i = 0; i<NUM_PI_NO_AMS; i++) 	// median filter
-	{	if(measurements[i] > measLast1PI[i])
-		{	if(measLast1PI[i] > measLast2PI[i]) {bemfextra[i] = measLast1PI[i];}  // middle value is median
-			else // middle is smallest
-	     		{ if(measurements[i] > measLast2PI[i]) {bemfextra[i] = measLast2PI[i];} // 3rd value is median
-                        else{ bemfextra[i] = measurements[i];}  // first value is median
-            	}
-      	}
-		else  // first is not biggest
-		{	if(measLast1PI[i] < measLast2PI[i]) {bemfextra[i] = measLast1PI[i];}  // middle value is median
-			else  // middle is biggest
-	     		{    if(measurements[i] < measLast2PI[i]) {bemfextra[i] = measLast2PI[i];} // 3rd value is median
-		     		else
-				{ bemfextra[i] = measurements[i];  // first value is median
-				}
-			}
-		}
-	} // end for
-// store old values
-	measLast2PI[0] = measLast1PI[0];  measLast1PI[0] = measurements[0];
-
-// record current load
-        if(vloadcell > SWITCH_LOAD_CELL){
-            piObjs[0].p_state = ((long) piObjs[0].sensorOffset - (long) vloadcell)*((long) K_LOAD_CELL_1);
-        }
-        else if (vloadcell <= SWITCH_LOAD_CELL){
-            piObjs[0].p_state = ((long) piObjs[0].sensorOffset - (long) SWITCH_LOAD_CELL)*((long) K_LOAD_CELL_1) + ((long) SWITCH_LOAD_CELL - (long) vloadcell)*((long) K_LOAD_CELL_2);
-        }
-
-
-}
-
 
 void pidSetControl()
 {
@@ -892,39 +712,6 @@ void pidSetControl()
 
 }
 
-void piSetControl()
-{            
-
-    if(piObjs[0].onoff)
-    {
-        // mode = 1 unwind only above input, no PI controller
-        if(piObjs[0].mode)
-        {
-            if(piObjs[0].p_state > piObjs[0].p_input)
-            {
-                piObjs[0].output = -MAXTHROT;
-            }
-            else
-            {
-                piObjs[0].output = 0;
-            }
-        }
-        // mode = 0 PI controller on load
-        else
-        {
-            piObjs[0].p_error = piObjs[0].p_input - piObjs[0].p_state; //long hundreths of grams error
-            UpdatePI(&(piObjs[0])); //update PI controller
-        }
-
-        tiHSetDC(3, piObjs[0].output);
-   }
-   else // turn off motors if PID loop is off
-   {
-        piObjs[0].output = 0;
-        tiHSetDC(3,0);
-   }
-}
-
 
 void UpdatePID(pidPos *pid)
 {
@@ -957,61 +744,10 @@ void UpdatePID(pidPos *pid)
 	}      
 }
 
-void UpdatePI(piWinch *pi)
-{
-
-    //Kp ranges 0 to 100, Ki and Kaw from 0 to 100, ff 0 to 4096
-    pi->p = ((long)pi->Kp * pi->p_error) >> 6;  // scale so that gain of ~100 and 25 g error saturates output
-    pi->i = ((long)pi->Ki * pi->i_error) >> 6;  // scale so that gain of ~100 and 5 g error over 350 ms saturates output
-
-    //Because of worm gear drive having significant static friction to overcome,
-    //add feedforward term depending on proportional error
-    if(pi->p_error > 0)
-    {
-        pi->preSat = pi->p + pi->i + pi->feedforward;
-    }
-    else if(pi->p_error < 0)
-    {
-        pi->preSat = pi->p + pi->i - pi->feedforward;
-    }
-    else
-    {
-        pi->preSat = pi->p + pi->i;
-    }
-
-    pi->output = pi->preSat;
-
-    pi->i_error = (long)pi->i_error + ((long)pi->p_error >> 6); // integrate error
-// saturate output - assume only worry about >0 for now
-// apply anti-windup to integrator
-    if (pi->preSat > MAXTHROT)
-	{
-            pi->output = MAXTHROT;
-            pi->i_error = (long) pi->i_error +
-                            (long)(pi->Kaw) * ((long)(MAXTHROT) - (long)(pi->preSat))
-                            / ((long)GAIN_SCALER);
-	}
-    if (pi->preSat < -MAXTHROT)
-      {
-        pi->output = -MAXTHROT;
-        pi->i_error = (long) pi->i_error +
-                        (long)(pi->Kaw) * ((long)(-MAXTHROT) - (long)(pi->preSat))
-                        / ((long)GAIN_SCALER);
-	}
-}
-
 //TODO: Controller design, this function was created specifically to remove existing externs.
 long pidGetPState(unsigned int channel) {
     if (channel < NUM_PIDS) {
         return pidObjs[channel].p_state;
-    } else {
-        return 0;
-    }
-}
-
-int piGetSensorOffset(unsigned int channel) {
-    if (channel < NUM_PI_NO_AMS) {
-        return piObjs[channel].sensorOffset;
     } else {
         return 0;
     }
@@ -1054,22 +790,10 @@ void pidSetTimeFlag(unsigned int channel, char val){
     }
 }
 
-void piSetTimeFlag(unsigned int channel, char val){
-    if (channel < NUM_PI_NO_AMS) {
-        piObjs[channel].timeFlag = val;
-    }
-}
-
 //TODO: Controller design, this function was created specifically to remove existing externs.
 void pidSetMode(unsigned int channel, char mode){
     if (channel < NUM_PIDS) {
         pidObjs[channel].mode = mode;
-    }
-}
-
-void piSetMode(unsigned int channel, char mode){
-    if (channel < NUM_PI_NO_AMS) {
-        piObjs[channel].mode = mode;
     }
 }
 

@@ -9,12 +9,7 @@
 #define DEFAULT_FF  0
 
 #define GAIN_SCALER     100
-// Load cell calibration
-#define K_LOAD_CELL_1   4      //hundreth of a gram per count
-#define K_LOAD_CELL_2   34
-#define SWITCH_LOAD_CELL 640
 #define NUM_PIDS	2
-#define NUM_PI_NO_AMS   1
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
 
@@ -80,33 +75,6 @@ typedef struct
         unsigned char pwm_flip;
 } pidPos;
 
-// pi type for winch control
-typedef struct
-{
-	long p_input; // reference load input
-//      long v_input;
-//      long v_state; // back emf state
-	long p_state; // load state
-	long p_error; // load error
-	long i_error; // integrated load error
-	long  p, i;   // control contributions from position, integral gains respectively
-  	long preSat; // output value before saturations
-	int  output;	 //  control output u
- 	char onoff; //boolean
- 	char mode; //Motor mode: 1 iff unwind on/off control
- 	char timeFlag;
-	unsigned long run_time;
-	unsigned long start_time;
-	int bemfOffset;  // BEMF setpoint offset
-        int sensorOffset; // Load cell ambient light offset
-	int feedforward;
-        int Kp, Ki;
-	int Kaw;  // anti-windup gain
-	//Configuration parameters
-        unsigned char output_channel;
-        unsigned char pwm_flip;
-} piWinch;
-
 // structure for velocity control of leg cycle
 
 typedef struct
@@ -152,48 +120,32 @@ typedef struct
 #define RIGHT_LEGS_TIH_CHAN     2       //tiH module index is 1-4
 #endif
 
-//Winch
-#ifndef WINCH_PI_NUM
-#define WINCH_PI_NUM      0       //PI module index is 0-3
-#endif
-#ifndef WINCH_PWM_FLIP
-#define WINCH_PWM_FLIP    0
-#endif
-#ifndef WINCH_TIH_CHAN
-#define WINCH_TIH_CHAN    3       //tiH module index is 1-4
-#endif
-
 
 //Functions
 void UpdatePID(pidPos *pid);
-void UpdatePI(piWinch *pi);
+
 void pidSetup();
 void initPIDVelProfile();
 void setPIDVelProfile(int pid_num, int *interval, int *delta, int *vel, int onceFlag);
 void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff);
-void initPIObjPos(piWinch *pi, int Kp, int Ki, int Kaw, int ff);
 //void SetupTimer1(void);
 void pidStartTimedTrial(unsigned int run_time);
 void pidSetInput(int pid_num, int input_val);
-void piSetInput(int pi_num, int input_val);
 void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff);
-void piSetGains(int pi_num, int Kp, int Ki, int Kaw, int ff);
 void pidGetState(); // update state vector from bemf and Hall angle
-void piGetState();
 void pidGetSetpoint(int j);
 void checkSwapBuff(int j);
 void pidSetControl();
-void piSetControl();
+
 void checkPitchStopCondition();
 void EmergencyStop(void);
+
 unsigned char* pidGetTelemetry(void);
 void pidOn(int pid_num);
 void pidOff(int pid_num);
-void piOn(int pi_num);
-void piOff(int pi_num);
 void pidZeroPos(int pid_num);
-void piSetSensorOffset(int pi_num);
 void calibBatteryOffset(int spindown_ms);
+
 long pidGetPState(unsigned int channel);
 void pidSetPInput(unsigned int channel, long p_input);
 void pidStartMotor(unsigned int channel);
@@ -203,9 +155,5 @@ void pidSetPWMDes(unsigned int channel, int pwm);
 
 void pidSetPitchThresh(unsigned int channel, char angle);
 void pidSetPitchTrigger(unsigned int channel, char mode);
-
-int piGetSensorOffset(unsigned int channel);
-void piSetTimeFlag(unsigned int channel, char val);
-void piSetMode(unsigned int channel, char mode);
 
 #endif // __PID_H

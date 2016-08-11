@@ -20,10 +20,7 @@
 
 //externs added back in for VR telem porting (pullin 10/9/14)
 extern int bemf[NUM_PIDS];
-extern int bemfextra[2];
-extern int vloadcell;
 extern pidPos pidObjs[NUM_PIDS];
-extern piWinch piObjs[NUM_PI_NO_AMS];
 
 //void vrTelemGetData(unsigned char* ptr) {
 void vrTelemGetData(vrTelemStruct_t* ptr) {
@@ -45,13 +42,8 @@ void vrTelemGetData(vrTelemStruct_t* ptr) {
     ptr->composR = pidObjs[1].p_input + pidObjs[1].interpolate;
     ptr->dcL = pidObjs[0].output; // left
     ptr->dcR = pidObjs[1].output; // right
-    ptr->dcC = piObjs[0].output; // winch
-    ptr->dcD = PDC4;
     ptr->bemfL = bemf[0];
     ptr->bemfR = bemf[1];
-    ptr->bemfC = bemfextra[0];
-    ptr->bemfD = bemfextra[1];
-    ptr->Vload = vloadcell;
 
     //gyro and XL
     ptr->gyroX = gdata[0];
