@@ -73,9 +73,4 @@ SET_MOTOR_MODE      	=   0x94
 
 SET_PITCH_THRESH 		= 0xB0
 
-SET_PI_GAINS_WINCH       =  0xC0
-SET_WINCH_LOAD 			 =  0xC1
-ZERO_LOAD_CELL    	     =  0xC2
-START_TIMED_RUN_WINCH    =  0xC3
-
 # CMD values of 0xF0(240) - 0xFF(255) are reserved for future use

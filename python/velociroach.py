@@ -17,7 +17,6 @@ PHASE_180_DEG = 0x8000
 
 class GaitConfig:
     motorgains = None
-    winchgains = None
     duration = None
     rightFreq = None
     leftFreq = None
@@ -25,28 +24,11 @@ class GaitConfig:
     repeat = None
     deltasLeft = None
     deltasRight = None
-    winchSetpoint = None
-    winchMode = None
-    def __init__(self, motorgains = None, winchgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None, winchSetpoint = None, winchMode = None):
+    def __init__(self, motorgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None):
         if motorgains == None:
             self.motorgains = [0,0,0,0,0 , 0,0,0,0,0]
         else:
-            self.motorgains = motorgains
-
-        if winchgains == None:
-             self.winchgains = [0,0,0,0]
-        else:
-            self.winchgains = winchgains   
-
-        if winchSetpoint == None:
-            self.winchSetpoint = 0
-        else:
-            self.winchSetpoint = winchSetpoint
-
-        if winchMode == None:
-            self.winchMode = 0
-        else:
-            self.winchMode = winchMode
+            self.motorgains = motorgains 
         
         self.duration = duration
         self.rightFreq = rightFreq
@@ -57,10 +39,8 @@ class GaitConfig:
         
 class Velociroach:
     motor_gains_set = False
-    winch_gains_set = False
     robot_queried = False
     flash_erased = False
-    winchOffset = 0
     
     currentGait = GaitConfig()
 
@@ -130,23 +110,6 @@ class Velociroach:
         print "Starting timed run of",duration," ms"
         self.tx( 0, command.START_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
-
-    def startTimedRunWinch(self, duration):
-        self.clAnnounce()
-        print "Starting timed run with winch of",duration," ms"
-        self.tx( 0, command.START_TIMED_RUN_WINCH, pack('h', duration))
-        time.sleep(0.05)
-
-    def setWinchLoad(self, load, mode):
-        self.clAnnounce()
-        print "Setting winch load to",load/100,"g winch mode to",mode," (0:PI, 1:unwind)"
-        cmdtemp = [load, mode]
-        self.tx( 0, command.SET_WINCH_LOAD, pack('2h', *cmdtemp))
-        time.sleep(0.05)
-
-    def zeroLoadCell(self):
-        self.tx( 0, command.ZERO_LOAD_CELL, 'zero') #actual data sent in packet is not relevant
-        time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
 
     def setPitchThresh(self, angle, mode):
         self.clAnnounce()
@@ -249,7 +212,7 @@ class Velociroach:
         #Final update to download progress bar to make it show 100%
         dlProgress(self.numSamples-self.telemtryData.count([]) , self.numSamples)
         #totBytes = 52*self.numSamples
-        totBytes = 54*(self.numSamples - self.telemtryData.count([]))
+        totBytes = 46*(self.numSamples - self.telemtryData.count([]))
         datarate = totBytes / dlTime / 1000.0
         print '\n'
         #self.clAnnounce()
@@ -288,11 +251,9 @@ class Velociroach:
         fileout.write('%  Phase                    = ' + repr(self.currentGait.phase) + '\n')
             
         fileout.write('%  Motor Gains    = ' + repr(self.currentGait.motorgains) + '\n')
-        fileout.write('%  Winch Gains = ' + repr(self.currentGait.winchgains) + '\n')
-        fileout.write('%  Winch: Mode, Setpoint (hundreths of grams), Offset (counts) = ' + repr([self.currentGait.winchMode, self.currentGait.winchSetpoint, self.winchOffset]) + '\n')
         fileout.write('% Columns: \n')
         # order for wiring on RF Turner
-        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | DCC | DCD | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | BEMFC | BEMFD| VLoad | VBatt\n')
+        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | VBatt\n')
         fileout.close()
 
     def setupTelemetryDataTime(self, runtime):
@@ -333,16 +294,6 @@ class Velociroach:
             self.tx( 0, command.SET_PID_GAINS, pack('10h',*gains))
             tries = tries + 1
             time.sleep(0.3)
-
-    def setWinchGains(self, gains, retries = 8):
-        tries = 1
-        self.winchGains = gains
-        while not(self.winch_gains_set) and (tries <= retries):
-            self.clAnnounce()
-            print "Setting winch gains...   ",tries,"/8"
-            self.tx( 0, command.SET_PI_GAINS_WINCH, pack('4h',*gains))
-            tries = tries + 1
-            time.sleep(0.3)
             
     def setGait(self, gaitConfig, zero_position = False):
         self.currentGait = gaitConfig
@@ -351,11 +302,8 @@ class Velociroach:
         print " --- Setting complete gait config --- "
         self.zeroPosition()
         self.setMotorGains(gaitConfig.motorgains)
-        self.setWinchGains(gaitConfig.winchgains)
         self.setPhase(gaitConfig.phase)
-        self.setVelProfile(gaitConfig) #whole object is passed in, due to several reference
-
-        self.setWinchLoad(gaitConfig.winchSetpoint, gaitConfig.winchMode)
+        self.setVelProfile(gaitConfig) #whole object is passed in, due to several references
 
         
         self.clAnnounce()
@@ -404,12 +352,6 @@ def verifyAllMotorGainsSet():
             print "CRITICAL : Could not SET MOTOR GAINS on robot 0x%02X" % r.DEST_ADDR_int
             xb_safe_exit(shared.xb)
             
-def verifyAllTailGainsSet():
-    #Verify all robots have motor gains set
-    for r in shared.ROBOTS:
-        if not(r.tail_gains_set):
-            print "CRITICAL : Could not SET TAIL GAINS on robot 0x%02X" % r.DEST_ADDR_int
-            xb_safe_exit(shared.xb)
             
 def verifyAllQueried():            
     for r in shared.ROBOTS:

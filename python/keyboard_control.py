@@ -63,24 +63,14 @@ def main():
     #    ----------LEFT----------        ---------_RIGHT----------
     motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
 
-    # Winch gains format:
-    #  [ Kp , Ki , Kaw , Kff ]
-    winchgains = [30, 20, 20, 0] 
-    #motorgains = [0,0,0,0,0 , 0,0,0,0,0]
-
-    #simpleAltTripod = GaitConfig(motorgains, rightFreq=0, leftFreq=0) # Parameters can be passed into object upon construction, as done here.
-    #simpleBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
-    #winchPWM = 0
 
     ## Set up different gaits to be used in the trials
     slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    slowBound.winchgains = winchgains
     slowBound.phase = 0
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
     slowBound.deltasRight = [0.25, 0.25, 0.25]
 
     fastBound = GaitConfig(motorgains, rightFreq=6, leftFreq=6)
-    fastBound.winchgains = winchgains
     fastBound.phase = 0
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBound.deltasRight = [0.25, 0.25, 0.25]
@@ -117,7 +107,6 @@ def main():
     
     # Set the timings of each segment of the run
     T = 4000
-
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_SAVE_TIME_MS     = T
