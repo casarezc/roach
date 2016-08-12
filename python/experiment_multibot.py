@@ -24,7 +24,7 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x63', xb)
+    R1 = Velociroach('\x21\x62', xb)
     R1.SAVE_DATA = False
     # R1.SAVE_DATA = True
                             
@@ -51,7 +51,8 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,300,200,0,200, 5000,300,200,0,200]
+    motorgains = [3000,300,200,0,200, 3000,300,200,0,200]
+    # motorgains = [0,0,0,0,900, 0,0,0,0,900]
 
     ## Set up different gaits to be used in the trials
     slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
@@ -98,7 +99,8 @@ def main():
 
     
     # Configure intra-stride control
-    R1.setGait(slowAltTripod)
+    # R1.setGait(slowAltTripod)
+    R1.setGait(slowBound)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 2000 #ms
