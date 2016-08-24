@@ -55,8 +55,17 @@ static unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, 
 static unsigned char cmdZeroPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 
+//Tail functions
+static unsigned char cmdSetTailGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdZeroTailPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetTailPInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetTailVInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdStartTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdStopTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+
 //Experiment/Flash Commands
 static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdStartTailTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -91,6 +100,13 @@ void cmdSetup(void) {
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
 
+    cmd_func[CMD_SET_TAIL_GAINS] = &cmdSetTailGains;
+    cmd_func[CMD_ZERO_TAIL_POS] = &cmdZeroTailPos;
+    cmd_func[CMD_SET_TAIL_PINPUT] = &cmdSetTailPInput;
+    cmd_func[CMD_SET_TAIL_VINPUT] = &cmdSetTailVInput;
+    cmd_func[CMD_START_TAIL_TIMED_RUN] = &cmdStartTailTimedRun;
+    cmd_func[CMD_START_TAIL_MOTOR] = &cmdStartTailMotor;
+    cmd_func[CMD_STOP_TAIL_MOTOR] = &cmdStopTailMotor;
 }
 
 void cmdHandleRadioRxBuffer(void) {
@@ -163,6 +179,18 @@ unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigne
     }
 
     pidStartTimedTrial(argsPtr->run_time);
+
+    return 1;
+}
+
+unsigned char cmdStartTailTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr){
+    //Unpack unsigned char* frame into structured values
+    PKT_UNPACK(_args_cmdStartTailTimedRun, argsPtr, frame);
+    
+    tailSetTimeFlag(1);
+    tailOn();
+
+    tailStartTimedTrial(argsPtr->run_time);
 
     return 1;
 }
@@ -263,8 +291,8 @@ unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigne
 
     setPIDVelProfile(LEFT_LEGS_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
     setPIDVelProfile(RIGHT_LEGS_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
-    pidSetMode(LEFT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
-    pidSetMode(RIGHT_LEGS_PID_NUM ,PID_MODE_CONTROLED);
+    pidSetMode(LEFT_LEGS_PID_NUM ,PID_MODE_CONTROLLED);
+    pidSetMode(RIGHT_LEGS_PID_NUM ,PID_MODE_CONTROLLED);
 
     //Send confirmation packet
     // TODO : Send confirmation packet with packet index
@@ -319,10 +347,82 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
     return 1;
 }
 
+// ==== Tail Commands ==========================================================================================
+// =============================================================================================================
+
+ unsigned char cmdSetTailGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    //Unpack unsigned char* frame into structured values
+    PKT_UNPACK(_args_cmdSetTailGains, argsPtr, frame);
+    
+    tailSetGains(argsPtr->Kp,argsPtr->Ki,argsPtr->Kd,argsPtr->Kaw, argsPtr->Kff);
+
+    radioSendData(src_addr, status, CMD_SET_TAIL_GAINS, length, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+
+    return 1; //success
+}
+
+ unsigned char cmdZeroTailPos(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    long motor_count[1];
+    motor_count[0] = tailGetPState();
+
+    radioSendData(src_addr, status, CMD_ZERO_TAIL_POS, sizeof(motor_count), (unsigned char *)motor_count, 0);
+
+    tailZeroPos();
+
+    return 1;
+}
+
+unsigned char cmdSetTailPInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    PKT_UNPACK(_args_cmdSetTailPInput, argsPtr, frame);
+
+    //Cast integer position as long, multiply by 2 to scale correctly
+    long p_input;
+    p_input = ((long) argsPtr->pos)*2;
+
+    // Set position input, send radio confirmation packet
+    tailSetPInput(p_input);
+
+    radioSendData(src_addr, status, CMD_SET_TAIL_PINPUT, 2, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+unsigned char cmdSetTailVInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    PKT_UNPACK(_args_cmdSetTailVInput, argsPtr, frame);
+
+    // Set velocity input, send radio confirmation packet
+    tailSetVInput(argsPtr->vel);
+
+    radioSendData(src_addr, status, CMD_SET_TAIL_VINPUT, 2, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+unsigned char cmdStartTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    //All actions have been moved to a PID module function
+    tailStartMotor();
+
+    return 1;
+}
+
+unsigned char cmdStopTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    tailOff();
+
+    return 1;
+}
+
 // ==== Behavior Commands +=====================================================================================
 // =============================================================================================================
 
-   unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 
     PKT_UNPACK(_args_cmdSetPitchThresh, argsPtr, frame);
 

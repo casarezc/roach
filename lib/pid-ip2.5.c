@@ -48,6 +48,9 @@
 // PID control structure
 pidPos pidObjs[NUM_PIDS];
 
+// Tail PID control structure
+pidTail tailObjs;
+
 // structure for reference velocity for leg
 pidVelLUT pidVel[NUM_PIDS*NUM_BUFF];
 pidVelLUT* activePID[NUM_PIDS]; //Pointer arrays for stride buffering
@@ -62,14 +65,19 @@ int seqIndex;
 //for battery voltage:
 char calib_flag = 0;   // flag is set if doing calibration
 long offsetAccumulatorPID[NUM_PIDS];
+long offsetAccumulatorTail;
 unsigned int offsetAccumulatorCounter;
 
 // 2 last readings for median filter
 int measLast1[NUM_PIDS];
 int measLast2[NUM_PIDS];
 
+int measTLast1;
+int measTLast2;
+
 // Declaration of bemf variables
 int bemf[NUM_PIDS];
+int bemfTail;
 
 // Declaration of variables used to calculate pitch angle conditions
 long pitch_angle = 0;
@@ -89,16 +97,21 @@ long den;
 void pidSetup()
 {
 	int i;
+
+        // Initialize pidObjs for leg control and tailObjs for tail control
 	for(i = 0; i < NUM_PIDS; i++){
 		initPIDObjPos( &(pidObjs[i]), DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, DEFAULT_KAW, DEFAULT_FF); 
 	}
 
+        initTailObj( &(tailObjs), DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, DEFAULT_KAW, DEFAULT_FF);
+
+        //Initialize fields in pidObjs for gait control, as well as pidVelLUT structures
 	initPIDVelProfile();
 	SetupTimer1();  // main interrupt used for leg motor PID
 
 	lastMoveTime = 0;
 
-        //TODO: This should be generalized fo there is no sense of "left" and "right" here
+        //Configure channels and motor/control directions for each control object
         pidObjs[LEFT_LEGS_PID_NUM].output_channel  = LEFT_LEGS_TIH_CHAN;
         pidObjs[LEFT_LEGS_PID_NUM].p_state_flip    = LEFT_LEGS_ENC_FLIP;
         pidObjs[LEFT_LEGS_PID_NUM].encoder_num     = LEFT_LEGS_ENC_NUM;
@@ -109,9 +122,18 @@ void pidSetup()
         pidObjs[RIGHT_LEGS_PID_NUM].encoder_num    = RIGHT_LEGS_ENC_NUM;
         pidObjs[RIGHT_LEGS_PID_NUM].pwm_flip       = RIGHT_LEGS_PWM_FLIP;
 
+        tailObjs.output_channel = TAIL_TIH_CHAN;
+        tailObjs.p_state_flip   = TAIL_ENC_FLIP;
+        tailObjs.encoder_num    = TAIL_ENC_NUM;
+        tailObjs.pwm_flip       = TAIL_PWM_FLIP;
+
         // Initialize PID structures before starting Timer1
         pidSetInput(LEFT_LEGS_PID_NUM, 0);
         pidSetInput(RIGHT_LEGS_PID_NUM, 0);
+
+        // Initialize input of tail PID structure
+        tailSetPInput(0);
+
 	
 	EnableIntT1; // turn on pid interrupts
 
@@ -198,6 +220,27 @@ void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
     pid->output_channel = 0;
 }
 
+void initTailObj(pidTail *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
+    pid->p_input = 0;
+    pid->v_input = 0;
+    pid->p = 0;
+    pid->i = 0;
+    pid->d = 0;
+    pid->Kp = Kp;
+    pid->Ki = Ki;
+    pid->Kd = Kd;
+    pid->Kaw = Kaw;
+    pid->feedforward = ff;
+    pid->output = 0;
+    pid->onoff = 0;
+    pid->p_error = 0;
+    pid->v_error = 0;
+    pid->i_error = 0;
+
+    pid->p_state_flip = 0; //default to no flip
+    pid->output_channel = 0;
+}
+
 // called from set thrust closed loop, etc. Thrust
 
 void pidSetInput(int pid_num, int input_val) {
@@ -230,6 +273,44 @@ void pidSetInput(int pid_num, int input_val) {
 
 }
 
+// Used to set position reference for tail in control mode 0
+// input_val is in units of output shaft counts, where 2^15 counts is 180 degrees of rotation
+void tailSetPInput(long input_val) {
+    tailObjs.mode = 0; //position control mode
+    tailObjs.p_input = input_val*TAIL_GEAR_RATIO; //constant position setpoint
+    tailObjs.p_interpolate = 0;
+    tailObjs.v_input = 0; //zero velocity setpoint
+    tailObjs.start_time = t1_ticks;
+    //zero out running PID values
+    tailObjs.i_error = 0;
+    tailObjs.p = 0;
+    tailObjs.i = 0;
+    tailObjs.d = 0;
+    //Seed the median filter
+    measTLast1 = 0;
+    measTLast2 = 0;
+
+}
+
+// Used to set velocity reference for tail in control mode 1
+// input_val is in units of output shaft counts per time interval (1 ms)
+void tailSetVInput(int input_val) {
+    tailObjs.mode = 1; //velocity control mode
+    tailObjs.p_input = tailObjs.p_state; //initialize position setpoint at current position
+    tailObjs.p_interpolate = 0;
+    tailObjs.v_input = input_val*TAIL_GEAR_RATIO; //velocity setpoint
+    tailObjs.start_time = t1_ticks;
+    //zero out running PID values
+    tailObjs.i_error = 0;
+    tailObjs.p = 0;
+    tailObjs.i = 0;
+    tailObjs.d = 0;
+    //Seed the median filter
+    measTLast1 = 0;
+    measTLast2 = 0;
+
+}
+
 void pidStartTimedTrial(unsigned int run_time){
     unsigned long temp;
     int j;
@@ -240,6 +321,19 @@ void pidStartTimedTrial(unsigned int run_time){
         pidObjs[j].run_time = run_time;
         pidObjs[j].start_time = temp;
     }
+
+    if ((temp + (unsigned long) run_time) > lastMoveTime){
+        lastMoveTime = temp + (unsigned long) run_time;
+    }  // set run time to max requested time
+}
+
+void tailStartTimedTrial(unsigned int run_time){
+    unsigned long temp;
+
+    temp = t1_ticks; // need atomic read due to interrupt
+
+    tailObjs.run_time = run_time;
+    tailObjs.start_time = temp;
 
     if ((temp + (unsigned long) run_time) > lastMoveTime){
         lastMoveTime = temp + (unsigned long) run_time;
@@ -266,17 +360,46 @@ void pidOff(int pid_num) {
     t1_ticks = 0;
 }
 
+void tailSetGains(int Kp, int Ki, int Kd, int Kaw, int ff) {
+    tailObjs.Kp = Kp;
+    tailObjs.Ki = Ki;
+    tailObjs.Kd = Kd;
+    tailObjs.Kaw = Kaw;
+    tailObjs.feedforward = ff;
+}
+
+void tailOn() {
+    tailObjs.onoff = PID_ON;
+    t1_ticks = 0;
+}
+
+void tailOff() {
+    tailObjs.onoff = PID_OFF;
+    t1_ticks = 0;
+}
+
 // zero position setpoint for both motors (avoids big offset errors)
 
 void pidZeroPos(int pid_num) {
     // disable interrupts to reset state variables
     DisableIntT1; // turn off pid interrupts
-    amsEncoderResetPos(); //  reinitialize rev count and relative zero encoder position for both motors
+    amsEncoderResetPos(pidObjs[pid_num].encoder_num); //  reinitialize rev count and relative zero encoder position for the specified encoder
     pidObjs[pid_num].p_state = 0;
     // reset position setpoint as well
     pidObjs[pid_num].p_input = 0;
     pidObjs[pid_num].v_input = 0;
     pidObjs[pid_num].leg_stride = 0; // strides also reset
+    EnableIntT1; // turn on pid interrupts
+}
+
+void tailZeroPos() {
+    // disable interrupts to reset state variables
+    DisableIntT1; // turn off pid interrupts
+    amsEncoderResetPos(tailObjs.encoder_num); //  reinitialize rev count and zero position for tail encoder
+    tailObjs.p_state = 0;
+    // reset inputs as well
+    tailObjs.p_input = 0;
+    tailObjs.v_input = 0;
     EnableIntT1; // turn on pid interrupts
 }
 
@@ -304,6 +427,10 @@ void calibBatteryOffset(int spindown_ms) {
         tempPidObjsOnOff[j] = pidObjs[j].onoff;
         pidObjs[j].onoff = PID_OFF;
     }
+    // save current tail PID status, and turn off tail PID control
+    short tempTailObjsOnOff;
+    tempTailObjsOnOff = tailObjs.onoff;
+    tailObjs.onoff = PID_OFF;
 
     delay_ms(spindown_ms); //motor spin-down
     LED_RED = 1;
@@ -311,6 +438,7 @@ void calibBatteryOffset(int spindown_ms) {
     for (j = 0; j < NUM_PIDS; j++) {
         offsetAccumulatorPID[j] = 0;
     }
+    offsetAccumulatorTail = 0;
 
     offsetAccumulatorCounter = 0; // updated inside servo loop
 
@@ -326,6 +454,9 @@ void calibBatteryOffset(int spindown_ms) {
         temp = temp / (long) offsetAccumulatorCounter;
         pidObjs[j].inputOffset = (int) temp;
     }
+    temp = offsetAccumulatorTail;
+    temp = temp / (long) offsetAccumulatorCounter;
+    tailObjs.inputOffset = (int) temp;
 
     LED_RED = 0;
     // restore PID values
@@ -333,9 +464,11 @@ void calibBatteryOffset(int spindown_ms) {
     PDC2 = tempPDC2;
     PDC3 = tempPDC3;
     PDC4 = tempPDC4;
+
     for (j = 0; j < NUM_PIDS; j++) {
         pidObjs[j].onoff = tempPidObjsOnOff[j];
     }
+    tailObjs.onoff = tempTailObjsOnOff;
 }
 
 
@@ -351,6 +484,7 @@ void EmergencyStop(void)
     for (j = 0; j < NUM_PIDS; j++) {
         pidSetInput(j, 0);
     }
+    tailSetPInput(0);
 
     DisableIntT1; // turn off pid interrupts
     SetDCMCPWM(MC_CHANNEL_PWM1, 0, 0);    // set PWM to zero
@@ -384,7 +518,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
     if (interrupt_count == 3) {
         telemSaveNow();
     }
-    //Update IMU
+    //Update IMU and encoder
     //TODO: Break coupling between PID module and IMU update
     if (interrupt_count == 4) {
         mpuBeginUpdate();
@@ -400,7 +534,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
 
         if (t1_ticks == T1_MAX) t1_ticks = 0;
         t1_ticks++;
-        pidGetState(); // always update state, even if motor is coasting
+        pidGetState(); // always update pid leg state, even if motor is coasting
         for (j = 0; j < NUM_PIDS; j++) {
             // only update tracking setpoint if time has not yet expired
             if (pidObjs[j].onoff) {
@@ -421,6 +555,16 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
         }
 
         pidSetControl();
+
+        tailGetState(); // always update tail leg state, even if motor is coasting
+        if (tailObjs.onoff) {
+            if (tailObjs.timeFlag) {
+                if (t1_ticks > lastMoveTime) { // turn off if done running all legs
+                    tailObjs.onoff = 0;
+                }
+            }
+        }
+        tailSetControl(); // set tail control from on/off state and mode
 
 //        if(pidObjs[0].onoff) {
             //telemGetPID();
@@ -602,7 +746,7 @@ void pidGetState() {
 #if VEL_BEMF == 0    // use first difference on position for velocity estimate
     for (i = 0; i < NUM_PIDS; i++) {
         velocity = pidObjs[i].p_state - oldpos[i]; // Encoder ticks per ms
-        if (velocity > 0x7fff) velocity = 0x7fff; // saturate to int
+        if (velocity > 0x7fff) velocity = 0x7fff; // saturate to half cycle
         if (velocity < -0x7fff) velocity = -0x7fff;
         pidObjs[i].v_state = (int) velocity;
     }
@@ -663,30 +807,124 @@ void pidGetState() {
 #endif
 }
 
+void tailGetState() {
+    long p_state;
+    int enc_num;
+    int encPosition, encOticks;
+    unsigned int encOffset;
 
-void pidSetControl()
-{
+    unsigned long time_start, time_end;
+    //	calib_flag = 0;  //BEMF disable
+    // get diff amp offset with motor off at startup time
+    if (calib_flag) {
+        offsetAccumulatorTail += adcGetMotor(tailObjs.output_channel);
+    }
+
+    // choose velocity estimate
+    #if VEL_BEMF == 0    // use first difference on position for velocity estimate
+        long oldpos, velocity;
+        oldpos = tailObjs.p_state;
+    #endif
+
+    time_start = sclockGetTime();
+    // only works to +-32K revs- might reset after certain number of steps? Should wrap around properly
+    bemfTail = tailObjs.inputOffset - adcGetMotor(tailObjs.output_channel); // watch sign for A/D? unsigned int -> signed?
+
+    enc_num = tailObjs.encoder_num;
+
+    encPosition = amsEncoderGetPos(enc_num);
+    encOticks = amsEncoderGetOticks(enc_num);
+    encOffset = amsEncoderGetOffset(enc_num);
+
+    p_state =  (long)encPosition << 2; // pos 14 bits 0x0 -> 0x3fff
+    p_state = p_state - ((long)encOffset << 2); // subtract offset to get zero position
+    p_state = p_state + ((long)encOticks << 16);
+
+    tailObjs.p_state = p_state;
+
+    if(tailObjs.p_state_flip){
+        tailObjs.p_state = -tailObjs.p_state;
+    }
+
+    time_end = sclockGetTime() - time_start;
+
+
+#if VEL_BEMF == 0    // use first difference on position for velocity estimate
+    velocity = tailObjs.p_state - oldpos; // Encoder ticks per ms
+    if (velocity > 0x7fff) velocity = 0x7fff; // saturate to int -> the same as saturating to half revolution in 1 ms
+    if (velocity < -0x7fff) velocity = -0x7fff;
+    tailObjs.v_state = (int) velocity;
+#endif
+
+    // choose velocity estimate
+
+#if VEL_BEMF == 1
+    int measurements;
+    // Battery: AN0, MotorA AN8, MotorB AN9, MotorC AN10, MotorD AN11
+    measurements = bemfTail; // watch sign for A/D? unsigned int -> signed?
+
+    //Get motor speed reading on every interrupt - A/D conversion triggered by PWM timer to read Vm when transistor is off
+    // when motor is loaded, sometimes see motor short so that  bemf=offset voltage
+    // get zero sometimes - open circuit brush? Hence try median filter
+    if (measurements > measTLast1) {
+        if (measTLast1 > measTLast2) {
+            bemfTail = measTLast1;
+        }// middle value is median
+        else // middle is smallest
+        {
+            if (measurements > measTLast2) {
+                bemfTail = measTLast2;
+            }// 3rd value is median
+            else {
+                bemfTail = measurements;
+            } // first value is median
+        }
+    }
+    else // first is not biggest
+    {
+        if (measTLast1 < measTLast2) {
+            bemfTail = measTLast1;
+        }// middle value is median
+        else // middle is biggest
+        {
+            if (measurements < measTLast2) {
+                bemfTail = measTLast2;
+            }// 3rd value is median
+            else {
+                bemfTail = measurements; // first value is median
+            }
+        }
+    }
+    // store old values
+    measTLast2 = measTLast1;
+    measTLast1 = measurements;
+    tailObjs.v_state = bemfTail;
+
+    if ((measurements[0] > 0)) {
+        LED_BLUE = 1;
+    } else {
+        LED_BLUE = 0;
+    }
+#endif
+}
+
+void pidSetControl() {
     int j;
     long p_mod_error;
     // 0 = right side
     for (j = 0; j < NUM_PIDS; j++) { //pidobjs[0] : right side
         // p_input has scaled velocity interpolation to make smoother
         // p_state is [16].[16]
-        if((pidObjs[j].mode == PID_MODE_CONTROLED)&&(pidObjs[j].onoff == PID_ON)){
+        if ((pidObjs[j].mode == PID_MODE_CONTROLLED) && (pidObjs[j].onoff == PID_ON)) {
             pidObjs[j].p_error = pidObjs[j].p_input + pidObjs[j].interpolate - pidObjs[j].p_state;
 
             p_mod_error = (pidObjs[j].p_error & 0x0000ffff); // Clobber the MSBs corresponding to full revolutions
 
-            if (p_mod_error < ERR_FWD_BOUND)
-            {
+            if (p_mod_error < ERR_FWD_BOUND) {
                 pidObjs[j].p_error = p_mod_error; //Take the mod 2 pi error if you're behind in the cycle
-            }
-            else if (p_mod_error > ERR_BWD_BOUND)
-            {
+            } else if (p_mod_error > ERR_BWD_BOUND) {
                 pidObjs[j].p_error = p_mod_error - 65535; //Take the mod 2 pi error shifted down by 2 pi if you're ahead in the cycle
-            }
-            else
-            {
+            } else {
                 pidObjs[j].p_error = 0; // Wait for reference if you're too far away from it
             }
 
@@ -694,17 +932,14 @@ void pidSetControl()
             //Update values
             UpdatePID(&(pidObjs[j]));
 
-            if(pidObjs[j].pwm_flip){
+            if (pidObjs[j].pwm_flip) {
                 tiHSetDC(pidObjs[j].output_channel, -pidObjs[j].output);
-            }
-            else{
+            } else {
                 tiHSetDC(pidObjs[j].output_channel, pidObjs[j].output);
             }
-        }
-        else if((pidObjs[j].mode == PID_MODE_PWMPASS)&&(pidObjs[j].onoff == PID_ON)){
+        } else if ((pidObjs[j].mode == PID_MODE_PWMPASS) && (pidObjs[j].onoff == PID_ON)) {
             tiHSetDC(pidObjs[j].output_channel, pidObjs[j].pwmDes);
-        }
-        else{
+        } else {
             pidObjs[j].output = 0;
             tiHSetDC(pidObjs[j].output_channel, 0);
         }
@@ -712,39 +947,103 @@ void pidSetControl()
 
 }
 
+void tailSetControl() {
+    // control to position setpoint
+    // p_state is [16].[16]
+    if ((tailObjs.mode == TAIL_MODE_POSITION) && (tailObjs.onoff == PID_ON)) {
+        tailObjs.p_error = tailObjs.p_input - tailObjs.p_state;
+        tailObjs.v_error = tailObjs.v_input - tailObjs.v_state; // note that this will be executed when v_input=0
 
-void UpdatePID(pidPos *pid)
-{
-    pid->p = ((long)pid->Kp * pid->p_error) >> 12 ;  // scale so doesn't over flow
-    pid->i = (long)pid->Ki  * pid->i_error >> 12 ;
-    pid->d=(long)pid->Kd *  (long) pid->v_error;
+        //Update values
+        UpdateTailPID(&(tailObjs));
+
+        if (tailObjs.pwm_flip) {
+            tiHSetDC(tailObjs.output_channel, -tailObjs.output);
+        } else {
+            tiHSetDC(tailObjs.output_channel, tailObjs.output);
+        }
+    }// control to velocity setpoint
+        // update interpolate position setpoint based on constant velocity
+    else if ((tailObjs.mode == TAIL_MODE_VELOCITY) && (tailObjs.onoff == PID_ON)) {
+        tailObjs.p_interpolate += (long) tailObjs.v_input;
+        tailObjs.p_error = tailObjs.p_input + tailObjs.p_interpolate - tailObjs.p_state;
+        tailObjs.v_error = tailObjs.v_input - tailObjs.v_state;
+
+        //Update values
+        UpdateTailPID(&(tailObjs));
+
+        if (tailObjs.pwm_flip) {
+            tiHSetDC(tailObjs.output_channel, -tailObjs.output);
+        } else {
+            tiHSetDC(tailObjs.output_channel, tailObjs.output);
+        }
+    } else {
+        tailObjs.output = 0;
+        tiHSetDC(tailObjs.output_channel, 0);
+    }
+
+}
+
+void UpdatePID(pidPos *pid) {
+    pid->p = ((long) pid->Kp * pid->p_error) >> 12; // scale so doesn't over flow
+    pid->i = (long) pid->Ki * pid->i_error >> 12;
+    pid->d = (long) pid->Kd * (long) pid->v_error;
     // better check scale factors
 
     pid->preSat = pid->feedforward + pid->p +
-		 ((pid->i ) >> 4) +  // divide by 16
-		(pid->d >> 4); // divide by 16
-	pid->output = pid->preSat;
- 
-/* i_error say up to 1 rev error 0x10000, X 256 ms would be 0x1 00 00 00  
-    scale p_error by 16, so get 12 bit angle value*/
-	pid-> i_error = (long)pid-> i_error + ((long)pid->p_error >> 4); // integrate error
-// saturate output - assume only worry about >0 for now
-// apply anti-windup to integrator  
-	if (pid->preSat > MAXTHROT) 
-	{ 	      pid->output = MAXTHROT; 
-			pid->i_error = (long) pid->i_error + 
-				(long)(pid->Kaw) * ((long)(MAXTHROT) - (long)(pid->preSat)) 
-				/ ((long)GAIN_SCALER);		
-	}      
-	if (pid->preSat < -MAXTHROT)
-      { 	      pid->output = -MAXTHROT; 
-			pid->i_error = (long) pid->i_error +
-				(long)(pid->Kaw) * ((long)(-MAXTHROT) - (long)(pid->preSat))
-				/ ((long)GAIN_SCALER);		
-	}      
+            ((pid->i) >> 4) + // divide by 16
+            (pid->d >> 4); // divide by 16
+    pid->output = pid->preSat;
+
+    /* i_error say up to 1 rev error 0x10000, X 256 ms would be 0x1 00 00 00
+        scale p_error by 16, so get 12 bit angle value*/
+    pid-> i_error = (long) pid-> i_error + ((long) pid->p_error >> 4); // integrate error
+    // saturate output - assume only worry about >0 for now
+    // apply anti-windup to integrator
+    if (pid->preSat > MAXTHROT) {
+        pid->output = MAXTHROT;
+        pid->i_error = (long) pid->i_error +
+                (long) (pid->Kaw) * ((long) (MAXTHROT) - (long) (pid->preSat))
+                / ((long) GAIN_SCALER);
+    }
+    if (pid->preSat < -MAXTHROT) {
+        pid->output = -MAXTHROT;
+        pid->i_error = (long) pid->i_error +
+                (long) (pid->Kaw) * ((long) (-MAXTHROT) - (long) (pid->preSat))
+                / ((long) GAIN_SCALER);
+    }
 }
 
-//TODO: Controller design, this function was created specifically to remove existing externs.
+void UpdateTailPID(pidTail *pid) {
+    pid->p = ((long) pid->Kp * pid->p_error) >> 12; // scale so doesn't over flow
+    pid->i = (long) pid->Ki * pid->i_error >> 12;
+    pid->d = (long) pid->Kd * (long) pid->v_error;
+    // better check scale factors
+
+    pid->preSat = pid->feedforward + pid->p +
+            ((pid->i) >> 4) + // divide by 16
+            (pid->d >> 4); // divide by 16
+    pid->output = pid->preSat;
+
+    /* i_error say up to 1 rev error 0x10000, X 256 ms would be 0x1 00 00 00
+        scale p_error by 16, so get 12 bit angle value*/
+    pid-> i_error = (long) pid-> i_error + ((long) pid->p_error >> 4); // integrate error
+    // saturate output - assume only worry about >0 for now
+    // apply anti-windup to integrator
+    if (pid->preSat > MAXTHROT) {
+        pid->output = MAXTHROT;
+        pid->i_error = (long) pid->i_error +
+                (long) (pid->Kaw) * ((long) (MAXTHROT) - (long) (pid->preSat))
+                / ((long) GAIN_SCALER);
+    }
+    if (pid->preSat < -MAXTHROT) {
+        pid->output = -MAXTHROT;
+        pid->i_error = (long) pid->i_error +
+                (long) (pid->Kaw) * ((long) (-MAXTHROT) - (long) (pid->preSat))
+                / ((long) GAIN_SCALER);
+    }
+}
+
 long pidGetPState(unsigned int channel) {
     if (channel < NUM_PIDS) {
         return pidObjs[channel].p_state;
@@ -753,7 +1052,6 @@ long pidGetPState(unsigned int channel) {
     }
 }
 
-//TODO: Controller design, this function was created specifically to remove existing externs.
 void pidSetPInput(unsigned int channel, long p_input) {
     if (channel < NUM_PIDS) {
         pidObjs[channel].p_input = p_input;
@@ -773,7 +1071,8 @@ void pidSetPitchTrigger(unsigned int channel, char mode) {
 }
 
 //TODO: Controller design, this function was created specifically to remove existing externs.
-void pidStartMotor(unsigned int channel){
+
+void pidStartMotor(unsigned int channel) {
     if (channel < NUM_PIDS) {
         pidObjs[channel].timeFlag = 0;
         pidSetInput(channel, 0);
@@ -784,21 +1083,38 @@ void pidStartMotor(unsigned int channel){
 }
 
 //TODO: Controller design, this function was created specifically to remove existing externs.
-void pidSetTimeFlag(unsigned int channel, char val){
+
+void pidSetTimeFlag(unsigned int channel, char val) {
     if (channel < NUM_PIDS) {
         pidObjs[channel].timeFlag = val;
     }
 }
 
 //TODO: Controller design, this function was created specifically to remove existing externs.
-void pidSetMode(unsigned int channel, char mode){
+
+void pidSetMode(unsigned int channel, char mode) {
     if (channel < NUM_PIDS) {
         pidObjs[channel].mode = mode;
     }
 }
 
-void pidSetPWMDes(unsigned int channel, int pwm){
+void pidSetPWMDes(unsigned int channel, int pwm) {
     if (channel < NUM_PIDS) {
         pidObjs[channel].pwmDes = pwm;
     }
+}
+
+long tailGetPState() {
+    return tailObjs.p_state;
+}
+
+void tailStartMotor() {
+    tailObjs.timeFlag = 0;
+    tailOn();
+}
+
+//TODO: Controller design, this function was created specifically to remove existing externs.
+
+void tailSetTimeFlag(char val) {
+    tailObjs.timeFlag = val;
 }

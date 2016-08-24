@@ -71,6 +71,14 @@ PID_STOP_MOTORS         =   0x92
 SET_PHASE               =   0x93
 SET_MOTOR_MODE      	=   0x94
 
-SET_PITCH_THRESH 		= 0xB0
+SET_PITCH_THRESH 		= 	0xB0
+
+SET_TAIL_GAINS          =	0xD0
+ZERO_TAIL_POS           =	0xD1
+SET_TAIL_PINPUT         =	0xD2
+SET_TAIL_VINPUT         =	0xD3
+START_TAIL_TIMED_RUN    =	0xD4
+START_TAIL_MOTOR        =	0xD5
+STOP_TAIL_MOTOR         =	0xD6
 
 # CMD values of 0xF0(240) - 0xFF(255) are reserved for future use

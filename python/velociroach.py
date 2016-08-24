@@ -11,7 +11,6 @@ from xbee import XBee
 from math import ceil,floor
 import numpy as np
 
-# TODO: check with firmware if this value is actually correct
 PHASE_0_DEG   = 0x0000
 PHASE_180_DEG = 0x8000
 
@@ -31,18 +30,47 @@ class GaitConfig:
             self.motorgains = motorgains 
         
         self.duration = duration
-        self.rightFreq = rightFreq
-        self.leftFreq = leftFreq
-        self.phase = phase
+
+        if rightFreq == None:
+            self.rightFreq = 0
+        else:
+            self.rightFreq = rightFreq
+
+        if leftFreq == None:
+            self.leftFreq = 0
+        else:
+            self.leftFreq = leftFreq
+
+        if phase == None:
+            self.phase = 0
+        else:
+            self.phase = phase
+
         self.repeat = repeat
         
+class TailConfig:
+    motorgains = None
+    duration = None
+    pInput = None
+    vInput = None
+    def __init__(self, motorgains = None, duration = None, pInput = None, vInput = None):
+        if motorgains == None:
+            self.motorgains = [0,0,0,0,0]
+        else:
+            self.motorgains = motorgains
+        
+        self.duration = duration
+        self.pInput = pInput
+        self.vInput = vInput
         
 class Velociroach:
     motor_gains_set = False
+    tail_gains_set = False
     robot_queried = False
     flash_erased = False
     
     currentGait = GaitConfig()
+    cuurentTail = TailConfig()
 
     dataFileName = ''
     telemtryData = [ [] ]
@@ -156,18 +184,6 @@ class Velociroach:
         
         self.tx( 0, command.SET_VEL_PROFILE, pack('12h', *temp))
         time.sleep(0.1)
-    
-    #TODO: This may be a vestigial function. Check versus firmware.
-    def setMotorMode(self, motorgains, retries = 8 ):
-        tries = 1
-        self.motorGains = motorgains
-        self.motor_gains_set = False
-        while not(self.motor_gains_set) and (tries <= retries):
-            self.clAnnounce()
-            print "Setting motor mode...   ",tries,"/8"
-            self.tx( 0, command.SET_MOTOR_MODE, pack('10h',*gains))
-            tries = tries + 1
-            time.sleep(0.1)
 
     ######TODO : sort out this function and flashReadback below
     def downloadTelemetry(self, timeout = 5, retry = True):
@@ -211,8 +227,8 @@ class Velociroach:
         dlTime = dlEnd - dlStart
         #Final update to download progress bar to make it show 100%
         dlProgress(self.numSamples-self.telemtryData.count([]) , self.numSamples)
-        #totBytes = 52*self.numSamples
-        totBytes = 46*(self.numSamples - self.telemtryData.count([]))
+        #totBytes = 46*self.numSamples
+        totBytes = 58*(self.numSamples - self.telemtryData.count([]))
         datarate = totBytes / dlTime / 1000.0
         print '\n'
         #self.clAnnounce()
@@ -244,16 +260,18 @@ class Velociroach:
         today = time.localtime()
         date = str(today.tm_year)+'/'+str(today.tm_mon)+'/'+str(today.tm_mday)+'  '
         date = date + str(today.tm_hour) +':' + str(today.tm_min)+':'+str(today.tm_sec)
-        fileout.write('%  experiment_singlebot.py casarezc/roach master branch Data file recorded ' + date + '\n')
+        fileout.write('%  casarezc/roach tail_devel branch Data file recorded ' + date + '\n')
 
         fileout.write('%  Stride Frequency         = ' +repr( [ self.currentGait.leftFreq, self.currentGait.rightFreq]) + '\n')
         fileout.write('%  Deltas (Fractional)      = ' + repr(self.currentGait.deltasLeft) + ',' + repr(self.currentGait.deltasRight) + '\n')
-        fileout.write('%  Phase                    = ' + repr(self.currentGait.phase) + '\n')
-            
+        fileout.write('%  Phase                    = ' + repr(self.currentGait.phase) + '\n')    
         fileout.write('%  Motor Gains    = ' + repr(self.currentGait.motorgains) + '\n')
+
+        fileout.write('%  Tail Gains    = ' + repr(self.currentTail.motorgains) + '\n')
+
         fileout.write('% Columns: \n')
         # order for wiring on RF Turner
-        fileout.write('% time | Left Leg Pos | Right Leg Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | DCL | DCR | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | VBatt\n')
+        fileout.write('% time | Left Leg Pos | Right Leg Pos | Tail Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | Commanded Tail Pos | DCL | DCR | DCT | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | TBEMF | VBatt\n')
         fileout.close()
 
     def setupTelemetryDataTime(self, runtime):
@@ -304,7 +322,6 @@ class Velociroach:
         self.setMotorGains(gaitConfig.motorgains)
         self.setPhase(gaitConfig.phase)
         self.setVelProfile(gaitConfig) #whole object is passed in, due to several references
-
         
         self.clAnnounce()
         print " ------------------------------------ "
@@ -312,6 +329,73 @@ class Velociroach:
     def zeroPosition(self):
         self.tx( 0, command.ZERO_POS, 'zero') #actual data sent in packet is not relevant
         time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
+            
+    def setTailControl(self, tailConfig):
+        self.currentTail = tailConfig
+        
+        self.clAnnounce()
+        print " --- Setting complete tail config --- "
+        self.setTailGains(tailConfig.motorgains)
+
+        if tailConfig.vInput is not None:
+            self.setTailVel(tailConfig.vInput)
+        elif tailConfig.pInput is not None:
+            self.setTailPos(tailConfig.pInput)
+        else:
+            print "WARNING: no tail velocity or tail position set"
+        
+        self.clAnnounce()
+        print " ------------------------------------ "
+
+    def setTailGains(self, gains, retries = 8):
+        tries = 1
+        self.tailGains = gains
+        while not(self.tail_gains_set) and (tries <= retries):
+            self.clAnnounce()
+            print "Setting tail gains...   ",tries,"/8"
+            self.tx( 0, command.SET_TAIL_GAINS, pack('5h',*gains))
+            tries = tries + 1
+            time.sleep(0.3)
+
+    def setTailVel(self, vInput):
+        self.clAnnounce()
+        print "Setting tail velocity to",vInput,"Hz"
+
+        temp = vInput*32768/500
+        
+        self.tx( 0, command.SET_TAIL_VINPUT, pack('h', temp))
+        time.sleep(0.1)
+
+    def setTailPos(self, pInput):
+        self.clAnnounce()
+        print "Setting tail position to",pInput,"degrees"
+
+        temp = pInput*32768/360
+        
+        self.tx( 0, command.SET_TAIL_PINPUT, pack('h', temp))
+        time.sleep(0.1)
+
+    def startTail(self):
+        self.clAnnounce()
+        print "Starting tail motor"
+        self.tx( 0, command.START_TAIL_MOTOR, 'start')
+        time.sleep(0.1)
+
+    def stopTail(self):
+        self.clAnnounce()
+        print "Stopping tail motor"
+        self.tx( 0, command.STOP_TAIL_MOTOR, 'stop')
+        time.sleep(0.1)
+        
+    def zeroTailPosition(self):
+        self.tx( 0, command.ZERO_TAIL_POS, 'zero') #actual data sent in packet is not relevant
+        time.sleep(0.1)
+
+    def startTailTimedRun(self, duration):
+        self.clAnnounce()
+        print "Starting timed tail run of",duration," ms"
+        self.tx( 0, command.START_TAIL_TIMED_RUN, pack('h', duration))
+        time.sleep(0.05)
         
 ########## Helper functions #################
 #TODO: find a home for these? Possibly in BaseStation class (pullin, abuchan)

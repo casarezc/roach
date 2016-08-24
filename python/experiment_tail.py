@@ -51,66 +51,43 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [3000,300,200,30000,200, 3000,300,200,30000,200]
-    # motorgains = [0,300,0,30000,0, 0,0,0,0,0] Note: with full error, unsaturates in 10-15 ms
+    tailgains = [500,100,20,1000,0]
 
-    ## Set up different gaits to be used in the trials
-    slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    slowBound.phase = 0
-    slowBound.deltasLeft = [0.25, 0.25, 0.25]
-    slowBound.deltasRight = [0.25, 0.25, 0.25]
+    # Set up different tail commands
+    plim = 180
 
-    fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
-    fastBound.phase = 0
-    fastBound.deltasLeft = [0.25, 0.25, 0.25]
-    fastBound.deltasRight = [0.25, 0.25, 0.25]
+    posFwd = TailConfig(tailgains)
+    posFwd.pInput = plim
 
+    posBwd = TailConfig(tailgains)
+    posBwd.pInput = -plim
 
-    fastBackwardBound = GaitConfig(motorgains, rightFreq=-5, leftFreq=-5)
-    fastBackwardBound.phase = 0
-    fastBackwardBound.deltasLeft = [0.25, 0.25, 0.25]
-    fastBackwardBound.deltasRight = [0.25, 0.25, 0.25]
+    tailFreq = 2
 
-    slowAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    slowAltTripod.phase = PHASE_180_DEG                          
-    slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
+    spinFwd = TailConfig(tailgains)
+    spinFwd.vInput = tailFreq
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
-    fastAltTripod.phase = PHASE_180_DEG                           
-    fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
+    spinBwd = TailConfig(tailgains)
+    spinBwd.vInput = -tailFreq
 
-    holdCenter = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdCenter.phase = 0                          
-    holdCenter.deltasLeft = [0, 0, 0]
-    holdCenter.deltasRight = [0, 0, 0]
+    # Zero tail position
+    R1.zeroTailPosition()
 
-    holdBack = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdBack.phase = 0                          
-    holdBack.deltasLeft = [0.25, 0, 0]
-    holdBack.deltasRight = [0.25, 0, 0]
-
-    holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
-    holdBackLong.phase = 0                          
-    holdBackLong.deltasLeft = [0.25, 0, 0]
-    holdBackLong.deltasRight = [0.25, 0, 0]
-
-
-    
-    # Configure intra-stride control
-    # R1.setGait(slowAltTripod)
-    R1.setGait(slowBound)
+    # Set tail control
+    R1.setTailControl(posFwd)
+    # R1.setTailControl(posBwd)
+    # R1.setTailControl(spinFwd)
+    # R1.setTailControl(spinBwd)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 2000 #ms
-    EXPERIMENT_LEADIN_TIME_MS  = 100  #ms
-    EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
+    EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
+    EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
-            #This needs to be done to prepare the .telemtryData variables in each robot object
+            #This needs to be done to preparne the .telemtryData variables in each robot object
             r.setupTelemetryDataTime(EXPERIMENT_LEADIN_TIME_MS + EXPERIMENT_RUN_TIME_MS + EXPERIMENT_LEADOUT_TIME_MS)
             r.eraseFlashMem()
         
@@ -131,7 +108,7 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
+    R1.startTailTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########
     

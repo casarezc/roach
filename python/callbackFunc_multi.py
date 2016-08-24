@@ -22,13 +22,17 @@ pktFormat = { \
     command.SET_STEERING_GAINS:     '6h', \
     command.SOFTWARE_RESET:         '', \
     command.ERASE_SECTORS:          'L', \
-    command.FLASH_READBACK:         '=LL' +'4l'+'11h', \
+    command.FLASH_READBACK:         '=LL' +'6l'+'13h', \
     command.SLEEP:                  'b', \
     command.ECHO:                   'c' ,\
     command.SET_VEL_PROFILE:        '8h' ,\
     command.WHO_AM_I:               '', \
     command.ZERO_POS:               '=2l', \
     command.SET_PITCH_THRESH:       '2h', \
+    command.SET_TAIL_GAINS:         '5h',\
+    command.ZERO_TAIL_POS:          '=l',\
+    command.SET_TAIL_PINPUT:        'h',\
+    command.SET_TAIL_VINPUT:        'h',\
     }
                
 #XBee callback function, called every time a packet is recieved
@@ -146,6 +150,30 @@ def xbee_received(packet):
             for r in shared.ROBOTS:
                 if r.DEST_ADDR_int == src_addr:
                     r.robot_queried = True 
+
+        # SET_TAIL_GAINS
+        elif type == command.SET_TAIL_GAINS:
+            gains = unpack(pattern, data)
+            print "Set tail gains to ", gains
+            for r in shared.ROBOTS:
+                if r.DEST_ADDR_int == src_addr:
+                    r.tail_gains_set = True
+
+        # ZERO_TAIL_POS
+        elif type == command.ZERO_TAIL_POS:
+            print 'Tail AMS zero established; Previous tail position:',
+            motor = unpack(pattern,data)
+            print motor[0]
+
+        # SET_TAIL_PINPUT
+        elif type == command.SET_TAIL_PINPUT:
+            temp = unpack(pattern, data)
+            print "Set tail position readback:",temp[0]," counts"
+
+        # SET_TAIL_VINPUT
+        elif type == command.SET_TAIL_VINPUT:
+            temp = unpack(pattern, data)
+            print "Set tail velocity readback:",temp[0]," counts"
 
     except KeyboardInterrupt:
         print "\nRecieved Ctrl+C in callbackfunc, exiting."

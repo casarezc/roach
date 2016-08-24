@@ -28,6 +28,14 @@
 
 #define CMD_SET_PITCH_THRESH        0xB0
 
+#define CMD_SET_TAIL_GAINS          0xD0
+#define CMD_ZERO_TAIL_POS           0xD1
+#define CMD_SET_TAIL_PINPUT         0xD2
+#define CMD_SET_TAIL_VINPUT         0xD3
+#define CMD_START_TAIL_TIMED_RUN    0xD4
+#define CMD_START_TAIL_MOTOR        0xD5
+#define CMD_STOP_TAIL_MOTOR         0xD6
+
 // Redefine
 
 void cmdSetup(void);
@@ -39,25 +47,19 @@ void cmdHandleRadioRxBuffer(void);
 
 //cmdSetThrustOpenLoop
 typedef struct{
-	int channel, dc;
+	int16_t channel, dc;
 } _args_cmdSetThrustOpenLoop;
 
 
 //cmdSetMotorMode
 typedef struct{
-	int thrust1, thrust2;
+	int16_t thrust1, thrust2;
 } _args_cmdSetMotorMode;
-
-//cmdSetPitchThresh
-typedef struct{
-	int angle;
-        int mode;
-} _args_cmdSetPitchThresh;
 
 //cmdSetPIDGains
 typedef struct{
-	int Kp1, Ki1, Kd1, Kaw1, Kff1;
-	int Kp2, Ki2, Kd2, Kaw2, Kff2;
+	int16_t Kp1, Ki1, Kd1, Kaw1, Kff1;
+	int16_t Kp2, Ki2, Kd2, Kaw2, Kff2;
 } _args_cmdSetPIDGains;
 
 //cmdSoftwareReset
@@ -98,5 +100,30 @@ typedef struct{
     int32_t offset;
 } _args_cmdSetPhase;
 
+//cmdSetPitchThresh
+typedef struct{
+	int16_t angle;
+        int16_t mode;
+} _args_cmdSetPitchThresh;
+
+//cmdSetTailGains
+typedef struct{
+	int16_t Kp, Ki, Kd, Kaw, Kff;
+} _args_cmdSetTailGains;
+
+//cmdSetTailPInput
+typedef struct{
+	int16_t pos;
+} _args_cmdSetTailPInput;
+
+//cmdSetTailVInput
+typedef struct{
+	int16_t vel;
+} _args_cmdSetTailVInput;
+
+//cmdStartTailTimedRun
+typedef struct{
+    uint16_t run_time;
+} _args_cmdStartTailTimedRun;
 
 #endif // __CMD_H
