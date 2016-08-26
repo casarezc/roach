@@ -23,7 +23,7 @@ class GaitConfig:
     repeat = None
     deltasLeft = None
     deltasRight = None
-    def __init__(self, motorgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None):
+    def __init__(self, motorgains = None, duration = None, rightFreq = None, leftFreq = None, phase = None, repeat = None, deltasLeft = None, deltasRight = None):
         if motorgains == None:
             self.motorgains = [0,0,0,0,0 , 0,0,0,0,0]
         else:
@@ -47,6 +47,16 @@ class GaitConfig:
             self.phase = phase
 
         self.repeat = repeat
+
+        if deltasLeft == None:
+            self.deltasLeft = [0,0,0]
+        else:
+            self.deltasLeft = deltasLeft
+
+        if deltasRight == None:
+            self.deltasRight = [0,0,0]
+        else:
+            self.deltasRight = deltasRight
         
 class TailConfig:
     motorgains = None
@@ -82,6 +92,8 @@ class Velociroach:
     RESET = False
 
     def __init__(self, address, xb):
+            self.currentGait = GaitConfig()
+            self.currentTail = TailConfig()
             self.DEST_ADDR = address
             self.DEST_ADDR_int = unpack('>h',self.DEST_ADDR)[0] #address as integer
             self.xb = xb
@@ -329,6 +341,18 @@ class Velociroach:
     def zeroPosition(self):
         self.tx( 0, command.ZERO_POS, 'zero') #actual data sent in packet is not relevant
         time.sleep(0.1) #built-in holdoff, since reset apparently takes > 50ms
+
+    def startDriveMotors(self):
+        self.clAnnounce()
+        print "Starting drive motors"
+        self.tx( 0, command.PID_START_MOTORS, 'start')
+        time.sleep(0.1)
+
+    def stopDriveMotors(self):
+        self.clAnnounce()
+        print "Stopping drive motors"
+        self.tx( 0, command.PID_STOP_MOTORS, 'stop')
+        time.sleep(0.1)
             
     def setTailControl(self, tailConfig):
         self.currentTail = tailConfig

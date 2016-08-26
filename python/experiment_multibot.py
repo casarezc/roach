@@ -103,9 +103,9 @@ def main():
     R1.setGait(slowBound)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 2000 #ms
-    EXPERIMENT_LEADIN_TIME_MS  = 100  #ms
-    EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
+    EXPERIMENT_RUN_TIME_MS     = 3100 #ms
+    EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
+    EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:

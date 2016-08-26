@@ -18,7 +18,7 @@
 #define ERR_BWD_BOUND 57337
 
 // Tail motor gear ratio speed of input shaft to output shaft
-#define TAIL_GEAR_RATIO 100
+#define TAIL_GEAR_RATIO 30
 
 
 /* The back emf constant can be measured by measuring velocity from Hall encoder 

@@ -49,10 +49,9 @@ def main():
     verifyAllQueried()  # exits on failure
     
     # Motor gains format:
-    #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
-    #    ----------LEFT----------        ---------_RIGHT----------
-    tailgains = [500,100,20,1000,0]
-
+    #  [ Kp , Ki , Kd , Kaw , Kff]
+    # tailgains = [500,100,10,500,0]
+    tailgains = [500,0,0,0,0]
     # Set up different tail commands
     plim = 180
 
@@ -62,7 +61,7 @@ def main():
     posBwd = TailConfig(tailgains)
     posBwd.pInput = -plim
 
-    tailFreq = 2
+    tailFreq = 3.3
 
     spinFwd = TailConfig(tailgains)
     spinFwd.vInput = tailFreq
@@ -74,13 +73,13 @@ def main():
     R1.zeroTailPosition()
 
     # Set tail control
-    R1.setTailControl(posFwd)
+    # R1.setTailControl(posFwd)
     # R1.setTailControl(posBwd)
-    # R1.setTailControl(spinFwd)
+    R1.setTailControl(spinFwd)
     # R1.setTailControl(spinBwd)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 2000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 3000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
