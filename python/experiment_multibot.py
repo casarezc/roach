@@ -51,7 +51,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [3000,300,200,30000,200, 3000,300,200,30000,200]
+    motorgains = [5000,500,200,100,200, 5000,500,100,200,200]
     # motorgains = [0,300,0,30000,0, 0,0,0,0,0] Note: with full error, unsaturates in 10-15 ms
 
     ## Set up different gaits to be used in the trials
@@ -99,8 +99,8 @@ def main():
 
     
     # Configure intra-stride control
-    # R1.setGait(slowAltTripod)
-    R1.setGait(slowBound)
+    R1.setGait(slowAltTripod)
+    # R1.setGait(slowBound)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 3100 #ms

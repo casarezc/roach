@@ -73,7 +73,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [3000,300,200,30000,200, 3000,300,200,30000,200]
+    motorgains = [5000,500,200,100,200, 5000,500,100,200,200]
 
     # Tail gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]

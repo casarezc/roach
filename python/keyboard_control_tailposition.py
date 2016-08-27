@@ -35,7 +35,7 @@ def main():
     EXPERIMENT_SAVE_TIME_MS     = 10000
 
     # Set constants for setting control
-    TAIL_ANGLE_INC = 180 #degrees
+    TAIL_ANGLE_INC = 45 #degrees
     DRIVE_FREQ_INC = 1  #Hz
     TAIL_POS_MAX = 359 #degrees
     ########################################################################################################
@@ -77,7 +77,7 @@ def main():
 
     # Tail gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]
-    tailgains = [500,200,10,500,0]
+    tailgains = [1500,750,20,2000,0]
 
     # Zero motors and set gains, fixed gait parameters
     R1.zeroPosition()
