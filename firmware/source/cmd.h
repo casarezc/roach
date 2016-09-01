@@ -26,8 +26,6 @@
 #define CMD_SET_PHASE               0x93         
 #define CMD_SET_MOTOR_MODE          0x94
 
-#define CMD_SET_PITCH_THRESH        0xB0
-
 #define CMD_SET_TAIL_GAINS          0xD0
 #define CMD_ZERO_TAIL_POS           0xD1
 #define CMD_SET_TAIL_PINPUT         0xD2

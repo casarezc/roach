@@ -35,7 +35,7 @@ def main():
     EXPERIMENT_SAVE_TIME_MS     = 10000
 
     # Set constants for setting control
-    TAIL_ANGLE_INC = 45 #degrees
+    TAIL_ANGLE_INC =180 #degrees
     DRIVE_FREQ_INC = 1  #Hz
     TAIL_POS_MAX = 359 #degrees
     ########################################################################################################
@@ -63,7 +63,7 @@ def main():
     # Repeat this for other robots
     # TODO: move reset / telem flags inside robot class? (pullin)
     
-    # Send robot a WHO_AM_I command, verify communications
+    # Send robot a WHO_AM_I command, verify communicationso
     for r in shared.ROBOTS:
         r.query(retries = 3)
     
@@ -73,7 +73,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [3000,300,200,30000,200, 3000,300,200,30000,200]
+    motorgains = [5000,500,200,100,200, 5000,500,100,200,200]
 
     # Tail gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]

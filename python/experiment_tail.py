@@ -50,8 +50,8 @@ def main():
     
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]
-    # tailgains = [500,100,10,500,0]
-    tailgains = [500,0,0,0,0]
+    tailgains = [1500,750,20,2000,0]
+    # tailgains = [500,0,0,0,0]
     # Set up different tail commands
     plim = 180
 
@@ -73,9 +73,9 @@ def main():
     R1.zeroTailPosition()
 
     # Set tail control
-    # R1.setTailControl(posFwd)
+    R1.setTailControl(posFwd)
     # R1.setTailControl(posBwd)
-    R1.setTailControl(spinFwd)
+    # R1.setTailControl(spinFwd)
     # R1.setTailControl(spinBwd)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out

@@ -20,13 +20,32 @@
 // Tail motor gear ratio speed of input shaft to output shaft
 #define TAIL_GEAR_RATIO 30
 
+// select either back emf or backwd diff for vel est
+#define VEL_BEMF 0
+
+// Roll and pitch scaling based on 938718 counts/rad
+#define SCALEROLL_1 121
+#define SCALEROLL_2 7758
+#define GCONST 4096
+
+#define SCALEPITCH_1 242
+#define SCALEPITCH_2 3897
+
+// Gyro unit conversions
+#define DEG2COUNTS 16384 // Counts to degrees gyro readings at rate of 1 kHz
+#define PIBY2 1474560 // 90*DEG2COUNTS
+#define PI 2949120 // 180*DEG2COUNTS
+
+// Averaging window
+#define AVGWINDOW 100 // Number of counts to wait until averaging Euler angles and gyro offsets
+
 
 /* The back emf constant can be measured by measuring velocity from Hall encoder 
-* 80 rad/sec = 12.5 rev/sec = 834 encPos[].pos/sec
-* 80 rad/sec gives 140 A/D units
-* v_input should be in A/D units
-* thus v_input = 140 * vel[i] / 834  
-* scale by 256 to get resolution in constant */
+ * 80 rad/sec = 12.5 rev/sec = 834 encPos[].pos/sec
+ * 80 rad/sec gives 140 A/D units
+ * v_input should be in A/D units
+ * thus v_input = 140 * vel[i] / 834
+ * scale by 256 to get resolution in constant */
 // A/D units per encoder change per ms scaled by >> 8 
 // K_EMF = ((256 * 140) / 834)  =43
 #define K_EMF 43
@@ -44,85 +63,97 @@
 
 #define TAIL_MODE_POSITION 0
 #define TAIL_MODE_VELOCITY 1
+#define TAIL_MODE_RIGHTING 2
 
 // pid type for leg control
-typedef struct
-{
-	long p_input;	// reference position input - [16].[16]
-	long p_state;	// current position
-	long p_error;  // position error
-	int v_input; // reference velocity input
-	int v_state; // current velocity
-	int v_error; // velocity error
-	long i_error; // integral error
-	long  p, i, d;   // control contributions from position, integral, and derivative gains respectively
-  	long preSat; // output value before saturations
-	int  output;	 //  control output u
- 	char onoff; //boolean
- 	char mode; //Motor mode: 1 iff PWM open loop control
-        char angle_trig; //Angle trigger: 0 if inactive, 1 if rising, 2 if falling
-        char angle_setpt;
- 	int pwmDes; // Desired PWM
- 	char timeFlag;
-	unsigned long run_time;
-	unsigned long start_time;
-	int inputOffset;                // BEMF setpoint offset
-	int feedforward;
-        int Kp, Ki, Kd;
-	int Kaw;                        // anti-windup gain
-	//Leg control variables
-	long interpolate;  		// intermediate value between setpoints
-	unsigned long expire;		// end of current segment
-	int index;			// right index to moves
-	int leg_stride;
-        unsigned char p_state_flip;     //boolean; flip or do not flip
-        unsigned char output_channel;
-        unsigned char encoder_num;
-        unsigned char pwm_flip;
+
+typedef struct {
+    long p_input; // reference position input - [16].[16]
+    long p_state; // current position
+    long p_error; // position error
+    int v_input; // reference velocity input
+    int v_state; // current velocity
+    int v_error; // velocity error
+    long i_error; // integral error
+    long p, i, d; // control contributions from position, integral, and derivative gains respectively
+    long preSat; // output value before saturations
+    int output; //  control output u
+    char onoff; //boolean
+    char mode; //Motor mode: 1 iff PWM open loop control
+    int pwmDes; // Desired PWM
+    char timeFlag;
+    unsigned long run_time;
+    unsigned long start_time;
+    int inputOffset; // BEMF setpoint offset
+    int feedforward;
+    int Kp, Ki, Kd;
+    int Kaw; // anti-windup gain
+    //Leg control variables
+    long interpolate; // intermediate value between setpoints
+    unsigned long expire; // end of current segment
+    int index; // right index to moves
+    int leg_stride;
+    unsigned char p_state_flip; //boolean; flip or do not flip
+    unsigned char output_channel;
+    unsigned char encoder_num;
+    unsigned char pwm_flip;
 } pidPos;
-
-// pid type for tail control
-typedef struct
-{
-	long p_input;	// reference position input - [16].[16]
-	long p_state;	// current position
-	long p_error;  // position error
-	int v_input; // reference velocity input
-	int v_state; // current velocity
-	int v_error; // velocity error
-	long i_error; // integral error
-	long  p, i, d;   // control contributions from position, integral, and derivative gains respectively
-  	long preSat; // output value before saturations
-	int  output;	 //  control output u
- 	char onoff; //boolean
- 	char mode; //Control mode: 0 if position, 1 if velocity
- 	char timeFlag;
-	unsigned long run_time;
-	unsigned long start_time;
-	int inputOffset;                // BEMF setpoint offset
-	int feedforward;
-        int Kp, Ki, Kd;
-	int Kaw;                        // anti-windup gain
-
-	//Velocity control variables
-	long p_interpolate;  		// position interpolation after velocity update
-
-        //Configuration constants
-        unsigned char p_state_flip;     //boolean; flip or do not flip
-        unsigned char output_channel;
-        unsigned char encoder_num;
-        unsigned char pwm_flip;
-} pidTail;
 
 // structure for velocity control of leg cycle
 
-typedef struct
-{ 
-	int interval[NUM_VELS];	// number of ticks between intervals
-	int delta[NUM_VELS];   // increments for right setpoint
-	int vel[NUM_VELS];     // velocity increments to setpoint, >>8
-	int onceFlag;
+typedef struct {
+    int interval[NUM_VELS]; // number of ticks between intervals
+    int delta[NUM_VELS]; // increments for right setpoint
+    int vel[NUM_VELS]; // velocity increments to setpoint, >>8
+    int onceFlag;
 } pidVelLUT;
+
+// pid type for tail control
+
+typedef struct {
+    long p_input; // reference position input - [16].[16]
+    long p_state; // current position
+    long p_error; // position error
+    int v_input; // reference velocity input
+    int v_state; // current velocity
+    int v_error; // velocity error
+    long i_error; // integral error
+    long p, i, d; // control contributions from position, integral, and derivative gains respectively
+    long preSat; // output value before saturations
+    int output; //  control output u
+    char onoff; //boolean
+    char mode; //Control mode: 0 if position, 1 if velocity
+    char timeFlag;
+    unsigned long run_time;
+    unsigned long start_time;
+    int inputOffset; // BEMF setpoint offset
+    int feedforward;
+    int Kp, Ki, Kd;
+    int Kaw; // anti-windup gain
+
+    //Velocity control variables
+    long p_interpolate; // position interpolation after velocity update
+
+    //Configuration constants
+    unsigned char p_state_flip; //boolean; flip or do not flip
+    unsigned char output_channel;
+    unsigned char encoder_num;
+    unsigned char pwm_flip;
+} pidTail;
+
+// structure for Euler angle computation
+
+typedef struct {
+    long roll; // roll angle
+    long pitch; // pitch angle
+    long yaw; // yaw angle
+
+    long gx_offset; // roll gyro offset
+    long gy_offset; // pitch gyro offset
+    long gz_offset; // yaw gyro offset
+
+    int count; // accumulation counter
+} poseEstimateStruct;
 
 //Defaults for leg config switches
 //TODO: Check these for consistency with the default wiring diagram for VR
@@ -190,7 +221,6 @@ void pidGetSetpoint(int j);
 void checkSwapBuff(int j);
 void pidSetControl();
 
-void checkPitchStopCondition();
 void EmergencyStop(void);
 
 unsigned char* pidGetTelemetry(void);
@@ -205,9 +235,6 @@ void pidStartMotor(unsigned int channel);
 void pidSetTimeFlag(unsigned int channel, char val);
 void pidSetMode(unsigned int channel, char mode);
 void pidSetPWMDes(unsigned int channel, int pwm);
-
-void pidSetPitchThresh(unsigned int channel, char angle);
-void pidSetPitchTrigger(unsigned int channel, char mode);
 
 void UpdateTailPID(pidTail *pid);
 
@@ -225,6 +252,9 @@ void tailSetControl();
 long tailGetPState();
 void tailStartMotor();
 void tailSetTimeFlag(char val);
+
+void initBodyPose(poseEstimateStruct *pose);
+void computeEulerAngles();
 
 
 #endif // __PID_H

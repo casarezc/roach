@@ -69,7 +69,6 @@ static unsigned char cmdStartTailTimedRun(unsigned char type, unsigned char stat
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
-static unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 /*-----------------------------------------------------------------------------
  *          Public functions
 -----------------------------------------------------------------------------*/
@@ -93,7 +92,6 @@ void cmdSetup(void) {
     cmd_func[CMD_ERASE_SECTORS] = &cmdEraseSectors;
     cmd_func[CMD_FLASH_READBACK] = &cmdFlashReadback;
     cmd_func[CMD_SET_VEL_PROFILE] = &cmdSetVelProfile;
-    cmd_func[CMD_SET_PITCH_THRESH] = &cmdSetPitchThresh;
     cmd_func[CMD_WHO_AM_I] = &cmdWhoAmI;
     cmd_func[CMD_ZERO_POS] = &cmdZeroPos;   
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
@@ -417,24 +415,6 @@ unsigned char cmdStopTailMotor(unsigned char type, unsigned char status, unsigne
     tailOff();
 
     return 1;
-}
-
-// ==== Behavior Commands +=====================================================================================
-// =============================================================================================================
-
-unsigned char cmdSetPitchThresh(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
-
-    PKT_UNPACK(_args_cmdSetPitchThresh, argsPtr, frame);
-
-    // Set angle set point and angle trigger, send radio confirmation packet
-    pidSetPitchThresh(0, (char) argsPtr->angle);
-    pidSetPitchTrigger(0, (char) argsPtr->mode);
-
-    radioSendData(src_addr, status, CMD_SET_PITCH_THRESH, 4, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
-    //Send confirmation packet
-    // WARNING: Will fail at high data throughput
-    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
-    return 1; //success
 }
 
 // ==== Error/Null Commands ====================================================================================
