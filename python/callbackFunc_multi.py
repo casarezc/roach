@@ -28,11 +28,11 @@ pktFormat = { \
     command.SET_VEL_PROFILE:        '8h' ,\
     command.WHO_AM_I:               '', \
     command.ZERO_POS:               '=2l', \
-    command.SET_PITCH_THRESH:       '2h', \
     command.SET_TAIL_GAINS:         '5h',\
     command.ZERO_TAIL_POS:          '=l',\
     command.SET_TAIL_PINPUT:        'h',\
     command.SET_TAIL_VINPUT:        'h',\
+    command.SET_TAIL_RINPUT:        '2h',\
     }
                
 #XBee callback function, called every time a packet is recieved
@@ -93,12 +93,6 @@ def xbee_received(packet):
             for r in shared.ROBOTS:
                 if r.DEST_ADDR_int == src_addr:
                     r.motor_gains_set = True
-
-        # SET_PITCH_THRESH
-        elif type == command.SET_PITCH_THRESH:
-            print "Set pitch threshold readback:"
-            temp = unpack(pattern, data)
-            print "Pitch threshold angle:",temp[0]," degrees, Trigger mode:",temp[1]
         
         # FLASH_READBACK
         elif type == command.FLASH_READBACK:
@@ -174,6 +168,12 @@ def xbee_received(packet):
         elif type == command.SET_TAIL_VINPUT:
             temp = unpack(pattern, data)
             print "Set tail velocity readback:",temp[0]," counts"
+
+        # SET_TAIL_RINPUT
+        elif type == command.SET_TAIL_RINPUT:
+            print "Set autonomous righting params readback:"
+            temp = unpack(pattern, data)
+            print "Swing amplitude:",temp[0]," counts; Swing duration:",temp[1]," ms"
 
     except KeyboardInterrupt:
         print "\nRecieved Ctrl+C in callbackfunc, exiting."

@@ -60,16 +60,16 @@ class GaitConfig:
         
 class TailConfig:
     motorgains = None
-    duration = None
+    swing_duration = None
     pInput = None
     vInput = None
-    def __init__(self, motorgains = None, duration = None, pInput = None, vInput = None):
+    def __init__(self, motorgains = None, swing_duration = None, pInput = None, vInput = None):
         if motorgains == None:
             self.motorgains = [0,0,0,0,0]
         else:
             self.motorgains = motorgains
         
-        self.duration = duration
+        self.swing_duration = swing_duration
         self.pInput = pInput
         self.vInput = vInput
         
@@ -150,13 +150,6 @@ class Velociroach:
         print "Starting timed run of",duration," ms"
         self.tx( 0, command.START_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
-
-    def setPitchThresh(self, angle, mode):
-        self.clAnnounce()
-        print "Setting pitch threshold to",angle,"degrees, trigger mode to",mode," (1: Rising, 2: Falling)"
-        cmdtemp = [angle, mode]
-        self.tx( 0, command.SET_PITCH_THRESH, pack('2h',*cmdtemp)) #actual data sent in packet is not relevant
-        time.sleep(0.2) #built-in holdoff, since reset apparently takes > 50ms
         
     def findFileName(self):   
         # Construct filename
@@ -360,13 +353,15 @@ class Velociroach:
         self.clAnnounce()
         print " --- Setting complete tail config --- "
         self.setTailGains(tailConfig.motorgains)
-
-        if tailConfig.vInput is not None:
-            self.setTailVel(tailConfig.vInput)
-        elif tailConfig.pInput is not None:
-            self.setTailPos(tailConfig.pInput)
+        if tailConfig.swing_duration is not None:
+            self.setRightingInput(tailConfig.pInput, tailConfig.swing_duration)
         else:
-            print "WARNING: no tail velocity or tail position set"
+            if tailConfig.vInput is not None:
+                self.setTailVel(tailConfig.vInput)
+            elif tailConfig.pInput is not None:
+                self.setTailPos(tailConfig.pInput)
+            else:
+                print "WARNING: no tail velocity or tail position set"
         
         self.clAnnounce()
         print " ------------------------------------ "
@@ -397,6 +392,15 @@ class Velociroach:
         temp = pInput*32768/360
         
         self.tx( 0, command.SET_TAIL_PINPUT, pack('h', temp))
+        time.sleep(0.1)
+
+    def setRightingInput(self, pInput, period):
+        self.clAnnounce()
+        print "Autonomous self righting--swing amplitude",pInput,"degrees; swing duration",period,"ms"
+
+        temp = [pInput*32768/360, period]
+        
+        self.tx( 0, command.SET_TAIL_RINPUT, pack('2h', *temp))
         time.sleep(0.1)
 
     def startTail(self):

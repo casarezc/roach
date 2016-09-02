@@ -63,6 +63,7 @@ pidVelLUT* nextPID[NUM_PIDS];
 // may be glitch in longer missions at rollover
 volatile unsigned long t1_ticks;
 unsigned long lastMoveTime;
+unsigned long lastMoveTimeT;
 int seqIndex;
 
 //for battery voltage:
@@ -81,6 +82,11 @@ int measTLast2;
 // Declaration of bemf variables
 int bemf[NUM_PIDS];
 int bemfTail;
+
+// Righting calculation variables
+long pitch_mod;
+long roll_mod;
+
 
 // Euler angle initialization accumulator variables
 long angle_acc[2] = { 0 };
@@ -111,6 +117,7 @@ void pidSetup()
 	SetupTimer1();  // main interrupt used for leg motor PID
 
 	lastMoveTime = 0;
+        lastMoveTimeT = 0;
 
         //Configure channels and motor/control directions for each control object
         pidObjs[LEFT_LEGS_PID_NUM].output_channel  = LEFT_LEGS_TIH_CHAN;
@@ -259,9 +266,9 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
     //TODO: Break coupling between PID module and IMU update
     if (interrupt_count == 4) {
         mpuBeginUpdate();
-//        if(tailObjs.mode==TAIL_MODE_RIGHTING){
+        if(tailObjs.mode==TAIL_MODE_RIGHTING){
             computeEulerAngles();
-//        }
+        }
         amsEncoderStartAsyncRead();
     }        //PID controller update
     else if (interrupt_count == 5) {
@@ -294,7 +301,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
         tailGetState(); // always update tail leg state, even if motor is coasting
         if (tailObjs.onoff) {
             if (tailObjs.timeFlag) {
-                if (t1_ticks > lastMoveTime) { // turn off if done running all legs
+                if (t1_ticks > lastMoveTimeT) { // turn off if done running all legs
                     tailObjs.onoff = 0;
                 }
             }
@@ -787,7 +794,7 @@ void initTailObj(pidTail *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
 // Used to set position reference for tail in control mode 0
 // input_val is in units of output shaft counts, where 2^15 counts is 180 degrees of rotation
 void tailSetPInput(long input_val) {
-    tailObjs.mode = 0; //position control mode
+    tailObjs.mode = TAIL_MODE_POSITION; //position control mode
     tailObjs.p_input = input_val*TAIL_GEAR_RATIO; //constant position setpoint
     tailObjs.p_interpolate = 0;
     tailObjs.v_input = 0; //zero velocity setpoint
@@ -806,7 +813,7 @@ void tailSetPInput(long input_val) {
 // Used to set velocity reference for tail in control mode 1
 // input_val is in units of output shaft counts per time interval (1 ms)
 void tailSetVInput(int input_val) {
-    tailObjs.mode = 1; //velocity control mode
+    tailObjs.mode = TAIL_MODE_VELOCITY; //velocity control mode
     tailObjs.p_input = tailObjs.p_state; //initialize position setpoint at current position
     tailObjs.p_interpolate = 0;
     tailObjs.v_input = input_val*TAIL_GEAR_RATIO; //velocity setpoint
@@ -822,6 +829,29 @@ void tailSetVInput(int input_val) {
 
 }
 
+// Used to set position amplitude, swing period of autonomous righting control
+// p_input is in units of output shaft counts, where 2^15 counts is 180 degrees of rotation
+// swing_period is in units of milliseconds
+void tailSetRightingInput(long p_input, int swing_period) {
+    tailObjs.mode = TAIL_MODE_RIGHTING; //righting control mode
+    tailObjs.p_input = p_input*TAIL_GEAR_RATIO; //constant position setpoint
+    tailObjs.p_interpolate = 0;
+    tailObjs.v_input = 0; //zero velocity setpoint
+    tailObjs.start_time = t1_ticks;
+    //zero out running PID values
+    tailObjs.i_error = 0;
+    tailObjs.p = 0;
+    tailObjs.i = 0;
+    tailObjs.d = 0;
+    //Seed the median filter
+    measTLast1 = 0;
+    measTLast2 = 0;
+
+    //Set swing period
+    tailObjs.swing_period = swing_period;
+
+}
+
 void tailStartTimedTrial(unsigned int run_time){
     unsigned long temp;
 
@@ -830,8 +860,8 @@ void tailStartTimedTrial(unsigned int run_time){
     tailObjs.run_time = run_time;
     tailObjs.start_time = temp;
 
-    if ((temp + (unsigned long) run_time) > lastMoveTime){
-        lastMoveTime = temp + (unsigned long) run_time;
+    if ((temp + (unsigned long) run_time) > lastMoveTimeT){
+        lastMoveTimeT = temp + (unsigned long) run_time;
     }  // set run time to max requested time
 }
 
@@ -995,6 +1025,46 @@ void tailSetControl() {
         } else {
             tiHSetDC(tailObjs.output_channel, tailObjs.output);
         }
+    }
+    else if ((tailObjs.mode == TAIL_MODE_RIGHTING) && (tailObjs.onoff == PID_ON)) {
+        //Compute orientation vector
+        pitch_mod = bodyPose.pitch - (bodyPose.pitch/((long) PITIMES2))*((long) PITIMES2);
+        roll_mod = bodyPose.roll - (bodyPose.roll/((long) PITIMES2))*((long) PITIMES2);
+
+        pitch_mod = ABS(pitch_mod);
+        roll_mod = ABS(roll_mod);
+
+        if (((pitch_mod>=PIBY2)&&(pitch_mod<=(PI+PIBY2)))!=((roll_mod>=PIBY2)&&(roll_mod<=(PI+PIBY2)))){
+            // Increment counter
+            tailObjs.counter++;
+
+            // If counter is above swing period, switch swing direction
+            if (tailObjs.counter >= tailObjs.swing_period){
+                tailObjs.counter = 0;
+                tailObjs.p_input = -tailObjs.p_input;
+            }
+
+            // Update error values
+            tailObjs.p_error = tailObjs.p_input - tailObjs.p_state;
+            tailObjs.v_error = tailObjs.v_input - tailObjs.v_state; // note that this will be executed when v_input=0
+
+            //Update PID values
+            UpdateTailPID(&(tailObjs));
+
+            if (tailObjs.pwm_flip) {
+                tiHSetDC(tailObjs.output_channel, -tailObjs.output);
+            } else {
+                tiHSetDC(tailObjs.output_channel, tailObjs.output);
+            }
+ 
+        } else{ // Turn tail off, zero controller errors
+            tailObjs.p_error = 0;
+            tailObjs.i_error = 0;
+            tailObjs.v_error = 0;
+
+            tiHSetDC(tailObjs.output_channel, 0);
+        }
+
     } else {
         tailObjs.output = 0;
         tiHSetDC(tailObjs.output_channel, 0);
@@ -1128,7 +1198,7 @@ void computeEulerAngles(){
             numP = I*Q*SCALEPITCH_1;
             denP = Q*Q + (I2 >> 2) + (I2 >> 5);
             if (I<=0){ //Shift octant 6 approximation up by 2 pi to make wrapping point at -90, 270
-                angle_acc[1] += 3*PIBY2 - (numP/denP)*SCALEPITCH_2;
+                angle_acc[1] += (PI+PIBY2) - (numP/denP)*SCALEPITCH_2;
             }
             else{
                 angle_acc[1] += -PIBY2 - (numP/denP)*SCALEPITCH_2;

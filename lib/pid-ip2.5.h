@@ -35,6 +35,7 @@
 #define DEG2COUNTS 16384 // Counts to degrees gyro readings at rate of 1 kHz
 #define PIBY2 1474560 // 90*DEG2COUNTS
 #define PI 2949120 // 180*DEG2COUNTS
+#define PITIMES2 5898240 // 360*DEG2COUNTS
 
 // Averaging window
 #define AVGWINDOW 100 // Number of counts to wait until averaging Euler angles and gyro offsets
@@ -133,6 +134,10 @@ typedef struct {
 
     //Velocity control variables
     long p_interpolate; // position interpolation after velocity update
+
+    //Righting behavior variables
+    int counter;
+    int swing_period;
 
     //Configuration constants
     unsigned char p_state_flip; //boolean; flip or do not flip
@@ -241,6 +246,7 @@ void UpdateTailPID(pidTail *pid);
 void initTailObj(pidTail *pid, int Kp, int Ki, int Kd, int Kaw, int ff);
 void tailSetPInput(long input_val);
 void tailSetVInput(int input_val);
+void tailSetRightingInput(long p_input, int swing_period);
 void tailStartTimedTrial(unsigned int run_time);
 void tailSetGains(int Kp, int Ki, int Kd, int Kaw, int ff);
 void tailOn();
