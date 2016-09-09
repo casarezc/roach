@@ -153,9 +153,9 @@ typedef struct {
     long pitch; // pitch angle
     long yaw; // yaw angle
 
-    long gx_offset; // roll gyro offset
-    long gy_offset; // pitch gyro offset
-    long gz_offset; // yaw gyro offset
+    int gx_offset; // roll gyro offset
+    int gy_offset; // pitch gyro offset
+    int gz_offset; // yaw gyro offset
 
     int count; // accumulation counter
 } poseEstimateStruct;
@@ -259,6 +259,7 @@ long tailGetPState();
 void tailStartMotor();
 void tailSetTimeFlag(char val);
 
+long computeSINApprox(long x);
 void initBodyPose(poseEstimateStruct *pose);
 void computeEulerAngles();
 

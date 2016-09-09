@@ -1028,8 +1028,8 @@ void tailSetControl() {
     }
     else if ((tailObjs.mode == TAIL_MODE_RIGHTING) && (tailObjs.onoff == PID_ON)) {
         //Compute orientation vector
-        pitch_mod = bodyPose.pitch - (bodyPose.pitch/((long) PITIMES2))*((long) PITIMES2);
-        roll_mod = bodyPose.roll - (bodyPose.roll/((long) PITIMES2))*((long) PITIMES2);
+        pitch_mod = bodyPose.pitch - (bodyPose.pitch/PITIMES2)*PITIMES2;
+        roll_mod = bodyPose.roll - (bodyPose.roll/PITIMES2)*PITIMES2;
 
         pitch_mod = ABS(pitch_mod);
         roll_mod = ABS(roll_mod);
@@ -1131,19 +1131,63 @@ void initBodyPose(poseEstimateStruct *pose){
     pose->count = 0;
 }
 
+// Computes sine mapped to -2^9 to 2^9 for input angles in units of counts
+long computeSINApprox(long x){
+    long x_mod;
+    long y;
+    long y2;
+    long result;
+
+    // Take the modulo 2PI of the angle, wrap from -180 to +180
+    x_mod = x - (x/PITIMES2)*PITIMES2;
+    if (x_mod > PI){
+        x_mod-=PITIMES2;
+    }
+    else if (x_mod  < (-PI)){
+        x_mod+=PITIMES2;
+    }
+
+    // Bitshift x_mod to prevent overflow and compute its squared value
+    y = x_mod >> 8;
+    y2 = y*y;
+
+    // Sine approximation by Bhaskara I
+    // https://en.wikipedia.org/wiki/Bhaskara_I%27s_sine_approximation_formula
+    if (x_mod >= 0){
+        result = ((180*y - (y2 >> 6)) << 9)/(648000 - 45*y + (y2 >> 8));
+    }
+    else{
+        result = ((180*y + (y2 >> 6)) << 9)/(648000 + 45*y + (y2 >> 8));
+    }
+    
+    return result;
+
+}
+
 void computeEulerAngles(){
     // Local variables for computation
     int xldata[3];
     int gdata[3];
 
+    // Initial roll computation
     long AX2;
     long numR;
     long denR;
 
+    // Initial pitch computation
     long Q2;
     long I2;
     long numP;
     long denP;
+
+    // Euler angle propagation based on body-fixed angular velocities
+    long c_pitch;
+    long s_pitch;
+    long c_yaw;
+    long s_yaw;
+    long wx;
+    long wy;
+    long wz;
 
     int i;
 
@@ -1210,9 +1254,9 @@ void computeEulerAngles(){
             bodyPose.roll = angle_acc[0]/((long) bodyPose.count);
             bodyPose.pitch = angle_acc[1]/((long) bodyPose.count);
 
-            bodyPose.gx_offset = goffset_acc[0]/((long) bodyPose.count);
-            bodyPose.gy_offset = goffset_acc[1]/((long) bodyPose.count);
-            bodyPose.gz_offset = goffset_acc[2]/((long) bodyPose.count);
+            bodyPose.gx_offset = (int) (goffset_acc[0]/((long) bodyPose.count));
+            bodyPose.gy_offset = (int) (goffset_acc[1]/((long) bodyPose.count));
+            bodyPose.gz_offset =  (int) (goffset_acc[2]/((long) bodyPose.count));
 
             angle_acc[0] = 0;
             angle_acc[1] = 0;
@@ -1230,9 +1274,26 @@ void computeEulerAngles(){
     // Otherwise use integrated gyro to measure pitch angle
     else{
         mpuGetGyro(gdata);
-        bodyPose.roll += ((long) gdata[1]) - bodyPose.gy_offset;
-        bodyPose.pitch += ((long) gdata[0]) - bodyPose.gx_offset;
-        bodyPose.yaw += ((long) gdata[2]) - bodyPose.gz_offset;
+        // Adjust grabbed angular velocities by offset; convert to long
+        wx = (long) (gdata[0] - bodyPose.gx_offset);
+        wy = (long) (gdata[1] - bodyPose.gy_offset);
+        wz = (long) (gdata[2] - bodyPose.gz_offset);
+
+        // Compute sine and cosine values of pitch and roll angles
+        s_pitch = computeSINApprox(bodyPose.pitch);
+        c_pitch = computeSINApprox(bodyPose.pitch + PIBY2);
+        s_yaw = computeSINApprox(bodyPose.yaw);
+        c_yaw = computeSINApprox(bodyPose.yaw + PIBY2);
+
+        // Prevent divide by zero cases when cosine of pitch is equal to zero
+        if (c_pitch == 0){
+            c_pitch = 1;
+        }
+
+        // Propagate Euler angles based on projection of body-fixed basis vectors onto Euler basis
+        bodyPose.roll += (s_yaw*wx + c_yaw*wy)/c_pitch;
+        bodyPose.pitch += ((c_yaw*wx - s_yaw*wy) >> 9);
+        bodyPose.yaw += (((s_pitch*((s_yaw*wx + c_yaw*wy) >> 3))/c_pitch) >> 6) + wz;
     }
 
 }

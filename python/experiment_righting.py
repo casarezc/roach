@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x62', xb)
-    R1.SAVE_DATA = False
-    # R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -95,10 +95,11 @@ def main():
     R1.setTailControl(selfRight)
 
     # Configure intra-stride control
-    R1.setGait(fastAltTripod)
+    # R1.setGait(fastAltTripod)
+    R1.setGait(slowAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 5000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 7000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
