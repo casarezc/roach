@@ -1062,6 +1062,7 @@ void tailSetControl() {
             tailObjs.i_error = 0;
             tailObjs.v_error = 0;
 
+            tailObjs.output = 0;
             tiHSetDC(tailObjs.output_channel, 0);
         }
 

@@ -55,7 +55,7 @@ def main():
 
     # Set up autonomous self-righting parameters
     pamp = 90
-    swing_duration = 500
+    swing_duration = 400
 
     selfRight = TailConfig(tailgains)
     selfRight.pInput = pamp
@@ -64,7 +64,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,500,200,100,200, 5000,500,100,200,200]
+    motorgains = [5000,1000,100,100,200, 5000,1000,100,100,200]
     # motorgains = [0,300,0,30000,0, 0,0,0,0,0] Note: with full error, unsaturates in 10-15 ms
 
     ## Set up different gaits to be used in the trials
@@ -95,8 +95,9 @@ def main():
     R1.setTailControl(selfRight)
 
     # Configure intra-stride control
-    # R1.setGait(fastAltTripod)
-    R1.setGait(slowAltTripod)
+    R1.setGait(fastAltTripod)
+    # R1.setGait(fastBound)
+    # R1.setGait(slowAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 7000 #ms
