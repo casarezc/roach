@@ -690,6 +690,15 @@ void pidSetControl() {
                     pidObjs[j].output = piSteer.thrust_nom;
                 }
             }
+            if (((piSteer.vel_input>=0)&&(j==RIGHT_2_PID_NUM))||((piSteer.vel_input<0)&&(j==LEFT_2_PID_NUM))){
+                if(pidObjs[j].pwm_flip){
+                    pidObjs[j].output -= piSteer.feedforward;
+                }
+                else{
+                    pidObjs[j].output += piSteer.feedforward;
+                }
+            }
+
             tiHSetDC(pidObjs[j].output_channel, pidObjs[j].output);
         }
         else{
@@ -790,20 +799,33 @@ void UpdatePI(strCtrl *pi)
     // Ki is in units of PWM/counts, Kp*16384/2^18 gives Ki in units of PWM/deg
     pi->i = ((long) pi->Ki)*(pi->yaw_error >> 10);  // divide by 1024 to prevent overflow
                                                     // When Ki = 100, yaw_error of ~360 deg contributes 2000 PWM
-    pi->preSat = ((long) pi->feedforward)
-                + (pi->p >> 8) // divide by 256
+    pi->preSat = (pi->p >> 8) // divide by 256
 		+ (pi->i >> 8); // divide by 256
     pi->output = pi->preSat;
 
 // saturate output
-    if (pi->preSat > (MAXTHROT - pi->thrust_nom))
-    {
-	pi->output = MAXTHROT - pi->thrust_nom;
+    if(pi->vel_input >= 0){
+        if (pi->preSat > (MAXTHROT - pi->feedforward - pi->thrust_nom))
+        {
+            pi->output = (MAXTHROT - pi->feedforward - pi->thrust_nom);
+        }
+
+        if (pi->preSat < -(MAXTHROT - pi->thrust_nom))
+        {
+            pi->output = -(MAXTHROT - pi->thrust_nom);
+        }
     }
 
-    if (pi->preSat < -(MAXTHROT - pi->thrust_nom))
-    {
-        pi->output = -(MAXTHROT - pi->thrust_nom);
+    if(pi->vel_input < 0){
+        if (pi->preSat > (MAXTHROT - pi->thrust_nom))
+        {
+            pi->output = (MAXTHROT - pi->thrust_nom);
+        }
+
+        if (pi->preSat < -(MAXTHROT - pi->feedforward - pi->thrust_nom))
+        {
+            pi->output = -(MAXTHROT - pi->thrust_nom);
+        }
     }
 }
 

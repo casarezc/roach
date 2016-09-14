@@ -81,17 +81,17 @@ def main():
 
     # Steering gains format:
     #           [ Kp , Ki , Kff, thrust_nom]
-    steergains = [150, 1300, 0, 2000]
+    steergains = [75, 1000, 1000, 1500]
 
     # Yaw rate in deg/s
-    yaw_rate = 90
+    yaw_rate = 75
 
     # Set steering gains
     R1.setSteerGains(steergains)
 
     # Set steering setpoint
-    R1.setSteerRate(yaw_rate)
-    # R1.setSteerRate(-yaw_rate)
+    # R1.setSteerRate(yaw_rate)
+    R1.setSteerRate(-yaw_rate)
 
 
     # Set run, lead in, lead out time
