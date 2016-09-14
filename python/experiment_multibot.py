@@ -51,7 +51,7 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,500,200,100,200, 5000,500,200,100,200]
+    motorgains = [5000,1000,100,100,200, 5000,1000,100,100,200]
     # motorgains = [0,300,0,30000,0, 0,0,0,0,0] Note: with full error, unsaturates in 10-15 ms
 
     ## Set up different gaits to be used in the trials
