@@ -22,13 +22,15 @@ pktFormat = { \
     command.SET_STEERING_GAINS:     '6h', \
     command.SOFTWARE_RESET:         '', \
     command.ERASE_SECTORS:          'L', \
-    command.FLASH_READBACK:         '=LL' +'8l'+'15h', \
+    command.FLASH_READBACK:         '=LL' +'5l'+'15h', \
     command.SLEEP:                  'b', \
     command.ECHO:                   'c' ,\
     command.SET_VEL_PROFILE:        '13h' ,\
     command.WHO_AM_I:               '', \
     command.ZERO_POS:               '=3l', \
-    command.SET_PHASE:               '=hl', \
+    command.SET_PHASE:              '=hl', \
+    command.SET_STEER_GAINS:        '4h',\
+    command.SET_STEER_VELOCITY:     'h',\
     }
                
 #XBee callback function, called every time a packet is recieved
@@ -163,6 +165,19 @@ def xbee_received(packet):
             for r in shared.ROBOTS:
                 if r.DEST_ADDR_int == src_addr:
                     r.robot_queried = True 
+
+        # SET_STEER_GAINS
+        elif type == command.SET_STEER_GAINS:
+            gains = unpack(pattern, data)
+            print "Set steer gains to ", gains
+            for r in shared.ROBOTS:
+                if r.DEST_ADDR_int == src_addr:
+                    r.steer_gains_set = True
+
+        # SET_STEER_VELOCITY
+        elif type == command.SET_STEER_VELOCITY:
+            temp = unpack(pattern, data)
+            print "Set steering yaw rate readback:",temp[0]," counts"
 
     except KeyboardInterrupt:
         print "\nRecieved Ctrl+C in callbackfunc, exiting."

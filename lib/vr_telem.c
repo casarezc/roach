@@ -21,6 +21,7 @@
 //externs added back in for VR telem porting (pullin 10/9/14)
 extern int bemf[NUM_PIDS];
 extern pidPos pidObjs[NUM_PIDS];
+extern strCtrl piSteer;
 
 //void vrTelemGetData(unsigned char* ptr) {
 void vrTelemGetData(vrTelemStruct_t* ptr) {
@@ -39,10 +40,6 @@ void vrTelemGetData(vrTelemStruct_t* ptr) {
     ptr->posR1 = pidObjs[1].p_state;
     ptr->composL1 = pidObjs[0].p_input + pidObjs[0].interpolate;
     ptr->composR1 = pidObjs[1].p_input + pidObjs[1].interpolate;
-    ptr->posL2 = pidObjs[2].p_state;
-    ptr->posR2 = pidObjs[3].p_state;
-    ptr->composL2 = pidObjs[2].p_input + pidObjs[2].interpolate;
-    ptr->composR2 = pidObjs[3].p_input + pidObjs[3].interpolate;
     ptr->dcL1 = pidObjs[0].output; // left 1
     ptr->dcR1 = pidObjs[1].output; // right 1
     ptr->dcL2 = pidObjs[2].output; // left 2
@@ -59,6 +56,9 @@ void vrTelemGetData(vrTelemStruct_t* ptr) {
     ptr->accelX = xldata[0];
     ptr->accelY = xldata[1];
     ptr->accelZ = xldata[2];
+
+    //steering
+    ptr->yaw_input = piSteer.yaw_input;
 
     //Battery
     ptr->Vbatt = (int) adcGetVbatt();

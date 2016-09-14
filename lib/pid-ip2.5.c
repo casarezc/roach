@@ -51,6 +51,14 @@ pidVelLUT pidVel[NUM_PIDS*NUM_BUFF];
 pidVelLUT* activePID[NUM_PIDS]; //Pointer arrays for stride buffering
 pidVelLUT* nextPID[NUM_PIDS];
 
+// Steering control structure
+strCtrl piSteer;
+
+// Steering control temp variables
+long gz_offset = 0;
+long gz_offset_acc = 0;
+int count_steer = 0;
+
 #define T1_MAX 0xffffff  // max before rollover of 1 ms counter
 // may be glitch in longer missions at rollover
 volatile unsigned long t1_ticks;
@@ -77,6 +85,7 @@ void pidSetup() {
         initPIDObjPos(&(pidObjs[i]), DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, DEFAULT_KAW, DEFAULT_FF);
     }
     initPIDVelProfile();
+    initStrCtrl( &(piSteer), DEFAULT_KP, DEFAULT_KI, DEFAULT_FF);
     SetupTimer1(); // main interrupt used for leg motor PID
 
     lastMoveTime = 0;
@@ -333,6 +342,53 @@ void calibBatteryOffset(int spindown_ms) {
     }
 }
 
+/*****************************************************************************************/
+/*****************************************************************************************/
+/*********************** Steering control initialization **********************************/
+/*****************************************************************************************/
+/*****************************************************************************************/
+
+//Initialize the steering control structure
+void initStrCtrl(strCtrl *pi, int Kp, int Ki, int Kff)
+{
+    pi->Kp = Kp;
+    pi->Ki = Ki;
+    pi->feedforward = Kff;
+    pi->thrust_nom = 0;
+    pi->yaw_input = 0;
+    pi->yaw_state = 0;
+    pi->yaw_error = 0;
+    pi->vel_state = 0;
+    pi->vel_error = 0;
+    pi->p = 0;
+    pi->i = 0;
+}
+
+// from cmd.c  set PI gains for steering controller, nominal thrust
+void strCtrlSetGains(int Kp, int Ki, int Kff, int thrust){
+    piSteer.Kp  = Kp;
+    piSteer.Ki  = Ki;
+    piSteer.feedforward = Kff;
+    piSteer.thrust_nom = thrust;
+}
+
+// from cmd.c  set reference angular rate
+// (value in 2^15 counts per 2000 deg/s) for the controller
+void strCtrlSetInput(int input_val){
+    piSteer.onoff = 1;
+    piSteer.yaw_input = piSteer.yaw_state;
+    piSteer.vel_input = input_val;
+}
+
+// from cmd.c  Turn off steering controller and reset state variables
+void strCtrlOff(){
+    piSteer.onoff = 0;
+    piSteer.yaw_state = 0;
+    piSteer.vel_state = 0;
+    piSteer.p = 0;
+    piSteer.i = 0;
+    piSteer.output = 0;
+}
 
 /*****************************************************************************************/
 /*****************************************************************************************/
@@ -389,6 +445,13 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
         if (t1_ticks == T1_MAX) t1_ticks = 0;
         t1_ticks++;
         pidGetState(); // always update state, even if motor is coasting
+        strCtrlGetState(); //always update state, even if steering control is off
+
+        // Only set steering adjustment if steering control is on and motors are moving
+        if ((piSteer.onoff == 1)&&(pidObjs[0].onoff == 1)){
+            strCtrlSetControl();
+        }
+
         for (j = 0; j < NUM_PIDS; j++) {
             // only update tracking setpoint if time has not yet expired
             if (pidObjs[j].onoff) {
@@ -584,7 +647,7 @@ void pidSetControl() {
     for (j = 0; j < NUM_PIDS; j++) { //pidobjs[0] : right side
         // p_input has scaled velocity interpolation to make smoother
         // p_state is [16].[16]
-        if((pidObjs[j].mode == PID_MODE_CONTROLED)&&(pidObjs[j].onoff == PID_ON)){
+        if((pidObjs[j].mode == PID_MODE_CONTROLLED)&&(pidObjs[j].onoff == PID_ON)){
             pidObjs[j].p_error = pidObjs[j].p_input + pidObjs[j].interpolate - pidObjs[j].p_state;
             pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state; // v_input should be revs/sec
             //Update values
@@ -600,8 +663,27 @@ void pidSetControl() {
         else if((pidObjs[j].mode == PID_MODE_PWMPASS)&&(pidObjs[j].onoff == PID_ON)){
             tiHSetDC(pidObjs[j].output_channel, pidObjs[j].pwmDes);
         }
+        else if((pidObjs[j].mode == PID_MODE_CLSTEER)&&(pidObjs[j].onoff == PID_ON)){
+            if (((piSteer.output > 0)&&(j==RIGHT_2_PID_NUM))||((piSteer.output < 0)&&(j==LEFT_2_PID_NUM))){
+                if(pidObjs[j].pwm_flip){
+                    pidObjs[j].output = -(piSteer.thrust_nom + piSteer.output);
+                }
+                else{
+                    pidObjs[j].output = (piSteer.thrust_nom + piSteer.output);
+                }
+            }
+            else{
+                if(pidObjs[j].pwm_flip){
+                    pidObjs[j].output = -piSteer.thrust_nom;
+                }
+                else{
+                    pidObjs[j].output = piSteer.thrust_nom;
+                }
+            }
+            tiHSetDC(pidObjs[j].output_channel, pidObjs[j].output);
+        }
         else{
-            if(pidObjs[j].mode == PID_MODE_CONTROLED){
+            if(pidObjs[j].mode == PID_MODE_CONTROLLED){
                 pidObjs[j].p_error = pidObjs[j].p_input + pidObjs[j].interpolate - pidObjs[j].p_state;
                 pidObjs[j].v_error = pidObjs[j].v_input - pidObjs[j].v_state; // v_input should be revs/sec
                 //Update values
@@ -641,6 +723,67 @@ void UpdatePID(pidPos *pid) {
         pid->i_error = (long) pid->i_error +
                 (long) (pid->Kaw) * ((long) (MAXTHROT) - (long) (pid->preSat))
                 / ((long) GAIN_SCALER);
+    }
+}
+
+// ----------   Steering control functions -----------------
+
+// Called from interrupt, get yaw rate, state for steering controller
+void strCtrlGetState(){
+    // If legs aren't moving, record gyro offset to prevent drift in angle measurement
+    // If legs are moving, record yaw velocity and integrate this measurement to compute angle
+    if(pidObjs[0].onoff==0){
+        int gdata[3];
+        mpuGetGyro(gdata);
+        gz_offset_acc += (long) gdata[2];
+        count_steer++;
+
+        if (count_steer>=100){
+            gz_offset = gz_offset_acc/((long) count_steer);
+            gz_offset_acc = 0;
+            count_steer = 0;
+        }
+    }
+    // Otherwise use integrated gyro to measure yaw angle
+    else{
+        int gdata[3];
+        mpuGetGyro(gdata);
+        piSteer.vel_state = gdata[2];
+        piSteer.yaw_state += ((long) gdata[2]) - gz_offset;
+    }
+}
+
+void strCtrlSetControl()
+{
+    // Compute pi controller errors
+    // Positive error->increase right PWM relative to left
+    piSteer.yaw_input += ((long) piSteer.vel_input);
+    piSteer.yaw_error = piSteer.yaw_input - piSteer.yaw_state; //yaw_error is 16384 counts per degree
+    piSteer.vel_error = piSteer.vel_input - piSteer.vel_state;  // vel_error is 16.384 counts/(deg/s)
+    //Update values
+    UpdatePI(&(piSteer)); //Update values, output is PWM that is passed to leg pid controller
+}
+
+
+void UpdatePI(strCtrl *pi)
+{
+    pi->p = ((long) pi->Kp)*((long) pi->vel_error); // When Kp=100, vel_error of ~300 deg/s contributes 2000 PWM
+    pi->i = ((long) pi->Ki)*(pi->yaw_error >> 10);  // divide by 1024 to prevent overflow
+                                                    // When Ki = 100, yaw_error of ~360 deg contributes 2000 PWM
+    pi->preSat = ((long) pi->feedforward)
+                + (pi->p >> 8) // divide by 256
+		+ (pi->i >> 8); // divide by 256
+    pi->output = pi->preSat;
+
+// saturate output
+    if (pi->preSat > (MAXTHROT - pi->thrust_nom))
+    {
+	pi->output = MAXTHROT - pi->thrust_nom;
+    }
+
+    if (pi->preSat < -(MAXTHROT - pi->thrust_nom))
+    {
+        pi->output = -(MAXTHROT - pi->thrust_nom);
     }
 }
 

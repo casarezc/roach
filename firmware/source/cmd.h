@@ -25,6 +25,10 @@
 #define CMD_PID_STOP_MOTORS         0x92         
 #define CMD_SET_PHASE               0x93         
 #define CMD_SET_MOTOR_MODE          0x94
+
+#define CMD_SET_STEER_GAINS         0xA0
+#define CMD_SET_STEER_VELOCITY      0xA1
+#define CMD_STEER_CONTROL_OFF       0xA2
 // Redefine
 
 void cmdSetup(void);
@@ -103,5 +107,14 @@ typedef struct{
     int r_num;
 } _args_cmdZeroPos;
 
+//cmdSetSteerGains
+typedef struct{
+	int Kp, Ki, ff, thrust;
+} _args_cmdSetSteerGains;
+
+//cmdSetSteerVel
+typedef struct{
+	int vel;
+} _args_cmdSetSteerVel;
 
 #endif // __CMD_H

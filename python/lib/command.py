@@ -71,4 +71,8 @@ PID_STOP_MOTORS         =   0x92
 SET_PHASE               =   0x93
 SET_MOTOR_MODE     	 	=   0x94
 
+SET_STEER_GAINS         =   0xA0
+SET_STEER_VELOCITY      =   0xA1
+STEER_CONTROL_OFF       =   0xA2
+
 # CMD values of 0xF0(240) - 0xFF(255) are reserved for future use

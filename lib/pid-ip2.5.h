@@ -32,8 +32,11 @@
 #define PID_OFF     0
 #define PID_ON      1
 
-#define PID_MODE_CONTROLED  0
-#define PID_MODE_PWMPASS    1
+#define PID_MODE_CONTROLLED  0
+#define PID_MODE_PWMPASS     1
+#define PID_MODE_CLSTEER     2
+
+//constants for steering control
 
 // pid type for leg control
 typedef struct
@@ -79,6 +82,24 @@ typedef struct
 	int vel[NUM_VELS];     // velocity increments to setpoint, >>8
 	int onceFlag;
 } pidVelLUT;
+
+// structure for steering control (phase deviation from alternating tripod)
+typedef struct
+{
+    char onoff; //boolean toggling steering control
+    int Kp, Ki; //proportional, integral gains (control goal is to maintain turn rate)
+    int feedforward; //feedforward
+    int thrust_nom; //nominal PWM
+    long yaw_input; //reference yaw angle to track
+    long yaw_state; //angle state from integrated gyro
+    long yaw_error; //angle error
+    int vel_input; //angular velocity input
+    int vel_state; //velocity state from gyro
+    int vel_error; //velocity error
+    long p, i; //control contributions from proportional, integral gains
+    long preSat; //output value before saturation
+    int output; //output is PWM differential
+} strCtrl;
 
 //Defaults for leg config switches
 //TODO: Check these for consistency with the default wiring diagram for VR
@@ -177,5 +198,14 @@ void pidStartMotor(unsigned int channel);
 void pidSetTimeFlag(unsigned int channel, char val);
 void pidSetMode(unsigned int channel, char mode);
 void pidSetPWMDes(unsigned int channel, int pwm);
+
+//Steering control functions
+void initStrCtrl(strCtrl *pi, int Kp, int Kd, int Kff);
+void strCtrlSetGains(int Kp, int Kd, int Kff, int thrust);
+void strCtrlSetInput(int input_val);
+void strCtrlOff();
+void strCtrlGetState();
+void strCtrlSetControl();
+void UpdatePI(strCtrl *pi);
 
 #endif // __PID_H

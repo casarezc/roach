@@ -60,6 +60,11 @@ static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, 
 static unsigned char cmdStartTelemetry(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdEraseSectors(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdFlashReadback(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+
+//Steering control commands
+static unsigned char cmdSetSteerGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetSteerVel(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSteerControlOff(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 /*-----------------------------------------------------------------------------
  *          Public functions
 -----------------------------------------------------------------------------*/
@@ -88,6 +93,9 @@ void cmdSetup(void) {
     cmd_func[CMD_SET_PHASE] = &cmdSetPhase;   
     cmd_func[CMD_START_TIMED_RUN] = &cmdStartTimedRun;
     cmd_func[CMD_PID_STOP_MOTORS] = &cmdPIDStopMotors;
+    cmd_func[CMD_SET_STEER_GAINS] = &cmdSetSteerGains;
+    cmd_func[CMD_SET_STEER_VELOCITY] = &cmdSetSteerVel;
+    cmd_func[CMD_STEER_CONTROL_OFF] = &cmdSteerControlOff;
 
 }
 
@@ -314,16 +322,16 @@ unsigned char cmdSetVelProfile(unsigned char type, unsigned char status, unsigne
     if(argsPtr -> r_num == 1){
         setPIDVelProfile(LEFT_1_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
         setPIDVelProfile(RIGHT_1_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
-        pidSetMode(LEFT_1_PID_NUM ,PID_MODE_CONTROLED);
-        pidSetMode(RIGHT_1_PID_NUM ,PID_MODE_CONTROLED);
+        pidSetMode(LEFT_1_PID_NUM ,PID_MODE_CONTROLLED);
+        pidSetMode(RIGHT_1_PID_NUM ,PID_MODE_CONTROLLED);
 
         radioSendData(src_addr, status, CMD_SET_VEL_PROFILE, length, frame, 0);
     }
     else if(argsPtr -> r_num == 2){
         setPIDVelProfile(LEFT_2_PID_NUM, interval1, delta1, vel1, argsPtr->flagLeft);
         setPIDVelProfile(RIGHT_2_PID_NUM, interval2, delta2, vel2, argsPtr->flagRight);
-        pidSetMode(LEFT_2_PID_NUM ,PID_MODE_CONTROLED);
-        pidSetMode(RIGHT_2_PID_NUM ,PID_MODE_CONTROLED);
+        pidSetMode(LEFT_2_PID_NUM ,PID_MODE_CONTROLLED);
+        pidSetMode(RIGHT_2_PID_NUM ,PID_MODE_CONTROLLED);
 
         radioSendData(src_addr, status, CMD_SET_VEL_PROFILE, length, frame, 0);
     }
@@ -430,6 +438,43 @@ void cmdError() {
         LED_3 ^= 1;
         delay_ms(200);
     }
+}
+
+// Steering commands
+
+unsigned char cmdSetSteerGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    PKT_UNPACK(_args_cmdSetSteerGains, argsPtr, frame);
+
+    strCtrlSetGains(argsPtr->Kp, argsPtr->Ki, argsPtr->ff, argsPtr->thrust);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_GAINS, 8, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+unsigned char cmdSetSteerVel(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    PKT_UNPACK(_args_cmdSetSteerVel, argsPtr, frame);
+
+    // Set control mode of front robot to closed loop steer
+    pidSetMode(LEFT_2_PID_NUM, PID_MODE_CLSTEER);
+    pidSetMode(RIGHT_2_PID_NUM, PID_MODE_CLSTEER);
+
+    // Set yaw velocity set point, send radio confirmation packet
+    strCtrlSetInput(argsPtr->vel);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_VELOCITY, 2, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+unsigned char cmdSteerControlOff(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    strCtrlOff();
+    return 1;
 }
 
 static unsigned char cmdNop(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {

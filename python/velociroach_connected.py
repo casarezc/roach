@@ -15,6 +15,7 @@ import numpy as np
 PHASE_180_DEG = 0x8000
 
 class GaitConfig:
+
     motorgains_1 = None
     rightFreq_1 = None
     leftFreq_1 = None
@@ -58,6 +59,9 @@ class GaitConfig:
         
         
 class Velociroach_Connected:
+    steergains = None
+
+    steer_gains_set = False
     motor_gains_set_1 = False
     motor_gains_set_2 = False
     encoders_zeroed_1 = False
@@ -135,15 +139,12 @@ class Velociroach_Connected:
         fileout.write('%  Phase 1                       = ' + repr(self.currentGait.phase_1) + '\n')
         fileout.write('%  Motor Gains 1 (L,R)           = ' + repr(self.currentGait.motorgains_1) + '\n')
 
-        fileout.write('%  Stride Frequency 2 (L,R)       = ' +repr( [ self.currentGait.leftFreq_2, self.currentGait.rightFreq_2]) + '\n')
-        fileout.write('%  Deltas (Fractional) 2 (L,R)    = ' + repr(self.currentGait.deltasLeft_2) + ',' + repr(self.currentGait.deltasRight_2) + '\n')
-        fileout.write('%  Phase 2                        = ' + repr(self.currentGait.phase_2) + '\n')
-        fileout.write('%  Motor Gains 2 (L,R)            = ' + repr(self.currentGait.motorgains_2) + '\n')
+        fileout.write('%  Steering Gains                 = ' + repr(self.steergains) + '\n')
             
         fileout.write('%  experiment_connected.py \n')
         fileout.write('% Columns: \n')
         # order for wiring on RF Turner
-        fileout.write('% time | Leg Pos L1 | Leg Pos R1 | Com. Leg Pos L1 | Com. Leg Pos R1 | Leg Pos L2 | Leg Pos R2 | Com. Leg Pos L2 | Com. Leg Pos R2 | DC_L1 | DC_R1 | DC_L2 | DC_R2 | GyroX | GyroY | GyroZ | AX | AY | AZ | BEMF_L1 | BEMF_R1 | BEMF_L2 | BEMF_R2 | VBatt\n')
+        fileout.write('% time | Leg Pos L1 | Leg Pos R1 | Com. Leg Pos L1 | Com. Leg Pos R1 | Yaw_Input | DC_L1 | DC_R1 | DC_L2 | DC_R2 | GyroX | GyroY | GyroZ | AX | AY | AZ | BEMF_L1 | BEMF_R1 | BEMF_L2 | BEMF_R2 | VBatt\n')
         fileout.close()
 
     #########################################################################
@@ -238,7 +239,7 @@ class Velociroach_Connected:
         #Final update to download progress bar to make it show 100%
         dlProgress(self.numSamples-self.telemtryData.count([]) , self.numSamples)
         #totBytes = 52*self.numSamples
-        totBytes = 70*(self.numSamples - self.telemtryData.count([]))
+        totBytes = 58*(self.numSamples - self.telemtryData.count([]))
         datarate = totBytes / dlTime / 1000.0
         print '\n'
         #self.clAnnounce()
@@ -395,6 +396,34 @@ class Velociroach_Connected:
         self.tx( 0, command.START_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)       
 
+    ##########################################################################################
+        
+    ########################## Steering configuration methods ####################################
+
+    def setSteerGains(self, gains, retries = 8):
+        tries = 1
+        self.steergains = gains
+        while not(self.steer_gains_set) and (tries <= retries):
+            self.clAnnounce()
+            print "Setting steer gains...   ",tries,"/8"
+            self.tx( 0, command.SET_STEER_GAINS, pack('4h',*gains))
+            tries = tries + 1
+            time.sleep(0.3)
+
+    def setSteerRate(self, yawInput):
+        self.clAnnounce()
+        print "Steer input set at ",yawInput,"degrees/second"
+
+        temp = yawInput*32768/2000
+        
+        self.tx( 0, command.SET_STEER_VELOCITY, pack('h', temp))
+        time.sleep(0.1)
+
+    def stopSteering(self):
+        self.clAnnounce()
+        print "Stopping steering controller"
+        self.tx( 0, command.STEER_CONTROL_OFF, 'stop')
+        time.sleep(0.1)
         
 ########## Helper functions #################
 #TODO: find a home for these? Possibly in BaseStation class (pullin, abuchan)

@@ -9,10 +9,7 @@ typedef struct {
     int32_t posR1;
     int32_t composL1; // Commanded Hall angle position
     int32_t composR1;
-    int32_t posL2; // Hall angle position
-    int32_t posR2;
-    int32_t composL2; // Commanded Hall angle position
-    int32_t composR2;
+    int32_t yaw_input;
     int16_t dcL1; // PWM duty cycle
     int16_t dcR1;
     int16_t dcL2;

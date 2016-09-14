@@ -51,11 +51,12 @@ def main():
     # Motor gains format:
     #           [ Kp , Ki , Kd , Kaw , Kff,       Kp , Ki , Kd , Kaw , Kff ]
     #            ----------LEFT----------        ---------_RIGHT----------
-    motorgains_1 = [3000,200,100,0,200,             3000,200,100,0,200]
-    motorgains_2 = [3000,200,100,0,200,             3000,200,100,0,200]
+    motorgains_1 = [1000, 300,100,0,200,         5000,1000,100,100,200]
+    # motorgains_1 = [0,0,0,0,2000,         0,0, 0,0,2000]
+    motorgains_2 = [5000,1000,100,100,200,         5000,1000,100,100,200]
 
     # Stride frequency
-    freq_1 = 1
+    freq_1 = 2
     freq_2 = 1
 
     # Configure gait for front robot
@@ -78,10 +79,25 @@ def main():
     # Set gait
     R1.setGait(straightGait)
 
+    # Steering gains format:
+    #           [ Kp , Ki , Kff, thrust_nom]
+    steergains = [100, 100, 0, 0]
+
+    # Yaw rate in deg/s
+    yaw_rate = 0
+
+    # Set steering gains
+    R1.setSteerGains(steergains)
+
+    # Set steering setpoint
+    R1.setSteerRate(yaw_rate)
+    # R1.setSteerRate(-yaw_rate)
+
+
     # Set run, lead in, lead out time
-    EXPERIMENT_RUN_TIME_MS     = 2000 #ms
-    EXPERIMENT_LEADIN_TIME_MS  = 100  #ms
-    EXPERIMENT_LEADOUT_TIME_MS = 100  #ms
+    EXPERIMENT_RUN_TIME_MS     = 3500 #ms
+    EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
+    EXPERIMENT_LEADOUT_TIME_MS = 500  #ms
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -113,6 +129,9 @@ def main():
     
     # Sleep for a lead-out time after any motion
     time.sleep(EXPERIMENT_LEADOUT_TIME_MS / 1000.0) 
+
+    # Shut off steering control to prevent windup of controller
+    R1.stopSteering()
     
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
