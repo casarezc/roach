@@ -51,12 +51,12 @@ def main():
     # Motor gains format:
     #           [ Kp , Ki , Kd , Kaw , Kff,       Kp , Ki , Kd , Kaw , Kff ]
     #            ----------LEFT----------        ---------_RIGHT----------
-    motorgains_1 = [1000, 300,100,0,200,         5000,1000,100,100,200]
-    # motorgains_1 = [0,0,0,0,2000,         0,0, 0,0,2000]
+    motorgains_1 = [5000,1000,100,100,200,         5000,1000,100,100,200]
+    # motorgains_1 = [0,0,0,0,1500,         5000,1000,100,100,200]
     motorgains_2 = [5000,1000,100,100,200,         5000,1000,100,100,200]
 
     # Stride frequency
-    freq_1 = 2
+    freq_1 = 15
     freq_2 = 1
 
     # Configure gait for front robot
@@ -81,10 +81,10 @@ def main():
 
     # Steering gains format:
     #           [ Kp , Ki , Kff, thrust_nom]
-    steergains = [100, 100, 0, 0]
+    steergains = [150, 1300, 0, 2000]
 
     # Yaw rate in deg/s
-    yaw_rate = 0
+    yaw_rate = 90
 
     # Set steering gains
     R1.setSteerGains(steergains)

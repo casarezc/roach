@@ -58,6 +58,8 @@ strCtrl piSteer;
 long gz_offset = 0;
 long gz_offset_acc = 0;
 int count_steer = 0;
+long gz_avg_acc = 0;
+int count_gz_avg = 0;
 
 #define T1_MAX 0xffffff  // max before rollover of 1 ms counter
 // may be glitch in longer missions at rollover
@@ -664,12 +666,20 @@ void pidSetControl() {
             tiHSetDC(pidObjs[j].output_channel, pidObjs[j].pwmDes);
         }
         else if((pidObjs[j].mode == PID_MODE_CLSTEER)&&(pidObjs[j].onoff == PID_ON)){
-            if (((piSteer.output > 0)&&(j==RIGHT_2_PID_NUM))||((piSteer.output < 0)&&(j==LEFT_2_PID_NUM))){
+            if ((piSteer.output > 0)&&(j==RIGHT_2_PID_NUM)){
                 if(pidObjs[j].pwm_flip){
                     pidObjs[j].output = -(piSteer.thrust_nom + piSteer.output);
                 }
                 else{
                     pidObjs[j].output = (piSteer.thrust_nom + piSteer.output);
+                }
+            }
+            else if ((piSteer.output < 0)&&(j==LEFT_2_PID_NUM)){
+                if(pidObjs[j].pwm_flip){
+                    pidObjs[j].output = -(piSteer.thrust_nom - piSteer.output);
+                }
+                else{
+                    pidObjs[j].output = (piSteer.thrust_nom - piSteer.output);
                 }
             }
             else{
@@ -689,7 +699,7 @@ void pidSetControl() {
                 //Update values
                 UpdatePID(&(pidObjs[j]));
             }
-
+            pidObjs[j].output = 0;
             tiHSetDC(pidObjs[j].output_channel, 0);
         }
     }// end of for(j)
@@ -748,7 +758,15 @@ void strCtrlGetState(){
     else{
         int gdata[3];
         mpuGetGyro(gdata);
-        piSteer.vel_state = gdata[2];
+        count_gz_avg++;
+        gz_avg_acc += (long) gdata[2];
+
+        if (count_gz_avg>=GZ_AVG_WINDOW){
+            piSteer.vel_state = ((int) (gz_avg_acc/((long) count_gz_avg)));
+            gz_avg_acc = 0;
+            count_gz_avg = 0;
+        }
+        
         piSteer.yaw_state += ((long) gdata[2]) - gz_offset;
     }
 }
@@ -767,7 +785,9 @@ void strCtrlSetControl()
 
 void UpdatePI(strCtrl *pi)
 {
+    // Kp is in units of PWM/counts, Kp*16.384/256 gives Kp in units of PWM/(deg/s)
     pi->p = ((long) pi->Kp)*((long) pi->vel_error); // When Kp=100, vel_error of ~300 deg/s contributes 2000 PWM
+    // Ki is in units of PWM/counts, Kp*16384/2^18 gives Ki in units of PWM/deg
     pi->i = ((long) pi->Ki)*(pi->yaw_error >> 10);  // divide by 1024 to prevent overflow
                                                     // When Ki = 100, yaw_error of ~360 deg contributes 2000 PWM
     pi->preSat = ((long) pi->feedforward)

@@ -37,6 +37,7 @@
 #define PID_MODE_CLSTEER     2
 
 //constants for steering control
+#define GZ_AVG_WINDOW      50
 
 // pid type for leg control
 typedef struct
