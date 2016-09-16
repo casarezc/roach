@@ -378,13 +378,13 @@ void strCtrlSetGains(int Kp, int Ki, int Kff, int thrust){
 // (value in 2^15 counts per 2000 deg/s) for the controller
 void strCtrlSetInput(int input_val){
     piSteer.onoff = 1;
-    piSteer.yaw_input = piSteer.yaw_state;
     piSteer.vel_input = input_val;
 }
 
 // from cmd.c  Turn off steering controller and reset state variables
 void strCtrlOff(){
     piSteer.onoff = 0;
+    piSteer.yaw_input = 0;
     piSteer.yaw_state = 0;
     piSteer.vel_state = 0;
     piSteer.p = 0;
@@ -666,37 +666,36 @@ void pidSetControl() {
             tiHSetDC(pidObjs[j].output_channel, pidObjs[j].pwmDes);
         }
         else if((pidObjs[j].mode == PID_MODE_CLSTEER)&&(pidObjs[j].onoff == PID_ON)){
-            if ((piSteer.output > 0)&&(j==RIGHT_2_PID_NUM)){
-                if(pidObjs[j].pwm_flip){
-                    pidObjs[j].output = -(piSteer.thrust_nom + piSteer.output);
-                }
-                else{
-                    pidObjs[j].output = (piSteer.thrust_nom + piSteer.output);
-                }
-            }
-            else if ((piSteer.output < 0)&&(j==LEFT_2_PID_NUM)){
-                if(pidObjs[j].pwm_flip){
-                    pidObjs[j].output = -(piSteer.thrust_nom - piSteer.output);
-                }
-                else{
-                    pidObjs[j].output = (piSteer.thrust_nom - piSteer.output);
-                }
-            }
-            else{
-                if(pidObjs[j].pwm_flip){
-                    pidObjs[j].output = -piSteer.thrust_nom;
+            if ((piSteer.vel_input>=0)&&(j==RIGHT_2_PID_NUM)){
+                if(piSteer.output>=(-piSteer.feedforward)){
+                    pidObjs[j].output = piSteer.thrust_nom + piSteer.feedforward + piSteer.output;
                 }
                 else{
                     pidObjs[j].output = piSteer.thrust_nom;
                 }
             }
-            if (((piSteer.vel_input>=0)&&(j==RIGHT_2_PID_NUM))||((piSteer.vel_input<0)&&(j==LEFT_2_PID_NUM))){
-                if(pidObjs[j].pwm_flip){
-                    pidObjs[j].output -= piSteer.feedforward;
+            else if ((piSteer.vel_input<0)&&(j==LEFT_2_PID_NUM)){
+                if(piSteer.output<=piSteer.feedforward){
+                    pidObjs[j].output = piSteer.thrust_nom + piSteer.feedforward - piSteer.output;
                 }
                 else{
-                    pidObjs[j].output += piSteer.feedforward;
+                    pidObjs[j].output = piSteer.thrust_nom;
                 }
+            }
+            else{
+                if ((piSteer.vel_input>=0)&&(piSteer.output<(-piSteer.feedforward))){
+                    pidObjs[j].output = piSteer.thrust_nom - piSteer.output - piSteer.feedforward;
+                }
+                else if ((piSteer.vel_input<0)&&(piSteer.output>(piSteer.feedforward))){
+                    pidObjs[j].output = piSteer.thrust_nom + piSteer.output - piSteer.feedforward;
+                }
+                else{
+                    pidObjs[j].output = piSteer.thrust_nom;
+                }
+            }
+
+            if(pidObjs[j].pwm_flip){
+                pidObjs[j].output = -pidObjs[j].output;
             }
 
             tiHSetDC(pidObjs[j].output_channel, pidObjs[j].output);
@@ -804,27 +803,26 @@ void UpdatePI(strCtrl *pi)
     pi->output = pi->preSat;
 
 // saturate output
-    if(pi->vel_input >= 0){
+    if (pi->vel_input >= 0){
         if (pi->preSat > (MAXTHROT - pi->feedforward - pi->thrust_nom))
         {
             pi->output = (MAXTHROT - pi->feedforward - pi->thrust_nom);
         }
 
-        if (pi->preSat < -(MAXTHROT - pi->thrust_nom))
+        if (pi->preSat < -(MAXTHROT + pi->feedforward - pi->thrust_nom))
         {
-            pi->output = -(MAXTHROT - pi->thrust_nom);
+            pi->output = -(MAXTHROT + pi->feedforward - pi->thrust_nom);
         }
     }
-
-    if(pi->vel_input < 0){
-        if (pi->preSat > (MAXTHROT - pi->thrust_nom))
+    else{
+        if (pi->preSat > (MAXTHROT + pi->feedforward - pi->thrust_nom))
         {
-            pi->output = (MAXTHROT - pi->thrust_nom);
+            pi->output = (MAXTHROT + pi->feedforward - pi->thrust_nom);
         }
 
         if (pi->preSat < -(MAXTHROT - pi->feedforward - pi->thrust_nom))
         {
-            pi->output = -(MAXTHROT - pi->thrust_nom);
+            pi->output = -(MAXTHROT - pi->feedforward - pi->thrust_nom);
         }
     }
 }

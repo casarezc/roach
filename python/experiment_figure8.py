@@ -81,7 +81,7 @@ def main():
 
     # Steering gains format:
     #           [ Kp , Ki , Kff, thrust_nom]
-    steergains = [300, 100, 1800, 1200]
+    steergains =[300, 100, 1800, 1200]
 
     # Yaw rate in deg/s
     yaw_rate = 60
@@ -95,7 +95,9 @@ def main():
 
 
     # Set run, lead in, lead out time
-    EXPERIMENT_RUN_TIME_MS     = 4000 #ms
+
+    T1 = 6000
+    T2 = 6000
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 500  #ms
     
@@ -103,7 +105,7 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             #This needs to be done to prepare the .telemtryData variables in each robot object
-            r.setupTelemetryDataTime(EXPERIMENT_LEADIN_TIME_MS + EXPERIMENT_RUN_TIME_MS + EXPERIMENT_LEADOUT_TIME_MS)
+            r.setupTelemetryDataTime(EXPERIMENT_LEADIN_TIME_MS + T1 + T2 + EXPERIMENT_LEADOUT_TIME_MS)
             r.eraseFlashMem()
         
     # Pause and wait to start run, including lead-in time
@@ -123,17 +125,17 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) 
-    time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
-    ######## End of motion commands   ########)
+    R1.startTimedRun( T1 + T2 ) 
+    time.sleep(T1 / 1000.0)  #argument to time.sleep is in SECONDS
+    R1.setSteerRate(-yaw_rate)
+    time.sleep(T2 / 1000.0)  #argument to time.sleep is in SECONDS
+    ######## End of motion commands   ########
     
-    # Shut off steering control to prevent windup of controller
-    R1.stopSteering()
-
     # Sleep for a lead-out time after any motion
     time.sleep(EXPERIMENT_LEADOUT_TIME_MS / 1000.0) 
 
-
+    # Shut off steering control to prevent windup of controller
+    R1.stopSteering()
     
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
