@@ -81,7 +81,8 @@ def main():
 
     # Steering gains format:
     #           [ Kp , Ki , Kff, thrust_nom]
-    steergains = [300, 100, 1200, 1600]
+    steergains = [300, 100, 1800, 1200]
+    # steergains = [0, 0, 0, 0]
 
     # Yaw rate in deg/s
     yaw_rate = 60
