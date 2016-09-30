@@ -56,7 +56,7 @@ def main():
     motorgains_2 = [5000,1000,100,100,200,         5000,1000,100,100,200]
 
     # Stride frequency
-    freq_1 = 15
+    freq_1 = 20
     freq_2 = 1
 
     # Configure gait for front robot
@@ -81,10 +81,11 @@ def main():
 
     # Steering gains format:
     #           [ Kp , Ki , Kff, thrust_nom]
-    steergains =[300, 100, 1800, 1200]
+    # steergains =[300, 100, 1800, 1200]
+    steergains = [300, 100, 1200, 1600]
 
     # Yaw rate in deg/s
-    yaw_rate = 60
+    yaw_rate = 90
 
     # Set steering gains
     R1.setSteerGains(steergains)
@@ -96,8 +97,8 @@ def main():
 
     # Set run, lead in, lead out time
 
-    T1 = 6000
-    T2 = 6000
+    T1 = 4000
+    T2 = 4000
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 500  #ms
     
