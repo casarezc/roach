@@ -73,7 +73,7 @@ def main():
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
     slowBound.deltasRight = [0.25, 0.25, 0.25]
 
-    fastBound = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
+    fastBound = GaitConfig(motorgains, rightFreq=6, leftFreq=6)
     fastBound.phase = 0
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBound.deltasRight = [0.25, 0.25, 0.25]
