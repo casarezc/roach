@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x62', xb)
-    # R1.SAVE_DATA = False
-    R1.SAVE_DATA = True
+    R1.SAVE_DATA = False
+    # R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -76,7 +76,7 @@ def main():
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=4, leftFreq=4)
+    fastAltTripod = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
     fastAltTripod.phase = PHASE_180_DEG                           
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
@@ -100,7 +100,7 @@ def main():
     
     # Configure intra-stride control
     R1.setGait(slowAltTripod)
-    # R1.setGait(slowBound)
+    # R1.setGait(fastAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 3100 #ms
