@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x62', xb)
-    R1.SAVE_DATA = False
-    # R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -131,7 +131,7 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
+    # R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########
     

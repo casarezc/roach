@@ -61,7 +61,7 @@ def main():
     posBwd = TailConfig(tailgains)
     posBwd.pInput = -plim
 
-    tailFreq = 3.3
+    tailFreq = 1.5
 
     spinFwd = TailConfig(tailgains)
     spinFwd.vInput = tailFreq
@@ -73,9 +73,9 @@ def main():
     R1.zeroTailPosition()
 
     # Set tail control
-    R1.setTailControl(posFwd)
+    # R1.setTailControl(posFwd)
     # R1.setTailControl(posBwd)
-    # R1.setTailControl(spinFwd)
+    R1.setTailControl(spinFwd)
     # R1.setTailControl(spinBwd)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out

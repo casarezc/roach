@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x62', xb)
-    R1.SAVE_DATA = False
-    # R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -53,13 +53,11 @@ def main():
     tailgains = [1500,750,20,2000,0]
     # tailgains = [500,0,0,0,0]
 
-    # Set up autonomous self-righting parameters
-    pamp = 120
-    swing_duration = 400
+    # Set up different tail commands
+    plim = 0
 
-    selfRight = TailConfig(tailgains)
-    selfRight.pInput = pamp
-    selfRight.swing_duration = swing_duration
+    posFwd = TailConfig(tailgains)
+    posFwd.pInput = plim
 
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
@@ -92,7 +90,7 @@ def main():
     R1.zeroTailPosition()
 
     # Set tail control
-    R1.setTailControl(selfRight)
+    R1.setTailControl(posFwd)
 
     # Configure intra-stride control
     R1.setGait(fastAltTripod)
@@ -100,7 +98,7 @@ def main():
     # R1.setGait(slowAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 4000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 5000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
@@ -128,7 +126,7 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    # R1.startTimedRun( EXPERIMENT_RUN_TIME_MS )
+    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS )
     R1.startTailTimedRun( EXPERIMENT_RUN_TIME_MS )
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########
