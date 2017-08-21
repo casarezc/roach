@@ -87,7 +87,6 @@ int bemfTail;
 long pitch_mod;
 long roll_mod;
 
-
 // Euler angle initialization accumulator variables
 long angle_acc[2] = { 0 };
 long goffset_acc[3] = { 0 };
@@ -95,6 +94,18 @@ long AX;
 long I;
 long Q;
 
+// Pose reset variables
+char poseResetFlag = 0;
+int poseResetCounter = 0;
+
+// Repeat wait variables
+char repeatWaitFlag = 0;
+char xlzTriggerFlag = 0;
+int repeatWaitCounter = 0;
+
+// Temp variable to store p_input, v_input
+long tail_p_input_temp;
+int tail_v_input_temp;
 
 
 // ==== Initialization =======================================================================================
@@ -288,6 +299,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
                         for (i = 0; i < NUM_PIDS; i++) {
                             pidObjs[i].onoff = 0;
                         }
+                        repeatWaitFlag = 1;
                     }
                 }
                 else {
@@ -307,6 +319,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
             }
         }
         tailSetControl(); // set tail control from on/off state and mode
+
 
 //        if(pidObjs[0].onoff) {
             //telemGetPID();
@@ -996,6 +1009,9 @@ void tailGetState() {
 }
 
 void tailSetControl() {
+
+    long p_mod = 0;
+
     // control to position setpoint
     // p_state is [16].[16]
     if ((tailObjs.mode == TAIL_MODE_POSITION) && (tailObjs.onoff == PID_ON)) {
@@ -1038,14 +1054,21 @@ void tailSetControl() {
             // Increment counter
             tailObjs.counter++;
 
-            // If counter is above swing period, switch swing direction
+            // Set p_state to mod pm PI 
+            p_mod = tailObjs.p_state - (tailObjs.p_state/PITIMES2)*PITIMES2;
+            p_mod = p_mod - (p_mod/PI)*PITIMES2;
+
+
+            // If counter is above swing period, swing tail to opposite side
             if (tailObjs.counter >= tailObjs.swing_period){
                 tailObjs.counter = 0;
-                tailObjs.p_input = -tailObjs.p_input;
+                if (((p_mod>=0)&&(tailObjs.p_input>=0))||((p_mod<0)&&(tailObjs.p_input<0))){
+                    tailObjs.p_input = -tailObjs.p_input;
+                }
             }
 
             // Update error values
-            tailObjs.p_error = tailObjs.p_input - tailObjs.p_state;
+            tailObjs.p_error = tailObjs.p_input - p_mod;
             tailObjs.v_error = tailObjs.v_input - tailObjs.v_state; // note that this will be executed when v_input=0
 
             //Update PID values
@@ -1201,6 +1224,67 @@ void computeEulerAngles(){
         // Increment accumulation counter
         bodyPose.count++;
 
+        // If pose reset flag is triggered, increment counter
+        if (poseResetFlag == 1){
+            poseResetCounter++;
+
+            // If pose reset counter exceeds count limit, flip flag off and turn motors back on
+            if (poseResetCounter>POSERESETCOUNTS){
+                poseResetFlag = 0;
+                tailObjs.onoff = 1;
+                pidObjs[0].onoff = 1;
+                pidObjs[1].onoff = 1;
+                poseResetCounter = 0;
+            }
+        }
+
+        // If repeat wait flag is triggered, restart trial if xldata[2] falls below threshold
+        if ((repeatWaitFlag == 1)&&(xldata[2]<=AZTHRESH)){
+            // xlzTriggerFlag goes high
+            xlzTriggerFlag = 1;
+        }
+
+        if (xlzTriggerFlag == 1){
+            // Increment repeat wait counter
+            repeatWaitCounter++;
+
+            if (repeatWaitCounter>REPEATCOUNTS){
+                // Zero flags and counter
+                repeatWaitFlag = 0;
+                xlzTriggerFlag = 0;
+                repeatWaitCounter = 0;
+
+                // Reset timed trial vars drive PID obj 0
+                pidSetTimeFlag(0,1);
+                pidSetInput(0, 0);
+                checkSwapBuff(0);
+                pidOn(0);
+
+                // Reset timed trial vars drive PID obj 1
+                pidSetTimeFlag(1,1);
+                pidSetInput(1, 0);
+                checkSwapBuff(1);
+                pidOn(1);
+
+                // Start drive motors timed run
+                pidStartTimedTrial(pidObjs[0].run_time);
+
+                // Zero tail
+                tail_p_input_temp = tailObjs.p_input;
+                tail_v_input_temp = tailObjs.v_input;
+                tailZeroPos();
+                tailObjs.p_input = tail_p_input_temp;
+                tailObjs.v_input = tail_v_input_temp;
+
+                // Reset timed trial vars tail PID obj
+                tailSetTimeFlag(1);
+                tailOn();
+
+                // Start tail motor timed run
+                tailStartTimedTrial(tailObjs.run_time);
+            }
+        }
+
         // Accumulate gyro offset
         for (i = 0; i < 3; i++) {
             goffset_acc[i] += (long) gdata[i];
@@ -1289,6 +1373,15 @@ void computeEulerAngles(){
         // Prevent divide by zero cases when cosine of pitch is equal to zero
         if (c_pitch == 0){
             c_pitch = 1;
+        }
+
+        // If cosine of pitch becomes too small, then raise flag to toggle motors off to recalibrate pose with accelerometer
+        if ((c_pitch>=-COSTHRESH)&&(c_pitch<=COSTHRESH)){
+            poseResetFlag = 1;
+            tailObjs.onoff = 0;
+            pidObjs[0].onoff = 0;
+            pidObjs[1].onoff = 0;
+            bodyPose.count = 0;
         }
 
         // Propagate Euler angles based on projection of body-fixed basis vectors onto Euler basis

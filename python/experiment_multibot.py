@@ -24,6 +24,7 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
+    # R1 = Velociroach('\x21\x63', xb)
     R1 = Velociroach('\x21\x62', xb)
     # R1.SAVE_DATA = False
     R1.SAVE_DATA = True
@@ -51,8 +52,10 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,1000,100,100,200, 5000,1000,100,100,200]
-    # motorgains = [0,300,0,30000,0, 0,0,0,0,0] Note: with full error, unsaturates in 10-15 ms
+    # motorgains = [8000,1000,100,0,2500, 8000,1000,100,0,2500]
+    motorgains = [5000,1000,100,0,500, 5000,1000,100,0,500]
+    # motorgains = [15000,2000,100,0,2500, 15000,2000,100,0,2500]
+    # motorgains = [0,0,0,0,3500, 0,0,0,0,3500]
 
     ## Set up different gaits to be used in the trials
     slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
@@ -76,7 +79,7 @@ def main():
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=8, leftFreq=8)
+    fastAltTripod = GaitConfig(motorgains, rightFreq=10, leftFreq=10)
     fastAltTripod.phase = PHASE_180_DEG                           
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
@@ -103,7 +106,7 @@ def main():
     # R1.setGait(fastAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 3100 #ms
+    EXPERIMENT_RUN_TIME_MS     = 2000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
@@ -131,7 +134,7 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    # R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) #Faked for now, since pullin doesn't have a working VR+AMS to test with
+    # R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) 
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########
     

@@ -40,6 +40,13 @@
 // Averaging window
 #define AVGWINDOW 100 // Number of counts to wait until averaging Euler angles and gyro offsets
 
+// Constants governing reset of pose with accelerometer
+#define COSTHRESH 150 // Threshold for cosine too close to zero (ranges from -2^9 to 2^9)
+#define POSERESETCOUNTS 1000 // Number of counts (ms) to turn off motors for pose reset
+
+// Constants for repeated timed trial
+#define AZTHRESH -12228 // Set threshold of downward flick z acceleration to trigger repeat trial (4096 counts per g)
+#define REPEATCOUNTS 1000 // Number of counts (ms) to wait before repeating timed trial
 
 /* The back emf constant can be measured by measuring velocity from Hall encoder 
  * 80 rad/sec = 12.5 rev/sec = 834 encPos[].pos/sec

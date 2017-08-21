@@ -8,7 +8,6 @@ The main function will send all the setup parameters to the robots, execute defi
 
 """
 from lib import command
-import msvcrt, sys
 import time,sys,os,traceback
 import serial
 
@@ -22,21 +21,12 @@ from velociroach import *
 ####### Wait at exit? #######
 EXIT_WAIT   = False
 
-def menu():
-    print "-------------------------------------"
-    print "Keyboard control April 28 2015"
-    print " a:slow left    s:slow tripod   d:slow right    w:slow bound   t:fast bound"
-    print " f:fast left    g:fast tripod   h:fast right    q: quit"
-
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x63', xb)
-    # R1.SAVE_DATA = True
     R1.SAVE_DATA = False
-    PHASE_LEFT = 23666
-    PHASE_RIGHT = 41870
-    STRIDE_FREQ = 5
+    # R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -59,11 +49,23 @@ def main():
     verifyAllQueried()  # exits on failure
     
     # Motor gains format:
+    #  [ Kp , Ki , Kd , Kaw , Kff]
+    tailgains = [500,750,30,2000,0]
+    # tailgains = [500,0,0,0,0]
+
+    # Set up autonomous self-righting parameters
+    pamp = 120
+    swing_duration = 400
+
+    selfRight = TailConfig(tailgains)
+    selfRight.pInput = pamp
+    selfRight.swing_duration = swing_duration
+
+    # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    # motorgains = [3000,200,100,0,200, 3000,200,100,0,200]
-    motorgains = [5000,1000,100,0,500, 5000,1000,100,0,500]
-
+    motorgains = [5000,1000,100,100,1000, 5000,1000,100,100,1000]
+    # motorgains = [0,0,0,0,3800, 0,0,0,0,3800] 
 
     ## Set up different gaits to be used in the trials
     slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
@@ -81,46 +83,36 @@ def main():
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=6, leftFreq=6)
+    fastAltTripod = GaitConfig(motorgains, rightFreq=10, leftFreq=10)
     fastAltTripod.phase = PHASE_180_DEG                           
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    slowRightTurn = GaitConfig(motorgains, rightFreq=1, leftFreq=2)
-    slowRightTurn.phase = PHASE_RIGHT                        
-    slowRightTurn.deltasLeft = [0.25, 0.25, 0.25]
-    slowRightTurn.deltasRight = [0.25, 0.25, 0.25]
+    # Zero tail position
+    R1.zeroTailPosition()
 
-    slowLeftTurn = GaitConfig(motorgains, rightFreq=2, leftFreq=1)
-    slowLeftTurn.phase = PHASE_LEFT                         
-    slowLeftTurn.deltasLeft = [0.25, 0.25, 0.25]
-    slowLeftTurn.deltasRight = [0.25, 0.25, 0.25]
+    # Set tail control
+    R1.setTailControl(selfRight)
 
-    fastRightTurn = GaitConfig(motorgains, rightFreq=3, leftFreq=6)
-    fastRightTurn.phase = PHASE_180_DEG                          
-    fastRightTurn.deltasLeft = [0.25, 0.25, 0.25]
-    fastRightTurn.deltasRight = [0.25, 0.25, 0.25]
-
-    fastLeftTurn = GaitConfig(motorgains, rightFreq=6, leftFreq=3)
-    fastLeftTurn.phase = PHASE_180_DEG                          
-    fastLeftTurn.deltasLeft = [0.25, 0.25, 0.25]
-    fastLeftTurn.deltasRight = [0.25, 0.25, 0.25]
-    
-    # Set the timings of each segment of the run
-    T = 4000
+    # Configure intra-stride control
+    # R1.setGait(fastAltTripod)
+    # R1.setGait(fastBound)
+    R1.setGait(slowAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_SAVE_TIME_MS     = T
+    EXPERIMENT_RUN_TIME_MS     = 10000 #ms
+    EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
+    EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
-            #This needs to be done to prepare the .telemtryData variables in each robot object
-            r.setupTelemetryDataTime(EXPERIMENT_SAVE_TIME_MS)
+            #This needs to be done to preparne the .telemtryData variables in each robot object
+            r.setupTelemetryDataTime(EXPERIMENT_LEADIN_TIME_MS + EXPERIMENT_RUN_TIME_MS + EXPERIMENT_LEADOUT_TIME_MS)
             r.eraseFlashMem()
-    
-        print ""
-
+        
+    # Pause and wait to start run, including lead-in time
+    print ""
     print "  ***************************"
     print "  *******    READY    *******"
     print "  ***************************"
@@ -131,45 +123,19 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             r.startTelemetrySave()
-
-    exit_flag = False
-
-    while exit_flag == False:
-        menu()
-        keypress = msvcrt.getch()
-        if keypress == 'a':
-            R1.setGait(slowLeftTurn)
-            R1.startTimedRun( T )
-        elif keypress == 's':
-            R1.setGait(slowAltTripod)
-            R1.startTimedRun( T )
-        elif keypress == 'd':
-            R1.setGait(slowRightTurn)
-            R1.startTimedRun( T )
-        elif keypress == 'w':
-            R1.setGait(slowBound)
-            R1.startTimedRun( T )
-        elif keypress == 'f':
-            R1.setGait(fastLeftTurn)
-            R1.startTimedRun( T )
-        elif keypress == 'g':
-            R1.setGait(fastAltTripod)
-            R1.startTimedRun( T )
-        elif keypress == 'h':
-            R1.setGait(fastRightTurn)
-            R1.startTimedRun( T )
-        elif keypress == 't':
-            R1.setGait(fastBound)
-            R1.startTimedRun( T )
-        elif (keypress == 'q') or (ord(keypress) == 26):
-            print "Exit."
-            exit_flag = True
-
-        time.sleep(T/1000.0)
-
-    time.sleep(0.1)
-
-    ## Save data after runs
+    
+    # Sleep for a lead-in time before any motion commands
+    time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
+    
+    ######## Motion is initiated here! ########
+    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS )
+    R1.startTailTimedRun( EXPERIMENT_RUN_TIME_MS )
+    time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
+    ######## End of motion commands   ########
+    
+    # Sleep for a lead-out time after any motion
+    time.sleep(EXPERIMENT_LEADOUT_TIME_MS / 1000.0) 
+    
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
@@ -180,7 +146,7 @@ def main():
             time.sleep(0.1)
 
     print "Done"
-    
+
 #Provide a try-except over the whole main function
 # for clean exit. The Xbee module should have better
 # provisions for handling a clean exit, but it doesn't.

@@ -24,9 +24,9 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x62', xb)
-    # R1.SAVE_DATA = False
-    R1.SAVE_DATA = True
+    R1 = Velociroach('\x21\x63', xb)
+    R1.SAVE_DATA = False
+    # R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -51,7 +51,9 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]
     tailgains = [1500,750,20,2000,0]
-    # tailgains = [0,0,0,0,0]
+    # tailgains = [1500,750,20,2000,1700]
+    # tailgains = [0,0,0,0,1700]
+    # tailgains = [0,0,0,0,3800]
     # Set up different tail commands
     plim = 180
 
@@ -74,14 +76,14 @@ def main():
 
     # Set tail control
     # R1.setTailControl(posFwd)
-    # R1.setTailControl(posBwd)
-    R1.setTailControl(spinFwd)
+    R1.setTailControl(posBwd)
+    # R1.setTailControl(spinFwd)
     # R1.setTailControl(spinBwd)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 3000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 1000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
-    EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
+    EXPERIMENT_LEADOUT_TIME_MS = 500  #ms
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:

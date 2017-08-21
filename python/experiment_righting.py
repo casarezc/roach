@@ -50,7 +50,7 @@ def main():
     
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]
-    tailgains = [1500,750,20,2000,0]
+    tailgains = [750,750,30,2000,0]
     # tailgains = [500,0,0,0,0]
 
     # Set up autonomous self-righting parameters
@@ -64,8 +64,8 @@ def main():
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,1000,100,100,200, 5000,1000,100,100,200]
-    # motorgains = [0,0,0,0,3800, 0,0,0,0,3800] #Note: with full error, unsaturates in 10-15 ms
+    motorgains = [5000,1000,100,100,1000, 5000,1000,100,100,1000]
+    # motorgains = [0,0,0,0,3800, 0,0,0,0,3800] 
 
     ## Set up different gaits to be used in the trials
     slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
@@ -83,7 +83,7 @@ def main():
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=6, leftFreq=6)
+    fastAltTripod = GaitConfig(motorgains, rightFreq=10, leftFreq=10)
     fastAltTripod.phase = PHASE_180_DEG                           
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
@@ -95,12 +95,12 @@ def main():
     R1.setTailControl(selfRight)
 
     # Configure intra-stride control
-    R1.setGait(fastAltTripod)
+    # R1.setGait(fastAltTripod)
     # R1.setGait(fastBound)
-    # R1.setGait(slowAltTripod)
+    R1.setGait(slowAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 4000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 10000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
@@ -128,7 +128,7 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    # R1.startTimedRun( EXPERIMENT_RUN_TIME_MS )
+    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS )
     R1.startTailTimedRun( EXPERIMENT_RUN_TIME_MS )
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########

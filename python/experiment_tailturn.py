@@ -50,11 +50,11 @@ def main():
     
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]
-    tailgains = [1500,750,20,2000,0]
-    # tailgains = [500,0,0,0,0]
+    # tailgains = [1500,750,20,2000,0]
+    tailgains = [0,0,0,0,-2500]
 
     # Set up different tail commands
-    plim = 0
+    plim = 120
 
     posFwd = TailConfig(tailgains)
     posFwd.pInput = plim
