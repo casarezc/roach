@@ -424,6 +424,11 @@ class Velociroach:
         print "Starting timed tail run of",duration," ms"
         self.tx( 0, command.START_TAIL_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
+    def setOpenLoopThrust(self, left_pwm, right_pwm):
+        print "Setting PWM Left:", left_pwm, " Right:", right_pwm
+        temp = [left_pwm, right_pwm]
+        self.tx(0, command.SET_MOTOR_MODE, pack('2h', *temp))
+
         
 ########## Helper functions #################
 #TODO: find a home for these? Possibly in BaseStation class (pullin, abuchan)

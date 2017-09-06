@@ -24,8 +24,8 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    # R1 = Velociroach('\x21\x63', xb)
-    R1 = Velociroach('\x21\x62', xb)
+    # R1 = Velociroach('\x21\x63', xb) #Black foam
+    R1 = Velociroach('\x21\x62', xb) #Green foam
     # R1.SAVE_DATA = False
     R1.SAVE_DATA = True
                             
@@ -53,7 +53,8 @@ def main():
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
     # motorgains = [8000,1000,100,0,2500, 8000,1000,100,0,2500]
-    motorgains = [5000,1000,100,0,500, 5000,1000,100,0,500]
+    # motorgains = [5000,1000,100,0,500, 5000,1000,100,0,500]
+    motorgains = [5000,1000,100,100,1000, 5000,1000,100,100,1000]
     # motorgains = [15000,2000,100,0,2500, 15000,2000,100,0,2500]
     # motorgains = [0,0,0,0,3500, 0,0,0,0,3500]
 
@@ -79,31 +80,21 @@ def main():
     slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
+    medAltTripod = GaitConfig(motorgains, rightFreq=5, leftFreq=5)
+    medAltTripod.phase = PHASE_180_DEG                           
+    medAltTripod.deltasLeft = [0.25, 0.25, 0.25]
+    medAltTripod.deltasRight = [0.25, 0.25, 0.25]
+
     fastAltTripod = GaitConfig(motorgains, rightFreq=10, leftFreq=10)
     fastAltTripod.phase = PHASE_180_DEG                           
     fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
     fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
 
-    holdCenter = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdCenter.phase = 0                          
-    holdCenter.deltasLeft = [0, 0, 0]
-    holdCenter.deltasRight = [0, 0, 0]
-
-    holdBack = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    holdBack.phase = 0                          
-    holdBack.deltasLeft = [0.25, 0, 0]
-    holdBack.deltasRight = [0.25, 0, 0]
-
-    holdBackLong = GaitConfig(motorgains, rightFreq=1, leftFreq=1)
-    holdBackLong.phase = 0                          
-    holdBackLong.deltasLeft = [0.25, 0, 0]
-    holdBackLong.deltasRight = [0.25, 0, 0]
-
-
     
     # Configure intra-stride control
-    R1.setGait(slowAltTripod)
-    # R1.setGait(fastAltTripod)
+    # R1.setGait(slowAltTripod)
+    # R1.setGait(medAltTripod)
+    R1.setGait(fastAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 2000 #ms
@@ -134,7 +125,7 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    # R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) 
+    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) 
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########
     
