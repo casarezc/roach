@@ -32,7 +32,7 @@ def menu():
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x62', xb)
+    R1 = Velociroach('\x21\x63', xb)
     # R1.SAVE_DATA = True
     R1.SAVE_DATA = False
 
@@ -42,10 +42,10 @@ def main():
     RIGHT_SIGN = -1
 
     # Initialize pwm
-    # left_pwm = 3000
-    # right_pwm = 0
-    left_pwm = 0
-    right_pwm = -3000
+    left_pwm = 3000
+    right_pwm = 0
+    # left_pwm = 0
+    # right_pwm = -3000
 
     # Wait time between commands
     T_WAIT = 500

@@ -35,9 +35,11 @@ def main():
     EXPERIMENT_SAVE_TIME_MS     = 10000
 
     # Set constants for setting control
-    TAIL_ANGLE_INC =90 #degrees
-    DRIVE_FREQ_INC = 1  #Hz
+    TAIL_ANGLE_INC = 90 #degrees
+    DRIVE_FREQ_INC = 4  #Hz
     TAIL_POS_MAX = 359 #degrees
+
+    PHASE = PHASE_180_DEG
     ########################################################################################################
 
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
@@ -77,16 +79,18 @@ def main():
     # motorgains = [5000,1000,100,0,500, 5000,1000,100,0,500]
     motorgains = [5000,1000,100,100,1000, 5000,1000,100,100,1000]
 
+
     # Tail gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]
     # tailgains = [1500,750,20,2000,0]
     # tailgains = [500,250,10,1000,0]
-    tailgains = [1500,750,20,2000,0]
+    # tailgains = [1500,750,20,2000,0]
+    tailgains = [500,750,30,2000,0]
 
     # Zero motors and set gains, fixed gait parameters
     R1.zeroPosition()
     R1.setMotorGains(motorgains)
-    R1.setPhase(0)
+    R1.setPhase(PHASE)
 
     R1.zeroTailPosition()
     R1.setTailGains(tailgains)
@@ -191,7 +195,7 @@ def main():
             tempGait = GaitConfig(motorgains, rightFreq=right_freq, leftFreq=left_freq)
             tempGait.deltasLeft = [0.25, 0.25, 0.25]
             tempGait.deltasRight = [0.25, 0.25, 0.25]
-            R1.setPhase(0)
+            R1.setPhase(PHASE)
             R1.setVelProfile(tempGait)
 
         R1.setTailPos(tail_pos)

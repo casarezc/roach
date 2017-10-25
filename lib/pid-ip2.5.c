@@ -800,6 +800,10 @@ void initTailObj(pidTail *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
     pid->v_error = 0;
     pid->i_error = 0;
 
+    pid->rev_count = 0;
+    pid->zero_val = 0;
+    pid->zero_state = 0;
+
     pid->p_state_flip = 0; //default to no flip
     pid->output_channel = 0;
 }
@@ -904,6 +908,9 @@ void tailZeroPos() {
     // reset inputs as well
     tailObjs.p_input = 0;
     tailObjs.v_input = 0;
+
+    tailObjs.zero_val = 0;
+    tailObjs.rev_count = 0;
     EnableIntT1; // turn on pid interrupts
 }
 
@@ -912,6 +919,9 @@ void tailGetState() {
     int enc_num;
     int encPosition, encOticks;
     unsigned int encOffset;
+
+    unsigned int tail_zero_input;
+
 
     unsigned long time_start, time_end;
     //	calib_flag = 0;  //BEMF disable
@@ -940,11 +950,15 @@ void tailGetState() {
     p_state = p_state - ((long)encOffset << 2); // subtract offset to get zero position
     p_state = p_state + ((long)encOticks << 16);
 
-    tailObjs.p_state = p_state;
-
+    // Flip position state if p state flip is high
     if(tailObjs.p_state_flip){
-        tailObjs.p_state = -tailObjs.p_state;
+        p_state = -p_state;
     }
+
+    p_state = p_state + ((long) tailObjs.rev_count)*TAIL_FULL_REV*TAIL_GEAR_RATIO; // Add full revolutions stored after zeroing tail
+    p_state = p_state + ((long) tailObjs.zero_val)*TAIL_GEAR_RATIO; // Add zeroed values to calibrated hall trigger
+
+    tailObjs.p_state = p_state;
 
     time_end = sclockGetTime() - time_start;
 
@@ -1006,6 +1020,42 @@ void tailGetState() {
         LED_BLUE = 0;
     }
 #endif
+
+    // Get tail zero input value
+    tail_zero_input = (unsigned int) (TAIL_ZERO_INPUT==0);
+
+    // Tail zeroing routine wait for at least a dozen consecutive high readings and then a low (falling edge detection) to zero tail
+    tailObjs.zero_state = (tailObjs.zero_state << 1)|(tail_zero_input)|(0xe000);
+
+    if (tailObjs.zero_state == 0xfffe){
+
+        // Round tail position state to nearest full revolution
+        if (p_state > 0){
+            p_state = p_state + TAIL_REV_TOL;
+        }
+        else{
+            p_state = p_state - TAIL_REV_TOL;
+        }
+
+        // Store revolution counter
+        tailObjs.rev_count = (p_state/(TAIL_FULL_REV*TAIL_GEAR_RATIO));
+
+        // Set different zero points based on tail velocity
+        if (tailObjs.v_state >= 0) {
+            tailObjs.zero_val = TAIL_ZERO_POS;
+        }
+        else {
+            tailObjs.zero_val = TAIL_ZERO_NEG;
+        }
+
+        // Toggle red LED to indicate zeroing event
+        LED_RED = ~LED_RED;
+
+        // Reset encoder accumulation
+        amsEncoderResetPos(tailObjs.encoder_num); //  reinitialize rev count and zero position for tail encoder
+    }
+
+
 }
 
 void tailSetControl() {

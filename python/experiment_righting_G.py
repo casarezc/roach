@@ -73,7 +73,7 @@ def main():
     slowBound.deltasLeft = [0.25, 0.25, 0.25]
     slowBound.deltasRight = [0.25, 0.25, 0.25]
 
-    fastBound = GaitConfig(motorgains, rightFreq=6, leftFreq=6)
+    fastBound = GaitConfig(motorgains, rightFreq=10, leftFreq=10)
     fastBound.phase = 0
     fastBound.deltasLeft = [0.25, 0.25, 0.25]
     fastBound.deltasRight = [0.25, 0.25, 0.25]
@@ -95,9 +95,9 @@ def main():
     R1.setTailControl(selfRight)
 
     # Configure intra-stride control
-    # R1.setGait(fastAltTripod)
+    R1.setGait(fastAltTripod)
     # R1.setGait(fastBound)
-    R1.setGait(slowAltTripod)
+    # R1.setGait(slowAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
     EXPERIMENT_RUN_TIME_MS     = 10000 #ms

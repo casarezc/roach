@@ -20,6 +20,12 @@
 // Tail motor gear ratio speed of input shaft to output shaft
 #define TAIL_GEAR_RATIO 30
 
+// Tail counts for full revolution
+#define TAIL_FULL_REV 65536
+
+// Tail tolerance to add to value for full revolution rounding 
+#define TAIL_REV_TOL 54600
+
 // select either back emf or backwd diff for vel est
 #define VEL_BEMF 0
 
@@ -146,6 +152,11 @@ typedef struct {
     int counter;
     int swing_period;
 
+    //Zeroing state
+    int rev_count;
+    int zero_val;
+    unsigned int zero_state;
+
     //Configuration constants
     unsigned char p_state_flip; //boolean; flip or do not flip
     unsigned char output_channel;
@@ -215,6 +226,7 @@ typedef struct {
 #ifndef TAIL_TIH_CHAN
 #define TAIL_TIH_CHAN     3       //tiH module index is 1-4
 #endif
+
 
 
 //Functions
