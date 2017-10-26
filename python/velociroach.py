@@ -61,16 +61,20 @@ class GaitConfig:
 class TailConfig:
     motorgains = None
     swing_duration = None
+    right_flag = None
     pInput = None
+    pBias = None
     vInput = None
-    def __init__(self, motorgains = None, swing_duration = None, pInput = None, vInput = None):
+    def __init__(self, motorgains = None, swing_duration = None, right_flag = None, pInput = None, pBias = None, vInput = None):
         if motorgains == None:
             self.motorgains = [0,0,0,0,0]
         else:
             self.motorgains = motorgains
         
         self.swing_duration = swing_duration
+        self.right_flag = right_flag
         self.pInput = pInput
+        self.pBias = pBias
         self.vInput = vInput
         
 class Velociroach:
@@ -354,7 +358,10 @@ class Velociroach:
         print " --- Setting complete tail config --- "
         self.setTailGains(tailConfig.motorgains)
         if tailConfig.swing_duration is not None:
-            self.setRightingInput(tailConfig.pInput, tailConfig.swing_duration)
+            if tailConfig.right_flag is not None:
+                self.setRightingInput(tailConfig.pInput, tailConfig.swing_duration)
+            else:
+                self.setPeriodicInput(tailConfig.pInput, tailConfig.pBias, tailConfig.swing_duration)
         else:
             if tailConfig.vInput is not None:
                 self.setTailVel(tailConfig.vInput)
@@ -401,6 +408,15 @@ class Velociroach:
         temp = [pInput*32768/360, period]
         
         self.tx( 0, command.SET_TAIL_RINPUT, pack('2h', *temp))
+        time.sleep(0.1)
+
+    def setPeriodicInput(self, pAmp, pBias, period):
+        self.clAnnounce()
+        print "Periodic tail motion--swing amplitude",pAmp,"degrees; position bias",pBias," degrees; swing duration",period,"ms"
+
+        temp = [pAmp*32768/360, pBias*32768/360, period]
+        
+        self.tx( 0, command.SET_TAIL_PERINPUT, pack('3h', *temp))
         time.sleep(0.1)
 
     def startTail(self):

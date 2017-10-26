@@ -61,6 +61,7 @@ static unsigned char cmdZeroTailPos(unsigned char type, unsigned char status, un
 static unsigned char cmdSetTailPInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetTailVInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdSetTailRightingInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetTailPeriodicInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStopTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 
@@ -104,6 +105,7 @@ void cmdSetup(void) {
     cmd_func[CMD_SET_TAIL_PINPUT] = &cmdSetTailPInput;
     cmd_func[CMD_SET_TAIL_VINPUT] = &cmdSetTailVInput;
     cmd_func[CMD_SET_TAIL_RINPUT] = &cmdSetTailRightingInput;
+    cmd_func[CMD_SET_TAIL_PERINPUT] = &cmdSetTailPeriodicInput;
     cmd_func[CMD_START_TAIL_TIMED_RUN] = &cmdStartTailTimedRun;
     cmd_func[CMD_START_TAIL_MOTOR] = &cmdStartTailMotor;
     cmd_func[CMD_STOP_TAIL_MOTOR] = &cmdStopTailMotor;
@@ -416,6 +418,20 @@ unsigned char cmdSetTailRightingInput(unsigned char type, unsigned char status, 
     tailSetRightingInput(p_input, argsPtr->period);
 
     radioSendData(src_addr, status, CMD_SET_TAIL_RINPUT, 4, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+    //Send confirmation packet
+    // WARNING: Will fail at high data throughput
+    //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);
+    return 1; //success
+}
+
+unsigned char cmdSetTailPeriodicInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    PKT_UNPACK(_args_cmdSetTailPeriodicInput, argsPtr, frame);
+
+    // Set periodic input, send radio confirmation packet
+    tailSetPeriodicInput(argsPtr->amp, argsPtr->bias, argsPtr->period);
+
+    radioSendData(src_addr, status, CMD_SET_TAIL_PERINPUT, 6, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
     // WARNING: Will fail at high data throughput
     //radioConfirmationPacket(RADIO_DEST_ADDR, CMD_SET_PID_GAINS, status, 20, frame);

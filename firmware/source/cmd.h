@@ -34,6 +34,7 @@
 #define CMD_START_TAIL_MOTOR        0xD5
 #define CMD_STOP_TAIL_MOTOR         0xD6
 #define CMD_SET_TAIL_RINPUT         0xD7
+#define CMD_SET_TAIL_PERINPUT       0xD8
 
 // Redefine
 
@@ -126,6 +127,13 @@ typedef struct{
 	int16_t pos;
         int16_t period;
 } _args_cmdSetTailRightingInput;
+
+//cmdSetTailPeriodicInput
+typedef struct{
+	int16_t amp;
+        int16_t bias;
+        int16_t period;
+} _args_cmdSetTailPeriodicInput;
 
 //cmdStartTailTimedRun
 typedef struct{

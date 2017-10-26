@@ -53,14 +53,15 @@ def main():
     tailgains = [500,750,30,2000,0]
     # tailgains = [500,0,0,0,0]
 
-    # Set up autonomous self-righting parameters
-    pamp = 120
+    # Set up periodic tail gait parameters
+    p_amp = 30
+    p_bias = 90
     swing_duration = 400
 
-    selfRight = TailConfig(tailgains)
-    selfRight.pInput = pamp
-    selfRight.swing_duration = swing_duration
-    selfRight.right_flag = 1
+    tailSwing = TailConfig(tailgains)
+    tailSwing.pInput = p_amp
+    tailSwing.pBias = p_bias
+    tailSwing.swing_duration = swing_duration
 
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
@@ -93,15 +94,15 @@ def main():
     R1.zeroTailPosition()
 
     # Set tail control
-    R1.setTailControl(selfRight)
+    R1.setTailControl(tailSwing)
 
     # Configure intra-stride control
-    R1.setGait(fastAltTripod)
+    # R1.setGait(fastAltTripod)
     # R1.setGait(fastBound)
-    # R1.setGait(slowAltTripod)
+    R1.setGait(slowAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 10000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 5000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     

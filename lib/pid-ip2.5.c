@@ -869,6 +869,33 @@ void tailSetRightingInput(long p_input, int swing_period) {
 
 }
 
+// Used to set position amplitude, position bias, swing period of periodic tail motion
+// p_amp, p_bias are in units of output shaft counts, where 2^15 counts is 180 degrees of rotation
+// swing_period is in units of milliseconds
+void tailSetPeriodicInput(int p_amp, int p_bias, int swing_period) {
+    tailObjs.mode = TAIL_MODE_PERIODIC; //periodic control mode
+    tailObjs.p_input = (long) (p_bias - p_amp); //first position setpoint
+    tailObjs.p_input = tailObjs.p_input*2*TAIL_GEAR_RATIO; //scale up to correct units
+    tailObjs.p_interpolate = 0;
+    tailObjs.v_input = 0; //zero velocity setpoint
+    tailObjs.start_time = t1_ticks;
+    //zero out running PID values
+    tailObjs.i_error = 0;
+    tailObjs.p = 0;
+    tailObjs.i = 0;
+    tailObjs.d = 0;
+    //Seed the median filter
+    measTLast1 = 0;
+    measTLast2 = 0;
+
+    //Initialize swing sign and store amplitude, bias, period
+    tailObjs.swing_sign = 0;
+    tailObjs.p_amp = p_amp;
+    tailObjs.p_bias = p_bias;
+    tailObjs.swing_period = swing_period;
+
+}
+
 void tailStartTimedTrial(unsigned int run_time){
     unsigned long temp;
 
@@ -1029,7 +1056,7 @@ void tailGetState() {
 
     if (tailObjs.zero_state == 0xfffe){
 
-        // Round tail position state to nearest full revolution
+        // Add a tolerance to capture almost full revolutions
         if (p_state > 0){
             p_state = p_state + TAIL_REV_TOL;
         }
@@ -1139,6 +1166,39 @@ void tailSetControl() {
             tiHSetDC(tailObjs.output_channel, 0);
         }
 
+    }
+    else if ((tailObjs.mode == TAIL_MODE_PERIODIC) && (tailObjs.onoff == PID_ON)) {
+
+        // Increment counter
+        tailObjs.counter++;
+
+        // If counter is above swing period, switch tail position
+        if (tailObjs.counter >= tailObjs.swing_period){
+            tailObjs.counter = 0;
+
+            if (tailObjs.swing_sign == 0){
+                tailObjs.swing_sign = 1;
+                tailObjs.p_input = (long) (tailObjs.p_bias + tailObjs.p_amp); //Note that these are both in units of 2^15 counts per 180 degrees
+            } else {
+                tailObjs.swing_sign = 0;
+                tailObjs.p_input = (long) (tailObjs.p_bias - tailObjs.p_amp);
+            }
+
+            tailObjs.p_input = tailObjs.p_input*2*TAIL_GEAR_RATIO; //Scale to correct p_input units
+        }
+
+        // Update error values
+        tailObjs.p_error = tailObjs.p_input - tailObjs.p_state;
+        tailObjs.v_error = tailObjs.v_input - tailObjs.v_state; // note that this will be executed when v_input=0
+
+        //Update PID values
+        UpdateTailPID(&(tailObjs));
+
+        if (tailObjs.pwm_flip) {
+            tiHSetDC(tailObjs.output_channel, -tailObjs.output);
+        } else {
+            tiHSetDC(tailObjs.output_channel, tailObjs.output);
+        }
     } else {
         tailObjs.output = 0;
         tiHSetDC(tailObjs.output_channel, 0);

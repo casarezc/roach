@@ -78,6 +78,7 @@
 #define TAIL_MODE_POSITION 0
 #define TAIL_MODE_VELOCITY 1
 #define TAIL_MODE_RIGHTING 2
+#define TAIL_MODE_PERIODIC 3
 
 // pid type for leg control
 
@@ -136,7 +137,7 @@ typedef struct {
     long preSat; // output value before saturations
     int output; //  control output u
     char onoff; //boolean
-    char mode; //Control mode: 0 if position, 1 if velocity
+    char mode; //Control mode: 0 if position, 1 if velocity, 2 if righting, 3 if periodic
     char timeFlag;
     unsigned long run_time;
     unsigned long start_time;
@@ -148,9 +149,12 @@ typedef struct {
     //Velocity control variables
     long p_interpolate; // position interpolation after velocity update
 
-    //Righting behavior variables
+    //Periodic tail motion variables (2 or 3)
+    char swing_sign;
     int counter;
     int swing_period;
+    int p_amp;
+    int p_bias;
 
     //Zeroing state
     int rev_count;
@@ -266,6 +270,7 @@ void initTailObj(pidTail *pid, int Kp, int Ki, int Kd, int Kaw, int ff);
 void tailSetPInput(long input_val);
 void tailSetVInput(int input_val);
 void tailSetRightingInput(long p_input, int swing_period);
+void tailSetPeriodicInput(int p_amp, int p_bias, int swing_period);
 void tailStartTimedTrial(unsigned int run_time);
 void tailSetGains(int Kp, int Ki, int Kd, int Kaw, int ff);
 void tailOn();

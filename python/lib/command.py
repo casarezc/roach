@@ -79,5 +79,6 @@ START_TAIL_TIMED_RUN    =	0xD4
 START_TAIL_MOTOR        =	0xD5
 STOP_TAIL_MOTOR         =	0xD6
 SET_TAIL_RINPUT         =	0xD7
+SET_TAIL_PERINPUT       =	0xD8
 
 # CMD values of 0xF0(240) - 0xFF(255) are reserved for future use

@@ -33,6 +33,7 @@ pktFormat = { \
     command.SET_TAIL_PINPUT:        'h',\
     command.SET_TAIL_VINPUT:        'h',\
     command.SET_TAIL_RINPUT:        '2h',\
+    command.SET_TAIL_PERINPUT:      '3h',\
     }
                
 #XBee callback function, called every time a packet is recieved
@@ -174,6 +175,12 @@ def xbee_received(packet):
             print "Set autonomous righting params readback:"
             temp = unpack(pattern, data)
             print "Swing amplitude:",temp[0]," counts; Swing duration:",temp[1]," ms"
+
+        # SET_TAIL_PerRINPUT
+        elif type == command.SET_TAIL_PERINPUT:
+            print "Set periodic tail motion params readback:"
+            temp = unpack(pattern, data)
+            print "Swing amplitude:",temp[0]," counts; Pos bias:",temp[1]," counts; Swing duration:",temp[2]," ms"
 
     except KeyboardInterrupt:
         print "\nRecieved Ctrl+C in callbackfunc, exiting."
