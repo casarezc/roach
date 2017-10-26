@@ -1064,8 +1064,6 @@ void tailGetState() {
             p_state = p_state - TAIL_REV_TOL;
         }
 
-        // Store revolution counter
-        tailObjs.rev_count = (p_state/(TAIL_FULL_REV*TAIL_GEAR_RATIO));
 
         // Set different zero points based on tail velocity
         if (tailObjs.v_state >= 0) {
@@ -1074,6 +1072,10 @@ void tailGetState() {
         else {
             tailObjs.zero_val = TAIL_ZERO_NEG;
         }
+
+        // Store revolution counter
+        p_state = p_state/(TAIL_FULL_REV*TAIL_GEAR_RATIO);
+        tailObjs.rev_count = (int) p_state;
 
         // Toggle red LED to indicate zeroing event
         LED_RED = ~LED_RED;

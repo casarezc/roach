@@ -24,7 +24,7 @@
 #define TAIL_FULL_REV 65536
 
 // Tail tolerance to add to value for full revolution rounding 
-#define TAIL_REV_TOL 54600
+#define TAIL_REV_TOL 200000
 
 // select either back emf or backwd diff for vel est
 #define VEL_BEMF 0
