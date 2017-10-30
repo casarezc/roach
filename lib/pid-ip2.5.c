@@ -1382,11 +1382,11 @@ void computeEulerAngles(){
                 pidStartTimedTrial(pidObjs[0].run_time);
 
                 // Zero tail
-                tail_p_input_temp = tailObjs.p_input;
-                tail_v_input_temp = tailObjs.v_input;
-                tailZeroPos();
-                tailObjs.p_input = tail_p_input_temp;
-                tailObjs.v_input = tail_v_input_temp;
+               // tail_p_input_temp = tailObjs.p_input;
+               // tail_v_input_temp = tailObjs.v_input;
+                //tailZeroPos();
+               // tailObjs.p_input = tail_p_input_temp;
+               // tailObjs.v_input = tail_v_input_temp;
 
                 // Reset timed trial vars tail PID obj
                 tailSetTimeFlag(1);

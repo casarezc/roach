@@ -36,7 +36,7 @@ def main():
 
     # Set constants for setting control
     TAIL_ANGLE_INC = 90 #degrees
-    DRIVE_FREQ_INC = 4  #Hz
+    DRIVE_FREQ_INC = 1  #Hz
     TAIL_POS_MAX = 359 #degrees
 
     PHASE = PHASE_180_DEG
