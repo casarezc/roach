@@ -110,6 +110,7 @@ def xbee_received(packet):
                         if telem_index <= r.numSamples:
                             r.telemtryData[telem_index] = datum
                         else:
+                            r.stop_telem = True
                             print "Got out of range telem_index =",telem_index
         
         # ERASE_SECTORS

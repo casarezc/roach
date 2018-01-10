@@ -35,11 +35,12 @@ def main():
     EXPERIMENT_SAVE_TIME_MS     = 10000
 
     # Set constants for setting control
-    TAIL_ANGLE_INC = 90 #degrees
+    TAIL_ANGLE_INC = 180 #degrees
     DRIVE_FREQ_INC = 1  #Hz
     TAIL_POS_MAX = 359 #degrees
 
     PHASE = PHASE_180_DEG
+    # PHASE = 0
     ########################################################################################################
 
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
@@ -77,7 +78,8 @@ def main():
     #    ----------LEFT----------        ---------_RIGHT----------
     # motorgains = [5000,500,200,100,200, 5000,500,100,200,200]
     # motorgains = [5000,1000,100,0,500, 5000,1000,100,0,500]
-    motorgains = [5000,1000,100,100,1000, 5000,1000,100,100,1000]
+    # motorgains = [5000,1000,100,100,1000, 5000,1000,100,100,1000]
+    motorgains = [10000,3000,100,0,500, 10000,3000,100,0,500]
 
 
     # Tail gains format:

@@ -24,7 +24,7 @@ EXIT_WAIT   = False
 def main():    
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
-    R1 = Velociroach('\x21\x63', xb)
+    R1 = Velociroach('\x21\x62', xb)
     R1.SAVE_DATA = False
     # R1.SAVE_DATA = True
                             
@@ -53,63 +53,84 @@ def main():
     tailgains = [500,750,30,2000,0]
     # tailgains = [500,0,0,0,0]
 
-    # Set up autonomous self-righting parameters
-    pamp = 120
-    swing_duration = 400
-
-    selfRight = TailConfig(tailgains)
-    selfRight.pInput = pamp
-    selfRight.swing_duration = swing_duration
-    selfRight.right_flag = 1
-
     # Motor gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff     ,  Kp , Ki , Kd , Kaw , Kff ]
     #    ----------LEFT----------        ---------_RIGHT----------
-    motorgains = [5000,1000,100,100,1000, 5000,1000,100,100,1000]
+    motorgains = [10000,3000,100,0,500, 10000,3000,100,0,500]
     # motorgains = [0,0,0,0,3800, 0,0,0,0,3800] 
 
-    ## Set up different gaits to be used in the trials
-    slowBound = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    slowBound.phase = 0
-    slowBound.deltasLeft = [0.25, 0.25, 0.25]
-    slowBound.deltasRight = [0.25, 0.25, 0.25]
+    # Set up tail swing parameters for zeroing
+    pzero = 90
+    pcal = 180
 
-    fastBound = GaitConfig(motorgains, rightFreq=6, leftFreq=6)
-    fastBound.phase = 0
-    fastBound.deltasLeft = [0.25, 0.25, 0.25]
-    fastBound.deltasRight = [0.25, 0.25, 0.25]
+    # Set stride frequency for straight running
+    freq = 1
 
-    slowAltTripod = GaitConfig(motorgains, rightFreq=2, leftFreq=2)
-    slowAltTripod.phase = PHASE_180_DEG                          
-    slowAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    slowAltTripod.deltasRight = [0.25, 0.25, 0.25]
+    # Swing ccw to find zero
+    zeroCCW = TailConfig(tailgains)
+    zeroCCW.pInput = pzero
 
-    fastAltTripod = GaitConfig(motorgains, rightFreq=10, leftFreq=10)
-    fastAltTripod.phase = PHASE_180_DEG                           
-    fastAltTripod.deltasLeft = [0.25, 0.25, 0.25]
-    fastAltTripod.deltasRight = [0.25, 0.25, 0.25]
+    # Swing cw to find zero
+    zeroCW = TailConfig(tailgains)
+    zeroCW.pInput = -pzero
 
-    # Zero tail position
-    R1.zeroTailPosition()
+    # Swing tail CCW to touch ground and provid an impulse
+    tailTouchCCW = TailConfig(tailgains)
+    tailTouchCCW.pInput = pcal
 
-    # Set tail control
-    R1.setTailControl(selfRight)
+    # Hold tail upright
+    tailUp = TailConfig(tailgains)
+    tailUp.pInput = 0
 
-    # Configure intra-stride control
-    R1.setGait(fastAltTripod)
-    # R1.setGait(fastBound)
-    # R1.setGait(slowAltTripod)
+    # Set alternating tripod gait
+    altTripod = GaitConfig(motorgains, rightFreq=freq, leftFreq=freq)
+    altTripod.phase = PHASE_180_DEG            
+    # Constant vel              
+    altTripod.deltasLeft = [0.25, 0.25, 0.25]
+    altTripod.deltasRight = [0.25, 0.25, 0.25]
+    # Faster push
+    # altTripod.deltasLeft = [0.175, 0.325, 0.325]
+    # altTripod.deltasRight = [0.325, 0.175, 0.175]
+    # Faster recirc
+    # altTripod.deltasLeft = [0.325, 0.175, 0.175]
+    # altTripod.deltasRight = [0.175, 0.325, 0.325]
 
-    # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 10000 #ms
-    EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
-    EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
+    phaseLocked = GaitConfig(motorgains, rightFreq=freq, leftFreq=freq)
+    phaseLocked.phase = PHASE_180_DEG                         
+    phaseLocked.deltasLeft = [0.25, 0.25, 0.25]
+    phaseLocked.deltasRight = [0.25, 0.25, 0.25]
+
+    # Set initial tail control to perform zeroing swing CW
+    R1.setTailControl(zeroCW)
+
+    # Set leg gait
+    R1.setGait(altTripod)
+    # R1.setGait(phaseLocked)
+
+    # Set experiment run times
+    T1 = 1000
+    T2 = 1000
+    T3 = 500
+    T4 = 0
+    # T1 = 50
+    # T2 = 50
+    # T3 = 50
+    # T4 = 0
+    if freq == 1:
+        T5 = 8000
+    else:
+        T5 = 4000
+    # T5 = 50
+    EXPERIMENT_WAIT_TIME_MS  = 200  #ms
+    EXPERIMENT_SAVEBUFFER_TIME_MS = 1000  #ms
+    # EXPERIMENT_SAVEBUFFER_TIME_MS = 50  #ms
+    EXPERIMENT_RUN_TIME_MS = T4 + T5
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             #This needs to be done to preparne the .telemtryData variables in each robot object
-            r.setupTelemetryDataTime(EXPERIMENT_LEADIN_TIME_MS + EXPERIMENT_RUN_TIME_MS + EXPERIMENT_LEADOUT_TIME_MS)
+            r.setupTelemetryDataTime(EXPERIMENT_SAVEBUFFER_TIME_MS + EXPERIMENT_RUN_TIME_MS)
             r.eraseFlashMem()
         
     # Pause and wait to start run, including lead-in time
@@ -120,27 +141,35 @@ def main():
     raw_input("  Press ENTER to start run ...")
     print ""
 
+    # Zeroing swing CW
+    R1.startTailTimedRun( T1 )
+    time.sleep((T1 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)  #argument to time.sleep is in SECONDS
+
+    # Zeroing swing CCW
+    R1.setTailControl(zeroCCW)
+    R1.startTailTimedRun( T2 )
+    time.sleep((T2 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)  
+
+    # Put tail upright
+    R1.setTailControl(tailUp)
+    R1.startTailTimedRun( T3 )
+    time.sleep((T3 + EXPERIMENT_WAIT_TIME_MS) / 1000.0) 
+
+
     # Initiate telemetry recording; the robot will begin recording immediately when cmd is received.
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             r.startTelemetrySave()
     
-    # Sleep for a lead-in time before any motion commands
-    time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
+    # Start running forward
+    R1.startTimedRun( T5 )
+    time.sleep((T5 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)  #argument to time.sleep is in SECONDS
     
-    ######## Motion is initiated here! ########
-    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS )
-    R1.startTailTimedRun( EXPERIMENT_RUN_TIME_MS )
-    time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
-    ######## End of motion commands   ########
-    
-    # Sleep for a lead-out time after any motion
-    time.sleep(EXPERIMENT_LEADOUT_TIME_MS / 1000.0) 
     
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry()
+            r.downloadTelemetry(filename = 'StraightRunLegTests12152017')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

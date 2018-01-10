@@ -10,9 +10,13 @@ from struct import pack,unpack
 from xbee import XBee
 from math import ceil,floor
 import numpy as np
+import os
 
 PHASE_0_DEG   = 0x0000
 PHASE_180_DEG = 0x8000
+PHASE_150_DEG = 0x9557
+PHASE_120_DEG = 0xAAAC
+PHASE_90_DEG = 0xC000
 
 class GaitConfig:
     motorgains = None
@@ -155,14 +159,33 @@ class Velociroach:
         self.tx( 0, command.START_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
         
-    def findFileName(self):   
-        # Construct filename
+    def findFileName(self, filename, maxnum = 100):   
+        # Auto-increment number appended to filename
         path     = 'Data/'
-        name     = 'trial'
-        datetime = time.localtime()
-        dt_str   = time.strftime('%Y.%m.%d_%H.%M.%S', datetime)
-        root     = path + dt_str + '_' + name
-        self.dataFileName = root + '_imudata.txt'
+        name     = filename
+        extension = '.txt'
+        # datetime = time.localtime()
+        # dt_str   = time.strftime('%Y.%m.%d_%H.%M.%S', datetime)
+        filenotfound = False
+        num = 1
+        self.dataFileName = 'error.txt'
+        while filenotfound is False:
+
+            if num < 10:
+                string = '00' + str(num)
+            elif (num>=10)&(num<100):
+                string = '0' + str(num)
+            else:
+                string = str(num)
+            filecheck = path + name + '_' + string + extension
+            if not os.path.isfile(filecheck):
+                filenotfound = True
+                self.dataFileName = filecheck
+            num += 1
+
+        # root     = path + dt_str + '_' + name
+
+        # self.dataFileName = root + '_imudata.txt'
         #self.clAnnounce()
         #print "Data file:  ", shared.dataFileName
         
@@ -195,9 +218,10 @@ class Velociroach:
         time.sleep(0.1)
 
     ######TODO : sort out this function and flashReadback below
-    def downloadTelemetry(self, timeout = 5, retry = True):
+    def downloadTelemetry(self, filename = 'Trial', timeout = 5, retry = True):
         #suppress callback output messages for the duration of download
         self.VERBOSE = False
+        self.stop_telem = False
         self.clAnnounce()
         print "Started telemetry download"
         self.tx( 0, command.FLASH_READBACK, pack('=L',self.numSamples))
@@ -205,6 +229,8 @@ class Velociroach:
         dlStart = time.time()
         shared.last_packet_time = dlStart
         #bytesIn = 0
+
+        # While there are empty entries in the pre-allocated telemtry data array
         while self.telemtryData.count([]) > 0:
             time.sleep(0.02)
             dlProgress(self.numSamples - self.telemtryData.count([]) , self.numSamples)
@@ -219,10 +245,12 @@ class Velociroach:
                 #    if item == []:
                 #        print "#",index+1,
                 print "" 
-                break
-                # Retry telem download            
+
+                # Retry telem download        
                 if retry == True:
-                    raw_input("Press Enter to restart telemetry readback ...")
+                    key = raw_input("Type r to retry, anything else to save ...")
+                    if key != 'r':
+                        break
                     self.telemtryData = [ [] ] * self.numSamples
                     self.clAnnounce()
                     print "Started telemetry download"
@@ -230,6 +258,29 @@ class Velociroach:
                     shared.last_packet_time = dlStart
                     self.tx( 0, command.FLASH_READBACK, pack('=L',self.numSamples))
                 else: #retry == false
+                    break
+                    print "Not trying telemetry download."      
+            elif self.stop_telem == True:
+                print ""
+                #Terminal message about missed packets
+                self.clAnnounce()
+                print "Invalid packet received, power cycle robot"
+                print ""      
+
+                # Retry telem download        
+                if retry == True:
+                    self.stop_telem == False
+                    key = raw_input("Type r to retry, anything else to save ...")
+                    if key != 'r':
+                        break
+                    self.telemtryData = [ [] ] * self.numSamples
+                    self.clAnnounce()
+                    print "Started telemetry download"
+                    dlStart = time.time()
+                    shared.last_packet_time = dlStart
+                    self.tx( 0, command.FLASH_READBACK, pack('=L',self.numSamples))
+                else: #retry == false
+                    break
                     print "Not trying telemetry download."          
 
         dlEnd = time.time()
@@ -249,10 +300,10 @@ class Velociroach:
         self.VERBOSE = True
 
         print ""
-        self.saveTelemetryData()
+        self.saveTelemetryData(filename)
         #Done with flash download and save
-    def saveTelemetryData(self):
-        self.findFileName()
+    def saveTelemetryData(self, filename):
+        self.findFileName(filename)
         self.writeFileHeader()
         fileout = open(self.dataFileName, 'a')
         

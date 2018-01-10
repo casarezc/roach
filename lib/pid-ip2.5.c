@@ -741,7 +741,7 @@ long pidGetPState(unsigned int channel) {
 
 void pidSetPInput(unsigned int channel, long p_input) {
     if (channel < NUM_PIDS) {
-        pidObjs[channel].p_input = p_input;
+        pidObjs[channel].p_input = p_input + P_OFFSET_INTRASTRIDE;
     }
 }
 

@@ -337,14 +337,15 @@ unsigned char cmdSetPhase(unsigned char type, unsigned char status, unsigned cha
     //Unpack unsigned char* frame into structured values
     PKT_UNPACK(_args_cmdSetPhase, argsPtr, frame);
 
-    long p_state[2], error;
-    p_state[0] = pidGetPState(LEFT_LEGS_PID_NUM);
-    p_state[1] = pidGetPState(RIGHT_LEGS_PID_NUM);
+    long error;
+//    long p_state[2], error;
+//    p_state[0] = pidGetPState(LEFT_LEGS_PID_NUM);
+//    p_state[1] = pidGetPState(RIGHT_LEGS_PID_NUM);
     
-    error = argsPtr->offset - ( (p_state[0] & 0x0000FFFF) - (p_state[1] & 0x0000FFFF) );
+    error = argsPtr->offset;
 
-    pidSetPInput(LEFT_LEGS_PID_NUM, p_state[0] + error/2);
-    pidSetPInput(RIGHT_LEGS_PID_NUM, p_state[1] - error/2);
+    pidSetPInput(LEFT_LEGS_PID_NUM, error);
+    pidSetPInput(RIGHT_LEGS_PID_NUM, 0);
 
     return 1;
 }

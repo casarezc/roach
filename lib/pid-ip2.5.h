@@ -13,6 +13,9 @@
 #define NUM_VELS	4 // 8 velocity setpoints per cycle
 #define NUM_BUFF 	2 // Number of strides buffered in to get setpoint
 
+// Set constant defining leg position offset for starting intrastride velocity profiles
+#define P_OFFSET_INTRASTRIDE 0
+
 // Set constants of lower and upper bounds to respond to errors; for now set at 3*pi/2 and 7*pi/4
 #define ERR_FWD_BOUND 49151
 #define ERR_BWD_BOUND 57337
