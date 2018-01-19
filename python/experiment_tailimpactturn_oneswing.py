@@ -61,7 +61,9 @@ def main():
 
     # Set up tail swing parameters for zeroing
     pzero = 90
-    pcal = 180
+
+    # Set tail impact velocity (Hz)
+    v_impact = 4
 
     # Set stride frequency for straight running
     freq = 2
@@ -74,13 +76,20 @@ def main():
     zeroCW = TailConfig(tailgains)
     zeroCW.pInput = -pzero
 
-    # Swing tail CCW to touch ground and provid an impulse
-    tailTouchCCW = TailConfig(tailgains)
-    tailTouchCCW.pInput = pcal
+    # Swing tail to drag against ground
+    tailImpact = TailConfig(tailgains)
+    tailImpact.vInput = v_impact
 
     # Hold tail upright
     tailUp = TailConfig(tailgains)
     tailUp.pInput = 0
+
+    # Hold tail upright
+    tailUpFullRev = TailConfig(tailgains)
+    if v_impact >= 0:
+        tailUpFullRev.pInput = 359
+    else:
+        tailUpFullRev.pInput = -359
 
     # Set alternating tripod gait
     altTripod = GaitConfig(motorgains, rightFreq=freq, leftFreq=freq)
@@ -95,32 +104,26 @@ def main():
     altTripod.deltasLeft = [0.325, 0.175, 0.175]
     altTripod.deltasRight = [0.175, 0.325, 0.325]
 
-    phaseLocked = GaitConfig(motorgains, rightFreq=freq, leftFreq=freq)
-    phaseLocked.phase = PHASE_180_DEG     
-    # phaseLocked.phase = PHASE_150_DEG
-    # phaseLocked.phase = PHASE_120_DEG
-    # phaseLocked.phase = PHASE_90_DEG                    
-    phaseLocked.deltasLeft = [0.25, 0.25, 0.25]
-    phaseLocked.deltasRight = [0.25, 0.25, 0.25]
-
     # Set initial tail control to perform zeroing swing CW
     R1.zeroTailPosition()
     R1.setTailControl(zeroCW)
 
     # Set leg gait
     R1.setGait(altTripod)
-    # R1.setGait(phaseLocked)
 
     # Set experiment run times
     T1 = 1000
     T2 = 1000
     T3 = 500
     T4 = 100
-    T5 = 4000
+    T5 = 500
+    T5a = 1000/v_impact
+    T5b = 500
+    T6 = 3500
     EXPERIMENT_WAIT_TIME_MS  = 200  #ms
     EXPERIMENT_SAVEBUFFER_TIME_MS = 500  #ms
     # EXPERIMENT_SAVEBUFFER_TIME_MS = 50  #ms
-    EXPERIMENT_RUN_TIME_MS = T4 + T5
+    EXPERIMENT_RUN_TIME_MS = T4 + T5 + T6
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -150,6 +153,7 @@ def main():
     R1.setTailControl(tailUp)
     R1.startTailTimedRun( T3 )
     time.sleep((T3 + 5*EXPERIMENT_WAIT_TIME_MS) / 1000.0) 
+    R1.stopTail()
 
 
     # Initiate telemetry recording; the robot will begin recording immediately when cmd is received.
@@ -159,15 +163,24 @@ def main():
 
     time.sleep((T4) / 1000.0)
     
-    # Start running forward
-    R1.startTimedRun( T5 )
-    time.sleep((T5 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)  #argument to time.sleep is in SECONDS
+    # Start leg motion
+    R1.startTimedRun( T5 + T6 )
+    time.sleep((T5) / 1000.0)  #argument to time.sleep is in SECONDS
     
+    # Touch tail down
+    R1.setTailControl(tailImpact)
+    R1.startTailTimedRun( T5a + T5b )
+    time.sleep(( T5a ) / 1000.0)
+    R1.setTailControl(tailUpFullRev)
+    time.sleep(( T5b ) / 1000.0)
+    R1.stopTail()
+    # time.sleep((T6 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)
+    time.sleep((T6 - T5a - T5b + EXPERIMENT_WAIT_TIME_MS) / 1000.0)
     
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry(filename = 'StraightRunCarpet01182018')
+            r.downloadTelemetry(filename = 'TailImpactOneSwingTest')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

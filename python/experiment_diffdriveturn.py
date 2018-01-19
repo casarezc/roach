@@ -64,7 +64,11 @@ def main():
     pcal = 180
 
     # Set stride frequency for straight running
-    freq = 2
+    freq = 10
+
+    # Set individual stride frequencies for turn
+    l_freq = 0
+    r_freq = 10
 
     # Swing ccw to find zero
     zeroCCW = TailConfig(tailgains)
@@ -82,6 +86,19 @@ def main():
     tailUp = TailConfig(tailgains)
     tailUp.pInput = 0
 
+    # Set differential turn gait
+    diffTurn = GaitConfig(motorgains, rightFreq=r_freq, leftFreq=l_freq)
+    diffTurn.phase = PHASE_180_DEG            
+    # Constant vel              
+    # diffTurn.deltasLeft = [0.25, 0.25, 0.25]
+    # diffTurn.deltasRight = [0.25, 0.25, 0.25]
+    # Faster push
+    # diffTurn.deltasLeft = [0.175, 0.325, 0.325]
+    # diffTurn.deltasRight = [0.325, 0.175, 0.175]
+    # Faster recirculation
+    diffTurn.deltasLeft = [0.325, 0.175, 0.175]
+    diffTurn.deltasRight = [0.175, 0.325, 0.325]
+
     # Set alternating tripod gait
     altTripod = GaitConfig(motorgains, rightFreq=freq, leftFreq=freq)
     altTripod.phase = PHASE_180_DEG            
@@ -95,32 +112,24 @@ def main():
     altTripod.deltasLeft = [0.325, 0.175, 0.175]
     altTripod.deltasRight = [0.175, 0.325, 0.325]
 
-    phaseLocked = GaitConfig(motorgains, rightFreq=freq, leftFreq=freq)
-    phaseLocked.phase = PHASE_180_DEG     
-    # phaseLocked.phase = PHASE_150_DEG
-    # phaseLocked.phase = PHASE_120_DEG
-    # phaseLocked.phase = PHASE_90_DEG                    
-    phaseLocked.deltasLeft = [0.25, 0.25, 0.25]
-    phaseLocked.deltasRight = [0.25, 0.25, 0.25]
-
     # Set initial tail control to perform zeroing swing CW
     R1.zeroTailPosition()
     R1.setTailControl(zeroCW)
 
     # Set leg gait
-    R1.setGait(altTripod)
-    # R1.setGait(phaseLocked)
+    R1.setGait(diffTurn)
 
     # Set experiment run times
     T1 = 1000
     T2 = 1000
     T3 = 500
     T4 = 100
-    T5 = 4000
+    T5 = 0
+    T6 = 4000
     EXPERIMENT_WAIT_TIME_MS  = 200  #ms
     EXPERIMENT_SAVEBUFFER_TIME_MS = 500  #ms
     # EXPERIMENT_SAVEBUFFER_TIME_MS = 50  #ms
-    EXPERIMENT_RUN_TIME_MS = T4 + T5
+    EXPERIMENT_RUN_TIME_MS = T4 + T5 + T6
     
     # Some preparation is needed to cleanly save telemetry data
     for r in shared.ROBOTS:
@@ -159,15 +168,19 @@ def main():
 
     time.sleep((T4) / 1000.0)
     
-    # Start running forward
-    R1.startTimedRun( T5 )
-    time.sleep((T5 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)  #argument to time.sleep is in SECONDS
+    # Start turn
+    # R1.startTimedRun( T5 + T6 )
+    R1.startTimedRun( T6 )
+    # time.sleep((T5) / 1000.0)  #argument to time.sleep is in SECONDS
     
+    # Turn afterwards
+    # R1.setGait(diffTurn)
+    time.sleep((T6 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)
     
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry(filename = 'StraightRunCarpet01182018')
+            r.downloadTelemetry(filename = 'DiffDriveCarpet01162018')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

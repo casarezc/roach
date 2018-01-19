@@ -35,7 +35,7 @@ def main():
     EXPERIMENT_SAVE_TIME_MS     = 10000
 
     # Set constants for setting control
-    TAIL_ANGLE_INC = 180 #degrees
+    TAIL_ANGLE_INC = 90 #degrees
     DRIVE_FREQ_INC = 1  #Hz
     TAIL_POS_MAX = 359 #degrees
 

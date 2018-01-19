@@ -37,7 +37,7 @@ def main():
     # Set constants for setting control
     TAIL_VEL_INC = 0.5 #Hz
     DRIVE_FREQ_INC = 1  #Hz
-    TAIL_VEL_MAX = 3 #Hz
+    TAIL_VEL_MAX = 10 #Hz
     ########################################################################################################
 
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
@@ -46,8 +46,8 @@ def main():
     R1 = Velociroach('\x21\x62', xb)
 
     ################################ Toggle data saving flag here ##########################################
-    #R1.SAVE_DATA = True
-    R1.SAVE_DATA = False
+    R1.SAVE_DATA = True
+    # R1.SAVE_DATA = False
     ########################################################################################################
                             
     #R1.RESET = False       #current roach code does not support software reset
@@ -77,8 +77,9 @@ def main():
 
     # Tail gains format:
     #  [ Kp , Ki , Kd , Kaw , Kff]
-    tailgains = [500,100,10,500,0]
+    # tailgains = [500,100,10,500,0]
     # tailgains = [0,0,10,0,0]
+    tailgains = [500,750,30,2000,0]
 
     # Zero motors and set gains, fixed gait parameters
     R1.zeroPosition()
@@ -203,7 +204,7 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry()
+            r.downloadTelemetry(filename = 'TailVelocityTest01182018')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

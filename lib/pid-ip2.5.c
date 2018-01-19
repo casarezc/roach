@@ -425,10 +425,11 @@ void initPIDObjPos(pidPos *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
 
 void pidSetInput(int pid_num, int input_val) {
     unsigned long temp;
+    temp = t1_ticks; // changed this to atomic read t1_ticks since t1_ticks is no longer reset to 0 in pidOn
     /*      ******   use velocity setpoint + throttle for compatibility between Hall and Pullin code *****/
     /* otherwise, miss first velocity set point */
     pidObjs[pid_num].v_input = input_val + (int) (((long) pidVel[pid_num].vel[0] * K_EMF) >> 8); //initialize first velocity ;
-    pidObjs[pid_num].start_time = t1_ticks;
+    pidObjs[pid_num].start_time = temp;
     //zero out running PID values
     pidObjs[pid_num].i_error = 0;
     pidObjs[pid_num].p = 0;
@@ -441,8 +442,7 @@ void pidSetInput(int pid_num, int input_val) {
     // set initial time for next move set point
     /*   need to set index =0 initial values */
     /* position setpoints start at 0 (index=0), then interpolate until setpoint 1 (index =1), etc */
-    temp = 0;
-    pidObjs[pid_num].expire = temp + (long) pidVel[pid_num].interval[0]; // end of first interval
+    pidObjs[pid_num].expire = temp + (long) pidVel[pid_num].interval[0]; // end of first interval 
     pidObjs[pid_num].interpolate = 0;
     /*	pidObjs[pid_num].p_input += pidVel[pid_num].delta[0];	//update to first set point
      ***  this should be set only after first .expire time to avoid initial transients */
@@ -481,12 +481,12 @@ void pidSetGains(int pid_num, int Kp, int Ki, int Kd, int Kaw, int ff) {
 
 void pidOn(int pid_num) {
     pidObjs[pid_num].onoff = PID_ON;
-    t1_ticks = 0;
+//    t1_ticks = 0;
 }
 
 void pidOff(int pid_num) {
     pidObjs[pid_num].onoff = PID_OFF;
-    t1_ticks = 0;
+//    t1_ticks = 0;
 }
 
 // zero position setpoint for both motors (avoids big offset errors)
@@ -919,12 +919,12 @@ void tailSetGains(int Kp, int Ki, int Kd, int Kaw, int ff) {
 
 void tailOn() {
     tailObjs.onoff = PID_ON;
-    t1_ticks = 0;
+//    t1_ticks = 0;
 }
 
 void tailOff() {
     tailObjs.onoff = PID_OFF;
-    t1_ticks = 0;
+//    t1_ticks = 0;
 }
 
 void tailZeroPos() {
