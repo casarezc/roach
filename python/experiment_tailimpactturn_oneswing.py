@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-authors: apullin
+authors :apullin
 
 This script will run an experiment with one or several Velociroach robots.
 
@@ -63,10 +63,10 @@ def main():
     pzero = 90
 
     # Set tail impact velocity (Hz)
-    v_impact = 4
+    v_impact = -2
 
     # Set stride frequency for straight running
-    freq = 2
+    freq = 10
 
     # Swing ccw to find zero
     zeroCCW = TailConfig(tailgains)
@@ -116,10 +116,10 @@ def main():
     T2 = 1000
     T3 = 500
     T4 = 100
-    T5 = 500
-    T5a = 1000/v_impact
+    T5 = 1000
+    T5a = 1000/abs(v_impact)
     T5b = 500
-    T6 = 3500
+    T6 = 2000
     EXPERIMENT_WAIT_TIME_MS  = 200  #ms
     EXPERIMENT_SAVEBUFFER_TIME_MS = 500  #ms
     # EXPERIMENT_SAVEBUFFER_TIME_MS = 50  #ms
@@ -152,8 +152,10 @@ def main():
     # Put tail upright
     R1.setTailControl(tailUp)
     R1.startTailTimedRun( T3 )
-    time.sleep((T3 + 5*EXPERIMENT_WAIT_TIME_MS) / 1000.0) 
+    time.sleep((T3 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)
     R1.stopTail()
+    time.sleep((4*EXPERIMENT_WAIT_TIME_MS) / 1000.0)
+    R1.setTailControl(tailImpact)
 
 
     # Initiate telemetry recording; the robot will begin recording immediately when cmd is received.
@@ -167,10 +169,10 @@ def main():
     R1.startTimedRun( T5 + T6 )
     time.sleep((T5) / 1000.0)  #argument to time.sleep is in SECONDS
     
-    # Touch tail down
-    R1.setTailControl(tailImpact)
+    # Impact tail
     R1.startTailTimedRun( T5a + T5b )
     time.sleep(( T5a ) / 1000.0)
+    # Position upright
     R1.setTailControl(tailUpFullRev)
     time.sleep(( T5b ) / 1000.0)
     R1.stopTail()
@@ -180,7 +182,7 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry(filename = 'TailImpactOneSwingTest')
+            r.downloadTelemetry(filename = 'TailImpactCarpet01312018')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

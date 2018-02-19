@@ -35,8 +35,8 @@ def main():
     EXPERIMENT_SAVE_TIME_MS     = 10000
 
     # Set constants for setting control
-    TAIL_ANGLE_INC = 90 #degrees
-    DRIVE_FREQ_INC = 1  #Hz
+    TAIL_ANGLE_INC = 180 #degrees
+    DRIVE_FREQ_INC = 5  #Hz
     TAIL_POS_MAX = 359 #degrees
 
     PHASE = PHASE_180_DEG
@@ -52,7 +52,7 @@ def main():
     #R1.SAVE_DATA = True
     R1.SAVE_DATA = False
     ########################################################################################################
-                            
+        
     #R1.RESET = False       #current roach code does not support software reset
     
     shared.ROBOTS.append(R1) #This is necessary so callbackfunc can reference robots

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-authors: apullin
+authors: ccasarez
 
 This script will run an experiment with one or several Velociroach robots.
 
@@ -63,7 +63,7 @@ def main():
     pzero = 90
 
     # Set tail drag position (degrees)
-    p_drag = -140
+    p_drag = -132
 
     # Set stride frequency for straight running
     freq = 10
@@ -109,7 +109,7 @@ def main():
     T2 = 1000
     T3 = 500
     T4 = 100
-    T5 = 500
+    T5 = 750
     T6 = 3500
     EXPERIMENT_WAIT_TIME_MS  = 200  #ms
     EXPERIMENT_SAVEBUFFER_TIME_MS = 500  #ms
@@ -143,8 +143,10 @@ def main():
     # Put tail upright
     R1.setTailControl(tailUp)
     R1.startTailTimedRun( T3 )
-    time.sleep((T3 + 5*EXPERIMENT_WAIT_TIME_MS) / 1000.0) 
-
+    time.sleep((T3 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)
+    R1.stopTail()
+    time.sleep((4*EXPERIMENT_WAIT_TIME_MS) / 1000.0)
+    R1.setTailControl(tailDrag)
 
     # Initiate telemetry recording; the robot will begin recording immediately when cmd is received.
     for r in shared.ROBOTS:
@@ -158,14 +160,19 @@ def main():
     time.sleep((T5) / 1000.0)  #argument to time.sleep is in SECONDS
     
     # Touch tail down
-    R1.setTailControl(tailDrag)
     R1.startTailTimedRun( T6 )
     time.sleep((T6 + EXPERIMENT_WAIT_TIME_MS) / 1000.0)
+
+    # After a wait, put the tail up
+    time.sleep((4*EXPERIMENT_WAIT_TIME_MS) / 1000.0)
+    R1.setTailControl(tailUp)
+    R1.startTailTimedRun( T3 )
+    time.sleep((4*EXPERIMENT_WAIT_TIME_MS) / 1000.0)
     
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry(filename = 'TailDragTest')
+            r.downloadTelemetry(filename = 'TailDragGravel02062018')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

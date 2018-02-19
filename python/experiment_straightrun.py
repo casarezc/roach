@@ -64,7 +64,7 @@ def main():
     pcal = 180
 
     # Set stride frequency for straight running
-    freq = 2
+    freq = 5
 
     # Swing ccw to find zero
     zeroCCW = TailConfig(tailgains)
@@ -167,7 +167,7 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry(filename = 'StraightRunCarpet01182018')
+            r.downloadTelemetry(filename = 'StraightRunGravel01292018')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

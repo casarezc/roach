@@ -67,7 +67,7 @@ def main():
     freq = 10
 
     # Set individual stride frequencies for turn
-    l_freq = 0
+    l_freq = 8
     r_freq = 10
 
     # Swing ccw to find zero
@@ -180,7 +180,7 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry(filename = 'DiffDriveCarpet01162018')
+            r.downloadTelemetry(filename = 'DiffDriveGravel01302018')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

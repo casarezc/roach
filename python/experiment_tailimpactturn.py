@@ -145,6 +145,8 @@ def main():
     R1.startTailTimedRun( T3 )
     time.sleep((T3 + 5*EXPERIMENT_WAIT_TIME_MS) / 1000.0) 
     R1.stopTail()
+    time.sleep((4*EXPERIMENT_WAIT_TIME_MS) / 1000.0)
+    R1.setTailControl(tailImpact)
 
 
     # Initiate telemetry recording; the robot will begin recording immediately when cmd is received.
@@ -166,7 +168,7 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry(filename = 'TailImpactTest')
+            r.downloadTelemetry(filename = 'TailImpactCarpet01192018')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:
