@@ -36,6 +36,14 @@
 #define CMD_SET_TAIL_RINPUT         0xD7
 #define CMD_SET_TAIL_PERINPUT       0xD8
 
+#define CMD_SET_STEER_GAINS         0xA1
+#define CMD_SET_STEER_TAIL_PARAMS   0xA2
+#define CMD_SET_STEER_MODE          0xA3
+#define CMD_SET_STEER_PINPUT        0xA4
+#define CMD_SET_STEER_VINPUT        0xA5
+#define CMD_STOP_STEER_CONTROL      0xA6
+#define CMD_ZERO_YAW                0xA7
+
 // Redefine
 
 void cmdSetup(void);
@@ -139,5 +147,30 @@ typedef struct{
 typedef struct{
     uint16_t run_time;
 } _args_cmdStartTailTimedRun;
+
+//cmdSetSteerGains
+typedef struct{
+	int16_t Kp, Ki, Kd, Kaw;
+} _args_cmdSetSteerGains;
+
+//cmdSetSteerTailParams
+typedef struct{
+	int16_t TD_ccw, TD_cw, TD_delta, TI_yaw_thresh, TI_vel;
+} _args_cmdSetSteerTailParams;
+
+//cmdSetSteerMode
+typedef struct{
+	int16_t mode_select;
+} _args_cmdSetSteerMode;
+
+//cmdSetSteerPInput
+typedef struct{
+	int16_t yaw;
+} _args_cmdSetSteerPInput;
+
+//cmdSetSteerVInput
+typedef struct{
+	int16_t yaw_vel;
+} _args_cmdSetSteerVInput;
 
 #endif // __CMD_H

@@ -80,15 +80,44 @@ class TailConfig:
         self.pInput = pInput
         self.pBias = pBias
         self.vInput = vInput
+
+class SteerConfig:
+    # steergains = [Kp, Ki, Kd, Kaw]
+    steergains = None
+
+    # tailparams = [TD_ccw, TD_cw, TD_delta, TI_yaw_thresh, TI_vel]
+    tailparams = None
+
+    modeselect = None
+    yawInput = None
+    yawVelInput = None
+
+    def __init__(self, steergains = None, tailparams = None, modeselect = None, yawInput = None, yawVelInput = None):
+        if steergains == None:
+            self.steergains = [0,0,0,0]
+        else:
+            self.steergains = steergains
+
+        if tailparams == None:
+            self.tailparams = [0,0,0,0,0]
+        else:
+            self.tailparams = tailparams
+        
+        self.modeselect = modeselect
+        self.yawInput = yawInput
+        self.yawVelInput = yawVelInput
         
 class Velociroach:
     motor_gains_set = False
+    steer_gains_set = False
+    steer_tail_params_set = False
     tail_gains_set = False
     robot_queried = False
     flash_erased = False
     
     currentGait = GaitConfig()
     cuurentTail = TailConfig()
+    currentSteer = SteerConfig()
 
     dataFileName = ''
     telemtryData = [ [] ]
@@ -102,6 +131,7 @@ class Velociroach:
     def __init__(self, address, xb):
             self.currentGait = GaitConfig()
             self.currentTail = TailConfig()
+            self.currentSteer = SteerConfig()
             self.DEST_ADDR = address
             self.DEST_ADDR_int = unpack('>h',self.DEST_ADDR)[0] #address as integer
             self.xb = xb
@@ -328,7 +358,8 @@ class Velociroach:
         fileout.write('%  Motor Gains    = ' + repr(self.currentGait.motorgains) + '\n')
 
         fileout.write('%  Tail Gains    = ' + repr(self.currentTail.motorgains) + '\n')
-
+        fileout.write('%  Steering Gains   = ' + repr(self.currentSteer.steergains) + '\n')
+        fileout.write('%  Steering [tail params], mode  = ' + repr(self.currentSteer.tailparams) + ', ' + repr(self.currentSteer.modeselect) + '\n')
         fileout.write('% Columns: \n')
         # order for wiring on RF Turner
         fileout.write('% time | Left Leg Pos | Right Leg Pos | Tail Pos | Commanded Left Leg Pos | Commanded Right Leg Pos | Commanded Tail Pos | DCL | DCR | DCT | GyroX | GyroY | GyroZ | AX | AY | AZ | LBEMF | RBEMF | TBEMF | VBatt\n')
@@ -447,7 +478,7 @@ class Velociroach:
         self.clAnnounce()
         print "Setting tail position to",pInput,"degrees"
 
-        temp = pInput*32768/360
+        temp = pInput
         
         self.tx( 0, command.SET_TAIL_PINPUT, pack('h', temp))
         time.sleep(0.1)
@@ -491,6 +522,94 @@ class Velociroach:
         print "Starting timed tail run of",duration," ms"
         self.tx( 0, command.START_TAIL_TIMED_RUN, pack('h', duration))
         time.sleep(0.05)
+
+
+####### Set steering control  ########################################33
+
+    def setSteerControl(self, steerConfig):
+        self.currentSteer = steerConfig
+        
+        self.clAnnounce()
+        print " --- Setting complete steer config --- "
+        self.setSteerGains(steerConfig.steergains)
+        self.setSteerTailParams(steerConfig.tailparams)
+        self.setSteerMode(steerConfig.modeselect)
+
+        if steerConfig.yawVelInput is not None:
+            self.setSteerAngVel(steerConfig.yawVelInput)
+        elif steerConfig.yawInput is not None:
+            self.setSteerAngle(steerConfig.yawInput)
+        else:
+            print "WARNING: no steering angle or angular velocity set"
+        
+        self.clAnnounce()
+        print " ------------------------------------ "
+
+    def setSteerGains(self, gains, retries = 8):
+        tries = 1
+        self.steerGains = gains
+        while not(self.steer_gains_set) and (tries <= retries):
+            self.clAnnounce()
+            print "Setting steer gains...   ",tries,"/8"
+            self.tx( 0, command.SET_STEER_GAINS, pack('4h',*gains))
+            tries = tries + 1
+            time.sleep(0.3)
+
+    def setSteerTailParams(self, params, retries = 8):
+        tries = 1
+        # [TD_ccw, TD_cw, TD_delta, TI_yaw_thresh, TI_vel]
+        self.steerTailParams = params
+        while not(self.steer_tail_params_set) and (tries <= retries):
+            self.clAnnounce()
+            print "Setting steer tail parameters...   ",tries,"/8"
+            temp = params
+            temp[4] = temp[4]*65536/1000    # Convert Hz to tail velocity units
+            self.tx( 0, command.SET_STEER_TAIL_PARAMS, pack('5h',*temp))
+            tries = tries + 1
+            time.sleep(0.3)
+
+    def setSteerMode(self, mode):
+        self.clAnnounce()
+        print "Setting steer mode select to", mode
+
+        temp = mode
+        
+        self.tx( 0, command.SET_STEER_MODE, pack('h', temp))
+        time.sleep(0.1)
+
+    def setSteerAngle(self, yawInput):
+        self.clAnnounce()
+        print "Setting steering yaw input to",yawInput," degrees"
+
+        temp = yawInput
+        
+        self.tx( 0, command.SET_STEER_PINPUT, pack('h', temp))
+        time.sleep(0.1)
+
+    def setSteerAngVel(self, yawVelInput):
+        self.clAnnounce()
+        print "Setting steering yaw angular velocity input to ",yawVelInput," deg/s"
+
+        temp = yawVelInput*16384/1000   # Convert from deg/s to gyro count units
+        
+        self.tx( 0, command.SET_STEER_VINPUT, pack('h', temp))
+        time.sleep(0.1)
+
+    def stopSteerControl(self):
+        self.clAnnounce()
+        print "Stopping steer control"
+        self.tx( 0, command.STOP_STEER_CONTROL, 'stop')
+        time.sleep(0.1)
+
+    def zeroYaw(self):
+        self.clAnnounce()
+        print "Zeroing yaw position"
+        self.tx( 0, command.ZERO_YAW, 'zero')
+        time.sleep(0.1)
+
+
+###########################################################################33        
+
     def setOpenLoopThrust(self, left_pwm, right_pwm):
         print "Setting PWM Left:", left_pwm, " Right:", right_pwm
         temp = [left_pwm, right_pwm]

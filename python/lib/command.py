@@ -81,4 +81,11 @@ STOP_TAIL_MOTOR         =	0xD6
 SET_TAIL_RINPUT         =	0xD7
 SET_TAIL_PERINPUT       =	0xD8
 
+SET_STEER_GAINS         =   0xA1
+SET_STEER_TAIL_PARAMS   =   0xA2
+SET_STEER_MODE          =   0xA3
+SET_STEER_PINPUT        =   0xA4
+SET_STEER_VINPUT        =   0xA5
+STOP_STEER_CONTROL		=	0xA6
+ZERO_YAW				=   0xA7
 # CMD values of 0xF0(240) - 0xFF(255) are reserved for future use

@@ -34,6 +34,11 @@ pktFormat = { \
     command.SET_TAIL_VINPUT:        'h',\
     command.SET_TAIL_RINPUT:        '2h',\
     command.SET_TAIL_PERINPUT:      '3h',\
+    command.SET_STEER_GAINS:        '4h',\
+    command.SET_STEER_TAIL_PARAMS:  '5h',\
+    command.SET_STEER_MODE:         'h',\
+    command.SET_STEER_PINPUT:       'h',\
+    command.SET_STEER_VINPUT:       'h',\
     }
                
 #XBee callback function, called every time a packet is recieved
@@ -164,7 +169,7 @@ def xbee_received(packet):
         # SET_TAIL_PINPUT
         elif type == command.SET_TAIL_PINPUT:
             temp = unpack(pattern, data)
-            print "Set tail position readback:",temp[0]," counts"
+            print "Set tail position readback:",temp[0]," degrees"
 
         # SET_TAIL_VINPUT
         elif type == command.SET_TAIL_VINPUT:
@@ -177,11 +182,56 @@ def xbee_received(packet):
             temp = unpack(pattern, data)
             print "Swing amplitude:",temp[0]," counts; Swing duration:",temp[1]," ms"
 
-        # SET_TAIL_PerRINPUT
+        # SET_TAIL_PERINPUT
         elif type == command.SET_TAIL_PERINPUT:
             print "Set periodic tail motion params readback:"
             temp = unpack(pattern, data)
             print "Swing amplitude:",temp[0]," counts; Pos bias:",temp[1]," counts; Swing duration:",temp[2]," ms"
+
+        # SET_STEER_GAINS
+        elif type == command.SET_STEER_GAINS:
+            gains = unpack(pattern, data)
+            print "Set steering gains to ", gains
+            for r in shared.ROBOTS:
+                if r.DEST_ADDR_int == src_addr:
+                    r.steer_gains_set = True
+
+        # SET_STEER_TAIL_PARAMS
+        elif type == command.SET_STEER_TAIL_PARAMS:
+            print "Set steering controller tail params readback:"
+            temp = unpack(pattern, data)
+            print "Tail drag -- Position ccw:",temp[0]," deg; Position cw:",temp[1]," deg; Delta :",temp[2]," deg"
+            print "Tail impact -- Yaw threshold:",temp[3]," deg; Tail velocity:",temp[4]," counts"
+            for r in shared.ROBOTS:
+                if r.DEST_ADDR_int == src_addr:
+                    r.steer_tail_params_set = True
+
+        # SET_STEER_MODE
+        elif type == command.SET_STEER_MODE:
+            print "Set steering mode readback:"
+            temp = unpack(pattern, data)
+            mode_select = temp[0]
+            if mode_select == 0:
+                print "Differential drive, no tail impact"
+            elif mode_select == 1:
+                print "Differential drive, tail impact"
+            elif mode_select == 2:
+                print "Tail drag, no tail impact"
+            elif mode_select == 3:
+                print "Tail drag, tail impact"
+            else :
+                print "Invalid mode"
+
+        # SET_STEER_PINPUT
+        elif type == command.SET_STEER_PINPUT:
+            temp = unpack(pattern, data)
+            print "Set steer yaw setpoint readback:",temp[0]," degrees"
+
+        # SET_STEER_VINPUT
+        elif type == command.SET_STEER_VINPUT:
+            temp = unpack(pattern, data)
+            print "Set steer yaw velocity setpoint readback:",temp[0]," counts"
+            # Note that there are 16.384 counts/(deg/s)
 
     except KeyboardInterrupt:
         print "\nRecieved Ctrl+C in callbackfunc, exiting."

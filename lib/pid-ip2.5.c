@@ -51,6 +51,9 @@ pidPos pidObjs[NUM_PIDS];
 // Tail PID control structure
 pidTail tailObjs;
 
+// Steering PID control structure
+strCtrl pidSteer;
+
 // Body pose structure
 poseEstimateStruct bodyPose;
 
@@ -107,6 +110,14 @@ int repeatWaitCounter = 0;
 long tail_p_input_temp;
 int tail_v_input_temp;
 
+// Constants for steering control
+char first_DD_NoTI = 1; // If high, indicates the first instance of differential drive control for which tail impact is not triggered (only checked if switch_tail_impact is high)
+char first_TI = 1;      // If high, indicates the first instance of tail impact control being triggered (bang-bang)
+char first_TD = 1;      // If high, indicates the first instance of tail drag control being executed
+
+int counter_TD = 0;     // Counter used for duty cycle modulation of tail drag contact
+char tail_contact_flag = 0;  // Boolean indicating tail contact with the ground during tail drag
+
 
 // ==== Initialization =======================================================================================
 // ===========================================================================================================
@@ -122,6 +133,8 @@ void pidSetup()
         initTailObj( &(tailObjs), DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, DEFAULT_KAW, DEFAULT_FF);
 
         initBodyPose( &(bodyPose) );
+
+        initStrCtrl( &(pidSteer), DEFAULT_KP, DEFAULT_KI, DEFAULT_KD, DEFAULT_KAW);
 
         //Initialize fields in pidObjs for gait control, as well as pidVelLUT structures
 	initPIDVelProfile();
@@ -277,7 +290,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
     //TODO: Break coupling between PID module and IMU update
     if (interrupt_count == 4) {
         mpuBeginUpdate();
-        if(tailObjs.mode==TAIL_MODE_RIGHTING){
+        if((tailObjs.mode==TAIL_MODE_RIGHTING)||(pidSteer.onoff == PID_ON)){
             computeEulerAngles();
         }
         amsEncoderStartAsyncRead();
@@ -293,7 +306,9 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
             if (pidObjs[j].onoff) {
                 if (pidObjs[j].timeFlag) {
                     if (pidObjs[j].start_time + pidObjs[j].run_time >= t1_ticks) {
-                        pidGetSetpoint(j);
+                        if((pidSteer.onoff == PID_OFF)||(pidSteer.mode == STEER_MODE_TAILDRAG)){
+                            pidGetSetpoint(j);
+                        }
                     }
                     if (t1_ticks > lastMoveTime) { // turn off if done running all legs
                         for (i = 0; i < NUM_PIDS; i++) {
@@ -303,11 +318,15 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void) {
                     }
                 }
                 else {
-                    pidGetSetpoint(j);
+                    if((pidSteer.onoff == PID_OFF)||(pidSteer.mode == STEER_MODE_TAILDRAG)){
+                        pidGetSetpoint(j);
+                    }
                 }
             }
         }
-
+        
+        // Set steering control before leg and tail PID controllers because it will affect setpoints
+        strCtrlSetControl();
         pidSetControl();
 
         tailGetState(); // always update tail leg state, even if motor is coasting
@@ -384,18 +403,26 @@ void initPIDVelProfile() {
 // called from cmd.c
 
 void setPIDVelProfile(int pid_num, int *interval, int *delta, int *vel, int onceFlag) {
+    // Set exact repeating intrastride profile for use with all leg control except for differential drive steering
     pidVelLUT* tempPID;
     int i;
+    int interval_net = 0;
+    long avg_vel_temp;
+
     tempPID = otherBuff(pidVel, activePID[pid_num]);
     for (i = 0; i < NUM_VELS; i++) {
         tempPID->interval[i] = interval[i];
         tempPID->delta[i] = delta[i];
         tempPID->vel[i] = vel[i];
+        interval_net += interval[i];
     }
     tempPID->onceFlag = onceFlag;
     if (activePID[pid_num]->onceFlag == 0) {
         nextPID[pid_num] = tempPID;
     }
+
+    avg_vel_temp = LEGS_FULL_REV/( (long) interval_net);
+    pidObjs[pid_num].avg_vel = (int) avg_vel_temp;
 }
 
 // called from pidSetup()
@@ -809,10 +836,10 @@ void initTailObj(pidTail *pid, int Kp, int Ki, int Kd, int Kaw, int ff) {
 }
 
 // Used to set position reference for tail in control mode 0
-// input_val is in units of output shaft counts, where 2^15 counts is 180 degrees of rotation
-void tailSetPInput(long input_val) {
+// input_val is in units of degrees
+void tailSetPInput(int input_val) {
     tailObjs.mode = TAIL_MODE_POSITION; //position control mode
-    tailObjs.p_input = input_val*TAIL_GEAR_RATIO; //constant position setpoint
+    tailObjs.p_input = (((long) input_val)*TAIL_FULL_REV)/(TAIL_DEG_GR_SCALER); //constant position setpoint converted from degrees overflows at ~ 91 revolutions
     tailObjs.p_interpolate = 0;
     tailObjs.v_input = 0; //zero velocity setpoint
     tailObjs.start_time = t1_ticks;
@@ -1105,8 +1132,9 @@ void tailSetControl() {
         } else {
             tiHSetDC(tailObjs.output_channel, tailObjs.output);
         }
-    }// control to velocity setpoint
-        // update interpolate position setpoint based on constant velocity
+    }
+    // control to velocity setpoint
+    // update interpolate position setpoint based on constant velocity
     else if ((tailObjs.mode == TAIL_MODE_VELOCITY) && (tailObjs.onoff == PID_ON)) {
         tailObjs.p_interpolate += (long) tailObjs.v_input;
         tailObjs.p_error = tailObjs.p_input + tailObjs.p_interpolate - tailObjs.p_state;
@@ -1121,6 +1149,7 @@ void tailSetControl() {
             tiHSetDC(tailObjs.output_channel, tailObjs.output);
         }
     }
+
     else if ((tailObjs.mode == TAIL_MODE_RIGHTING) && (tailObjs.onoff == PID_ON)) {
         //Compute orientation vector
         pitch_mod = bodyPose.pitch - (bodyPose.pitch/PITIMES2)*PITIMES2;
@@ -1251,9 +1280,396 @@ void tailSetTimeFlag(char val) {
     tailObjs.timeFlag = val;
 }
 
-// ==== Orientation Commands ================================================================================
+// ==== Steering Control Commands ===========================================================================
 // ==========================================================================================================
 
+//Initialize the steering control structure
+void initStrCtrl(strCtrl *pid, int Kp, int Ki, int Kd, int Kaw)
+{
+    pid->onoff = 0;
+    pid->mode = 0;
+    pid->switch_tail_impact = 0;
+    
+    pid->Kp = Kp;
+    pid->Ki = Ki;
+    pid->Kaw = Kaw;
+    pid->Kd = Kd;
+    
+    pid->tail_drag_ccw = 0;
+    pid->tail_drag_cw = 0;
+    pid->tail_drag_delta = 0;
+    
+    pid->tail_impact_yaw_thresh = 0;
+    pid->tail_impact_vel = 0;
+    
+    pid->yaw_input = 0;
+    pid->yaw_error = 0;
+
+    pid->vel_input = 0;
+    pid->vel_error = 0;
+    
+    pid->i_error = 0;
+
+    pid->p = 0;
+    pid->i = 0;
+    pid->d = 0;
+
+    pid->preSat = 0;
+    pid->output = 0;
+}
+
+void strCtrlSetGains(int Kp, int Ki, int Kd, int Kaw)
+{
+    pidSteer.Kp = Kp;
+    pidSteer.Ki = Ki;
+    pidSteer.Kd = Kd;
+    pidSteer.Kaw = Kaw;
+}
+
+void strCtrlSetTailParams(int TD_ccw, int TD_cw, int TD_delta, int TI_yaw_thresh, int TI_vel)
+{
+
+    // Convert degrees to tail position units as in tailSetPInput when used in strCtrlSetControl
+    pidSteer.tail_drag_ccw = TD_ccw;
+    pidSteer.tail_drag_cw = TD_cw;
+    pidSteer.tail_drag_delta = TD_delta;
+
+    // This comes from cmd.c as in integer with degrees as the unit.
+    // Need to cast into a long and multiply by DEG2COUNTS to convert to integrated gyro units.
+    pidSteer.tail_impact_yaw_thresh = ((long) TI_yaw_thresh)*DEG2COUNTS;
+
+    // Scale by TAIL_GEAR_RATIO to have correct velocity units as in tailSetVInput. This overflows at around 16 Hz 
+    pidSteer.tail_impact_vel = TI_vel*TAIL_GEAR_RATIO;
+}
+
+void strCtrlSetMode(char mode, char switch_TI)
+{
+    pidSteer.mode = mode;
+    pidSteer.switch_tail_impact = switch_TI;
+}
+
+void strCtrlSetPInput(int input_val)
+{
+    pidSteer.yaw_input = ((long) input_val)*DEG2COUNTS;
+    pidSteer.vel_input = 0;
+
+    pidSteer.p = 0;
+    pidSteer.i = 0;
+    pidSteer.d = 0;
+    pidSteer.i_error = 0;
+
+    pidSteer.onoff = 1;
+}
+
+void strCtrlSetVInput(int input_val)
+{
+    pidSteer.yaw_input = bodyPose.yaw;
+    pidSteer.vel_input = input_val;
+
+    pidSteer.p = 0;
+    pidSteer.i = 0;
+    pidSteer.d = 0;
+    pidSteer.i_error = 0;
+
+    pidSteer.onoff = 1;
+}
+
+void strCtrlZeroYaw()
+{
+    bodyPose.yaw = 0;
+}
+
+void strCtrlOff()
+{
+    pidSteer.p = 0;
+    pidSteer.i = 0;
+    pidSteer.d = 0;
+    pidSteer.i_error = 0;
+
+    pidSteer.output = 0;
+    
+    pidSteer.onoff = 0;
+}
+
+void strCtrlSetControl()
+{
+    // Declare local variables
+    long current_yaw_error; // Absolute value of current yaw error used for tail impact control switching
+
+    int output_abs_TD;      // Absolute value of the control output in tail drag counter units
+
+    long p_mod_tail;        // Modulo 2 pi of the current tail state, wrapper to pm pi, used for determining whether to swing the tail another full revolution before hitting the ground
+    int rev_count_temp;     // Gives the number of revolutions, adjusted to avoid tail impact with the ground if necessary
+
+    
+    // If steering control is on, compute PID updates and apply output based on control mode
+    if (pidSteer.onoff == PID_ON){
+        
+        // Propagate yaw_input if velocity input is nonzero
+        pidSteer.yaw_input += ((long) pidSteer.vel_input);
+
+        // Get current values of yaw_error and vel_error
+        pidSteer.yaw_error = pidSteer.yaw_input - bodyPose.yaw;
+        pidSteer.vel_error = ((long) pidSteer.vel_input) - bodyPose.yaw_vel;
+
+        //Update PID values (for now, we compute this even with tail impact enabled, this will build up tail drag response without implementing it yet)
+        UpdateSteerPID(&(pidSteer));
+        
+        current_yaw_error = ABS(pidSteer.yaw_error);
+        // Switch between control cases
+        // First check if yaw error is below threshold or if tail impact is disabled, then tail impact cannot happen and we execute diff drive or tail drag
+        if ((current_yaw_error < pidSteer.tail_impact_yaw_thresh)||(pidSteer.switch_tail_impact == 0)){
+
+            // Execute differential drive steering
+            if (pidSteer.mode == STEER_MODE_DIFFDRIVE){
+
+                // If tail impact switch is enabled and this is the first time entering this mode from tail impact, hold the tail upright
+                if((pidSteer.switch_tail_impact == 1)&&(first_DD_NoTI == 1)){
+                    // Switch off the first differential drive flag
+                    first_DD_NoTI = 0;
+                    // Switch on first tail impact flag
+                    first_TI = 1;
+
+                    // Compute modulo 2 PI of p_state pm 180 degrees for use with tail input setting
+                    p_mod_tail = tailObjs.p_state - (tailObjs.p_state/PITIMES2)*PITIMES2;
+                    p_mod_tail = p_mod_tail - (p_mod_tail/PI)*PITIMES2;
+
+                    // If modulo tail state is less than zero and rev_count is positive, swing the tail another revolution ccw before touching down (this prevents tail swinging underneath the robot)
+                    if((p_mod_tail < 0)&&(tailObjs.rev_count > 0)){
+                        rev_count_temp = tailObjs.rev_count + 1;
+                    }
+                    // If modulo tail state is greater than zero and rev_count is negative, swing the tail one more revolution cw before touching down (this prevents tail swinging underneath the robot)
+                    else if((p_mod_tail > 0)&&(tailObjs.rev_count < 0)){
+                        rev_count_temp = tailObjs.rev_count - 1;
+                    }
+                    else{
+                        rev_count_temp = tailObjs.rev_count;
+                    }
+
+                    // Set tail control mode to position control and zero out velocity input, interpolate setting, while setting tail position to upright
+                    tailObjs.mode = TAIL_MODE_POSITION;
+                    tailObjs.p_input = ((long) rev_count_temp)*TAIL_FULL_REV*TAIL_GEAR_RATIO;
+                    tailObjs.v_input = 0;
+                    tailObjs.p_interpolate = 0;
+                    tailObjs.i_error = 0;
+                    tailObjs.p = 0;
+                    tailObjs.i = 0;
+                    tailObjs.d = 0;
+                }
+
+                // If the output of the controller is greater than 0, turn counter-clockwise by subtracting velocity from the left legs
+                if (pidSteer.output > 0){
+                    pidObjs[LEFT_LEGS_PID_NUM].v_input = pidObjs[LEFT_LEGS_PID_NUM].avg_vel - pidSteer.output/LEGVEL2STEER;
+                    pidObjs[RIGHT_LEGS_PID_NUM].v_input = pidObjs[RIGHT_LEGS_PID_NUM].avg_vel;
+                }
+                // Otherwise, the output is less than 0, turn clockwise by subtracting velocity from the right legs
+                else{
+                    pidObjs[LEFT_LEGS_PID_NUM].v_input = pidObjs[LEFT_LEGS_PID_NUM].avg_vel;
+                    pidObjs[RIGHT_LEGS_PID_NUM].v_input = pidObjs[RIGHT_LEGS_PID_NUM].avg_vel + pidSteer.output/LEGVEL2STEER;
+                }
+
+                // Propagate forward the position input of each leg set
+                pidObjs[LEFT_LEGS_PID_NUM].interpolate += (long) pidObjs[LEFT_LEGS_PID_NUM].v_input;
+                pidObjs[RIGHT_LEGS_PID_NUM].interpolate += (long) pidObjs[RIGHT_LEGS_PID_NUM].v_input;
+            }
+            // Execute tail drag steering
+            else{
+
+                // Set tail control mode to position control and zero out velocity input, interpolate setting if this is the first time executing this loop
+                if(first_TD == 1){
+                    tailObjs.mode = TAIL_MODE_POSITION;
+                    tailObjs.v_input = 0;
+                    tailObjs.p_interpolate = 0;
+                    tailObjs.i_error = 0;
+                    tailObjs.p = 0;
+                    tailObjs.i = 0;
+                    tailObjs.d = 0;
+
+                    // Initialize counter
+                    counter_TD = 0;
+
+                    // Set first tail impact flag high and first tail drag flag low
+                    first_TI = 1;
+                    first_TD = 0;
+                }
+
+                // Compute the absolute value of the output in tail drag counter units
+                output_abs_TD = ABS(pidSteer.output/TD2STEER);
+
+                // Increment counter indicating the time spent in the tail drag loop
+                counter_TD++;
+
+                // If tail is up off the ground
+                if(tail_contact_flag == 0){
+                    // If counter exceeds limit, set tail down
+                    if(counter_TD > (TD_COUNTER_MAX - output_abs_TD)){
+
+                        // Switch tail contact flag to indicate contact and re-zero counter
+                        counter_TD = 0;
+                        tail_contact_flag = 1;
+
+                        // Compute modulo 2 PI of p_state pm 180 degrees for use with tail input setting
+                        p_mod_tail = tailObjs.p_state - (tailObjs.p_state/PITIMES2)*PITIMES2;
+                        p_mod_tail = p_mod_tail - (p_mod_tail/PI)*PITIMES2;
+
+                        // If modulo tail state is less than zero and rev_count is positive, swing the tail another revolution ccw before touching down (this prevents tail swinging underneath the robot)
+                        if((p_mod_tail < 0)&&(tailObjs.rev_count > 0)){
+                            rev_count_temp = tailObjs.rev_count + 1;
+                        }
+                        // If modulo tail state is greater than zero and rev_count is negative, swing the tail one more revolution cw before touching down (this prevents tail swinging underneath the robot)
+                        else if((p_mod_tail > 0)&&(tailObjs.rev_count < 0)){
+                            rev_count_temp = tailObjs.rev_count - 1;
+                        }
+                        else{
+                            rev_count_temp = tailObjs.rev_count;
+                        }
+
+                        // If output sign is greater than zero, turn counter-clockwise by touching the tail counter-clockwise
+                        if(pidSteer.output > 0){
+                            // tail_drag_ccw has units of degrees
+                            tailObjs.p_input = (((long) pidSteer.tail_drag_ccw)*TAIL_FULL_REV)/TAIL_DEG_GR_SCALER +  ((long) (rev_count_temp))*TAIL_FULL_REV*TAIL_GEAR_RATIO;
+                        }
+                        // Otherwise turn clockwise by touching the tail clockwise
+                        else{
+                            // tail_drag_cw has units of degrees
+                            tailObjs.p_input = (((long) pidSteer.tail_drag_cw)*TAIL_FULL_REV)/TAIL_DEG_GR_SCALER +  ((long) rev_count_temp)*TAIL_FULL_REV*TAIL_GEAR_RATIO;
+                        }
+                    }
+                }
+                // Otherwise tail is contacting the ground
+                else{
+                    // If counter exceeds limit, pick tail up
+                    if(counter_TD > (TD_COUNTER_MIN + output_abs_TD)){
+                        // Switch tail contact flag to indicate loss of contact and re-zero counter
+                        counter_TD = 0;
+                        tail_contact_flag = 0;
+
+                        // Compute modulo 2 PI of p_state pm 180 degrees for use with tail input setting
+                        p_mod_tail = tailObjs.p_state - (tailObjs.p_state/PITIMES2)*PITIMES2;
+                        p_mod_tail = p_mod_tail - (p_mod_tail/PI)*PITIMES2;
+
+                        // If modulo tail state is less than zero and rev_count is positive, swing the tail another revolution ccw before touching down (this prevents tail swinging underneath the robot)
+                        if((p_mod_tail < 0)&&(tailObjs.rev_count > 0)){
+                            rev_count_temp = tailObjs.rev_count + 1;
+                        }
+                        // If modulo tail state is greater than zero and rev_count is negative, swing the tail one more revolution cw before touching down (this prevents tail swinging underneath the robot)
+                        else if((p_mod_tail > 0)&&(tailObjs.rev_count < 0)){
+                            rev_count_temp = tailObjs.rev_count - 1;
+                        }
+                        else{
+                            rev_count_temp = tailObjs.rev_count;
+                        }
+
+                        // If output sign is greater than zero, prepare for turning counter-clockwise by holding the tail above the counter-clockwise position
+                        if(pidSteer.output > 0){
+                            // tail_drag_ccw is assumed to be in the range [0 180] deg, tail_drag_delta is positive
+                            tailObjs.p_input = (((long) pidSteer.tail_drag_ccw - (long) pidSteer.tail_drag_delta)*TAIL_FULL_REV)/TAIL_DEG_GR_SCALER +  ((long) rev_count_temp)*TAIL_FULL_REV*TAIL_GEAR_RATIO;
+                        }
+                        // Otherwise prepare for turning clockwise by holding tail above the clockwise contact position
+                        else{
+                            // tail_drag_cw has units of degrees and is assumed to be in the range [-180 0] deg
+                            tailObjs.p_input = (((long) pidSteer.tail_drag_cw + (long) pidSteer.tail_drag_delta)*TAIL_FULL_REV)/TAIL_DEG_GR_SCALER +  ((long) rev_count_temp)*TAIL_FULL_REV*TAIL_GEAR_RATIO;
+                        }
+                    }
+                }
+            }
+        }
+        // Execute tail impact steering
+        else{
+            // If this is the first time entering the tail impact loop, set mode to tail velocity, set p_input to current p_state, and set p_interpolate to zero
+            if(first_TI == 1){
+                tailObjs.mode = TAIL_MODE_VELOCITY;
+                tailObjs.p_input = tailObjs.p_state;
+                tailObjs.p_interpolate = 0;
+                tailObjs.i_error = 0;
+                tailObjs.p = 0;
+                tailObjs.i = 0;
+                tailObjs.d = 0;
+                
+                // Set first tail impact flag low and other flags high
+                first_TI = 0;
+                first_DD_NoTI = 1;
+                first_TD = 1;
+
+                // Set tail velocity positive or negative based on the sign of the yaw error
+                if(pidSteer.yaw_error < 0){
+                    // tail_impact vel units are TAIL_FULL_REV*TAIL_GEAR_RATIO/1000 counts per Hz
+                    tailObjs.v_input = pidSteer.tail_impact_vel;
+                }
+                else{
+                    tailObjs.v_input = -pidSteer.tail_impact_vel;
+                }
+            }
+
+            // Execute differential drive steering as well if this steering mode is engaged
+            if (pidSteer.mode == STEER_MODE_DIFFDRIVE){
+
+                // If the output of the controller is greater than 0, turn counter-clockwise by subtracting velocity from the left legs
+                if (pidSteer.output>0){
+                    pidObjs[LEFT_LEGS_PID_NUM].v_input = pidObjs[LEFT_LEGS_PID_NUM].avg_vel - pidSteer.output/LEGVEL2STEER;
+                    pidObjs[RIGHT_LEGS_PID_NUM].v_input = pidObjs[RIGHT_LEGS_PID_NUM].avg_vel;
+                }
+                // Otherwise, the output is less than 0, turn clockwise by subtracting velocity from the right legs
+                else{
+                    pidObjs[LEFT_LEGS_PID_NUM].v_input = pidObjs[LEFT_LEGS_PID_NUM].avg_vel;
+                    pidObjs[RIGHT_LEGS_PID_NUM].v_input = pidObjs[RIGHT_LEGS_PID_NUM].avg_vel + pidSteer.output/LEGVEL2STEER;
+                }
+
+                // Propagate forward the position input of each leg set
+                pidObjs[LEFT_LEGS_PID_NUM].interpolate += (long) pidObjs[LEFT_LEGS_PID_NUM].v_input;
+                pidObjs[RIGHT_LEGS_PID_NUM].interpolate += (long) pidObjs[RIGHT_LEGS_PID_NUM].v_input;
+            }
+        }
+    }
+    // If steering control is off, make sure p, i, d, terms of steering controller are zeroed out and output is set to zero
+    else{
+        pidSteer.p = 0;
+        pidSteer.i = 0;
+        pidSteer.d = 0;
+        pidSteer.i_error = 0;
+
+        pidSteer.output = 0;
+    }
+}
+
+void UpdateSteerPID(strCtrl *pid) {
+    // Units of yaw_error are 2^14 counts per degree.
+    // If yaw_error is 60 degrees and the p term is divided by 2^16 in total, then Kp = 1000 would almost saturate the output with p if saturation is at 2^14
+    pid->p = ((long) pid->Kp) * (pid->yaw_error >> 12);
+    // i_error accumulates by scaled yaw_error every 1 ms.
+    // If yaw_error is 30 degrees for 500 ms and the i term is divided by 2^20 in total, then Ki = 70 saturates the output with i.
+    pid->i = (long) pid->Ki * (pid->i_error >> 12);
+    // Units of vel_error are 16.384 counts per deg/s
+    // If vel_error is 500 deg/s and the d term is divided by 2^8 in total, then Kd = 500 would almost saturate the output with d
+    pid->d = (long) pid->Kd * (long) pid->vel_error;
+
+    pid->preSat = (pid->p >> 4) + // divide by 16
+            ((pid->i) >> 4) + // divide by 16
+            (pid->d >> 8); // divide by 256
+    pid->output = pid->preSat;
+
+    // If yaw_error is held steady 30 deg, then i_error would overflow after 70 seconds
+    pid-> i_error = (long) pid-> i_error + ((long) pid->yaw_error >> 4); // integrate error, divide yaw_error by 16 before accumulating to prevent premature overflow
+    // saturate output
+    // apply anti-windup to integrator
+    if (pid->preSat > STEER_MAX) {
+        pid->output = STEER_MAX;
+        // Say i_error = 30*16384*500/(2^4)*2 = 30720000, which is twice the amount that saturates the output assuming Ki = 70
+        // Then STEER_MAX - preSat = -16384 and Kaw = 2000 would desaturate the signal in 100 ms
+        pid->i_error = (long) pid->i_error +
+                (long) (pid->Kaw) * ((long) (STEER_MAX) - (long) (pid->preSat))
+                / ((long) GAIN_SCALER);
+    }
+    if (pid->preSat < -STEER_MAX) {
+        pid->output = -STEER_MAX;
+        pid->i_error = (long) pid->i_error +
+                (long) (pid->Kaw) * ((long) (-STEER_MAX) - (long) (pid->preSat))
+                / ((long) GAIN_SCALER);
+    }
+}
+
+// ==== Orientation Commands ================================================================================
+// ==========================================================================================================
 
 void initBodyPose(poseEstimateStruct *pose){
     pose->pitch = 0;
@@ -1496,10 +1912,11 @@ void computeEulerAngles(){
             bodyPose.count = 0;
         }
 
-        // Propagate Euler angles based on projection of body-fixed basis vectors onto Euler basis
+        // Propagate Euler angles based on projection of body-fixed basis vectors onto Euler basis, store yaw velocity for use with steering controller
         bodyPose.roll += (s_yaw*wx + c_yaw*wy)/c_pitch;
         bodyPose.pitch += ((c_yaw*wx - s_yaw*wy) >> 9);
-        bodyPose.yaw += (((s_pitch*((s_yaw*wx + c_yaw*wy) >> 3))/c_pitch) >> 6) + wz;
+        bodyPose.yaw_vel = (((s_pitch*((s_yaw*wx + c_yaw*wy) >> 3))/c_pitch) >> 6) + wz;
+        bodyPose.yaw += bodyPose.yaw_vel;
     }
 
 }

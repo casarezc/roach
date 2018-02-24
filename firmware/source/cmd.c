@@ -65,6 +65,15 @@ static unsigned char cmdSetTailPeriodicInput(unsigned char type, unsigned char s
 static unsigned char cmdStartTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStopTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 
+// Steering commands
+static unsigned char cmdSetSteerGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetSteerTailParams(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetSteerMode(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetSteerPInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdSetSteerVInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdStopSteerControl(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+static unsigned char cmdZeroYaw(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
+
 //Experiment/Flash Commands
 static unsigned char cmdStartTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
 static unsigned char cmdStartTailTimedRun(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr);
@@ -109,6 +118,14 @@ void cmdSetup(void) {
     cmd_func[CMD_START_TAIL_TIMED_RUN] = &cmdStartTailTimedRun;
     cmd_func[CMD_START_TAIL_MOTOR] = &cmdStartTailMotor;
     cmd_func[CMD_STOP_TAIL_MOTOR] = &cmdStopTailMotor;
+
+    cmd_func[CMD_SET_STEER_GAINS] = &cmdSetSteerGains;
+    cmd_func[CMD_SET_STEER_TAIL_PARAMS] = &cmdSetSteerTailParams;
+    cmd_func[CMD_SET_STEER_MODE] = &cmdSetSteerMode;
+    cmd_func[CMD_SET_STEER_PINPUT] = &cmdSetSteerPInput;
+    cmd_func[CMD_SET_STEER_VINPUT] = &cmdSetSteerVInput;
+    cmd_func[CMD_STOP_STEER_CONTROL] = &cmdStopSteerControl;
+    cmd_func[CMD_ZERO_YAW] = &cmdZeroYaw;
 }
 
 void cmdHandleRadioRxBuffer(void) {
@@ -379,12 +396,8 @@ unsigned char cmdSetTailPInput(unsigned char type, unsigned char status, unsigne
 
     PKT_UNPACK(_args_cmdSetTailPInput, argsPtr, frame);
 
-    //Cast integer position as long, multiply by 2 to scale correctly
-    long p_input;
-    p_input = ((long) argsPtr->pos)*2;
-
-    // Set position input, send radio confirmation packet
-    tailSetPInput(p_input);
+    // Set position input with units of degrees, convert to correct units in PID function
+    tailSetPInput(argsPtr->pos);
 
     radioSendData(src_addr, status, CMD_SET_TAIL_PINPUT, 2, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
     //Send confirmation packet
@@ -450,6 +463,110 @@ unsigned char cmdStartTailMotor(unsigned char type, unsigned char status, unsign
 unsigned char cmdStopTailMotor(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
 
     tailOff();
+
+    return 1;
+}
+
+// ==== Steering Commands ======================================================================================
+// =============================================================================================================
+
+unsigned char cmdSetSteerGains(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    //Unpack unsigned char* frame into structured values
+    PKT_UNPACK(_args_cmdSetSteerGains, argsPtr, frame);
+
+    strCtrlSetGains(argsPtr->Kp, argsPtr->Ki, argsPtr->Kd, argsPtr->Kaw);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_GAINS, length, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+
+    return 1; //success
+}
+
+unsigned char cmdSetSteerTailParams(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    //Unpack unsigned char* frame into structured values
+    PKT_UNPACK(_args_cmdSetSteerTailParams, argsPtr, frame);
+
+    // TD_ccw, TD_cw, TD_delta are signed integers and have degrees as units
+    // TI_yaw_thresh is given as a value in degrees, which will be converted to correct scaling from gyro within the function
+    // TI_vel is in the units of (2^16)/1000 counts per Hz
+    strCtrlSetTailParams(argsPtr->TD_ccw, argsPtr->TD_cw, argsPtr->TD_delta, argsPtr->TI_yaw_thresh, argsPtr->TI_vel);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_TAIL_PARAMS, length, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+
+    return 1; //success
+}
+
+unsigned char cmdSetSteerMode(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    //Unpack unsigned char* frame into structured values
+    PKT_UNPACK(_args_cmdSetSteerMode, argsPtr, frame);
+
+    // Chars to pass into pid function
+    char mode;
+    char switch_TI;
+
+
+    if (argsPtr->mode_select == 0){
+        mode = 0;
+        switch_TI = 0;
+    }
+    else if (argsPtr->mode_select == 1){
+        mode = 0;
+        switch_TI = 1;
+    }
+    else if (argsPtr->mode_select == 2){
+        mode = 1;
+        switch_TI = 0;
+    }
+    else if (argsPtr->mode_select == 3){
+        mode = 1;
+        switch_TI = 1;
+    }
+    else{
+        mode = 0;
+        switch_TI = 0;
+    }
+
+    // Pass in chars mode, switch_TI to set steering control mode
+    strCtrlSetMode(mode, switch_TI);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_MODE, length, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+
+    return 1; //success
+}
+
+unsigned char cmdSetSteerPInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    //Unpack unsigned char* frame into structured values
+    PKT_UNPACK(_args_cmdSetSteerPInput, argsPtr, frame);
+
+    // yaw is given as a value in degrees, which will be converted to correct scaling from gyro within the function
+    strCtrlSetPInput(argsPtr->yaw);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_PINPUT, length, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+
+    return 1; //success
+}
+
+unsigned char cmdSetSteerVInput(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+    //Unpack unsigned char* frame into structured values
+    PKT_UNPACK(_args_cmdSetSteerVInput, argsPtr, frame);
+
+    // yaw_vel is given in units of 16.384 counts/(deg/s), which is the same as gyro units (Overflows at 2000 deg/s)
+    strCtrlSetVInput(argsPtr->yaw_vel);
+
+    radioSendData(src_addr, status, CMD_SET_STEER_VINPUT, length, frame, 0); //TODO: Robot should respond to source of query, not hardcoded address
+
+    return 1; //success
+}
+
+unsigned char cmdStopSteerControl(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    strCtrlOff();
+
+    return 1;
+}
+
+unsigned char cmdZeroYaw(unsigned char type, unsigned char status, unsigned char length, unsigned char *frame, unsigned int src_addr) {
+
+    strCtrlZeroYaw();
 
     return 1;
 }

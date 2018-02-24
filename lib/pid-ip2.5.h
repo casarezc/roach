@@ -17,6 +17,8 @@
 #define P_OFFSET_INTRASTRIDE 0
 
 // Set constants of lower and upper bounds to respond to errors; for now set at 3*pi/2 and 7*pi/4
+#define LEGS_FULL_REV 65536
+
 #define ERR_FWD_BOUND 49151
 #define ERR_BWD_BOUND 57337
 
@@ -26,11 +28,23 @@
 // Tail counts for full revolution
 #define TAIL_FULL_REV 65536
 
+// Degree gear ratio scale factor 360/TAIL_GEAR_RATIO
+#define TAIL_DEG_GR_SCALER 12
+
 // Tail tolerance to add to value for full revolution rounding 
 #define TAIL_REV_TOL 200000
 
 // select either back emf or backwd diff for vel est
 #define VEL_BEMF 0
+
+// Constants for steering control
+#define STEER_MAX 16384         // 2^14 is max output before scaling based on control method
+#define LEGVEL2STEER 32         // Multiplying factor to convert from leg velocity to steer output units
+
+#define TD_COUNTER_MAX 537      // Maximum counter period for duty cycle modulation of tail drag
+#define TD_COUNTER_RANGE 512    // Min to max counter range
+#define TD_COUNTER_MIN 25       // Minimum counter period is equal to TD_COUNTER_MAX - TD_COUNTER_RANGE
+#define TD2STEER 32             // Multiplying factor to convert from tail drag counter to steer output units
 
 // Roll and pitch scaling based on 938718 counts/rad
 #define SCALEROLL_1 121
@@ -41,7 +55,7 @@
 #define SCALEPITCH_2 3897
 
 // Gyro unit conversions
-#define DEG2COUNTS 16384 // Counts to degrees gyro readings at rate of 1 kHz
+#define DEG2COUNTS 16384 // Degrees to counts gyro readings at rate of 1 kHz
 #define PIBY2 1474560 // 90*DEG2COUNTS
 #define PI 2949120 // 180*DEG2COUNTS
 #define PITIMES2 5898240 // 360*DEG2COUNTS
@@ -75,13 +89,21 @@
 #define PID_OFF     0
 #define PID_ON      1
 
+// Control modes for leg PID
 #define PID_MODE_CONTROLLED  0
 #define PID_MODE_PWMPASS    1
 
+// Control modes for tail PID
 #define TAIL_MODE_POSITION 0
 #define TAIL_MODE_VELOCITY 1
 #define TAIL_MODE_RIGHTING 2
 #define TAIL_MODE_PERIODIC 3
+
+// Control modes for steering PID
+#define STEER_MODE_DIFFDRIVE 0
+#define STEER_MODE_TAILDRAG 1
+
+
 
 // pid type for leg control
 
@@ -92,6 +114,7 @@ typedef struct {
     int v_input; // reference velocity input
     int v_state; // current velocity
     int v_error; // velocity error
+    int avg_vel; // average velocity stored during setting of velocity profiles
     long i_error; // integral error
     long p, i, d; // control contributions from position, integral, and derivative gains respectively
     long preSat; // output value before saturations
@@ -138,7 +161,7 @@ typedef struct {
     long i_error; // integral error
     long p, i, d; // control contributions from position, integral, and derivative gains respectively
     long preSat; // output value before saturations
-    int output; //  control output u
+    int output; //  control output
     char onoff; //boolean
     char mode; //Control mode: 0 if position, 1 if velocity, 2 if righting, 3 if periodic
     char timeFlag;
@@ -171,12 +194,47 @@ typedef struct {
     unsigned char pwm_flip;
 } pidTail;
 
+// structure for steering control (can switch between multiple modes to steer with tail or legs)
+typedef struct
+{
+    // Control switching and gains
+    char onoff; //boolean toggling steering control
+    char mode; //Control mode for PID steering: 0 if differential drive, 1 if tail drag
+    char switch_tail_impact; // Switch variable for tail impact 0 if on 1 if off
+    int Kp, Ki, Kaw, Kd; //proportional, integral, anti-windup, derivative gains (control goal is to maintain heading)
+
+    // Tail drag parameters
+    int tail_drag_ccw, tail_drag_cw, tail_drag_delta; // Setting of tail contact angles for counter-clockwise and clockwise tail drag turning,
+                                                      // and the delta change in tail angle for duty cycle modulation of turning effect
+                                                      // Units are same as pidTail->p_input
+    // Tail impact parameters
+    long tail_impact_yaw_thresh;                      // Setting of yaw angle threshold and tail impact velocity for transient tail impact turning
+    int tail_impact_vel;                              // yaw_thresh units poseEstimateStruct->yaw
+                                                      // impact_vel units pidTail->v_input
+
+    // Yaw position and velocity inputs, errors
+    long yaw_input;  //reference yaw angle to track (relative to Euler angle computation poseEstimateStruct->yaw)
+    long yaw_error; //angle error
+
+    int vel_input; //reference yaw angular velocity to track (relative to Euler angle computation poseEstimateStruct->yaw_vel)
+    long vel_error; //velocity error
+
+    long i_error; // integral error
+
+    // PID controller states
+    long p, i, d; //control contributions from proportional, integral, derivative gains
+    long preSat; //output value before saturation
+    int output; //output is either a tail drag duty cycle or a differential leg velocity
+} strCtrl;
+
 // structure for Euler angle computation
 
 typedef struct {
     long roll; // roll angle
     long pitch; // pitch angle
     long yaw; // yaw angle
+
+    long yaw_vel;  // yaw angular velocity
 
     int gx_offset; // roll gyro offset
     int gy_offset; // pitch gyro offset
@@ -270,7 +328,7 @@ void pidSetPWMDes(unsigned int channel, int pwm);
 void UpdateTailPID(pidTail *pid);
 
 void initTailObj(pidTail *pid, int Kp, int Ki, int Kd, int Kaw, int ff);
-void tailSetPInput(long input_val);
+void tailSetPInput(int input_val);
 void tailSetVInput(int input_val);
 void tailSetRightingInput(long p_input, int swing_period);
 void tailSetPeriodicInput(int p_amp, int p_bias, int swing_period);
@@ -285,6 +343,18 @@ void tailSetControl();
 long tailGetPState();
 void tailStartMotor();
 void tailSetTimeFlag(char val);
+
+void UpdateSteerPID(strCtrl *pid);
+
+void initStrCtrl(strCtrl *pid, int Kp, int Ki, int Kd, int Kaw);
+void strCtrlSetGains(int Kp, int Ki, int Kd, int Kaw);
+void strCtrlSetTailParams(int TD_ccw, int TD_cw, int TD_delta, int TI_yaw_thresh, int TI_vel);
+void strCtrlSetMode(char mode, char switch_TI);
+void strCtrlSetPInput(int input_val);
+void strCtrlSetVInput(int input_val);
+void strCtrlZeroYaw();
+void strCtrlOff();
+void strCtrlSetControl();
 
 long computeSINApprox(long x);
 void initBodyPose(poseEstimateStruct *pose);
