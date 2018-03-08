@@ -67,7 +67,7 @@ def main():
     freq = 10
 
     # Set individual stride frequencies for turn
-    l_freq = 8
+    l_freq = 5
     r_freq = 10
 
     # Swing ccw to find zero

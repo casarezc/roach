@@ -71,13 +71,13 @@ def main():
     # Steering gains format:
     #  [ Kp , Ki , Kd , Kaw]
     # steergains = [1000, 35, 500, 1000]   # Gains selected for diff drive steering on carpet
-    steergains = [1000, 70, 300, 2000]   # Gains selected for tail drag steering on carpet
+    steergains = [1000, 35, 100, 1000]   # Gains selected for tail drag steering on carpet
 
     TD_ccw = 137            # Counter-clockwise position for tail drag turning (deg)
-    TD_cw = -137            # Clockwise position for tail drag turning (deg)
-    TD_delta = 40           # Delta change in position to modulate duty cycle of tail drag turning (deg)
+    TD_cw = -132            # Clockwise position for tail drag turning (deg)
+    TD_delta = 20           # Delta change in position to modulate duty cycle of tail drag turning (deg)
     TI_yaw_thresh = 70      # Yaw angle threshold past which tail impact control is switched on (deg)
-    TI_vel = 8              # Tail impact velocity (Hz)
+    TI_vel = 4              # Tail impact velocity (Hz)
     # Steering tail parameters format
     # [TD_ccw, TD_cw, TD_delta, TI_yaw_thresh, TI_vel]
     tailparams = [TD_ccw, TD_cw, TD_delta, TI_yaw_thresh, TI_vel]
@@ -196,7 +196,7 @@ def main():
     # Start leg and tail motion for duration of experiment
     R1.startTimedRun( T5a + T5b + T6 )
     R1.startTailTimedRun( T5a + T5b +  T6 )
-    time.sleep((T5a) / 1000.0)  # Wait for duration of straight motion
+    time.sleep((T5a - EXPERIMENT_WAIT_TIME_MS) / 1000.0)  # Wait for duration of straight motion
 
     # Set steering controller to turn left or right
     R1.setSteerControl(leftSteer)
@@ -215,7 +215,7 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry(filename = 'CornerTurnCarpet02232018')
+            r.downloadTelemetry(filename = 'CornerTurnGravel02262018')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

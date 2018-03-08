@@ -63,7 +63,7 @@ def main():
     pzero = 90
 
     # Set tail drag position (degrees)
-    p_drag = -132
+    p_drag = 137
 
     # Set stride frequency for straight running
     freq = 10

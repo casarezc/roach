@@ -97,7 +97,7 @@ def main():
     R1.setGait(fastAltTripod)
 
     # example , 0.1s lead in + 2s run + 0.1s lead out
-    EXPERIMENT_RUN_TIME_MS     = 2000 #ms
+    EXPERIMENT_RUN_TIME_MS     = 4000 #ms
     EXPERIMENT_LEADIN_TIME_MS  = 500  #ms
     EXPERIMENT_LEADOUT_TIME_MS = 200  #ms
     
@@ -125,7 +125,7 @@ def main():
     time.sleep(EXPERIMENT_LEADIN_TIME_MS / 1000.0)
     
     ######## Motion is initiated here! ########
-    R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) 
+    # R1.startTimedRun( EXPERIMENT_RUN_TIME_MS ) 
     time.sleep(EXPERIMENT_RUN_TIME_MS / 1000.0)  #argument to time.sleep is in SECONDS
     ######## End of motion commands   ########
     
@@ -135,7 +135,7 @@ def main():
     for r in shared.ROBOTS:
         if r.SAVE_DATA:
             raw_input("Press Enter to start telemetry read-back ...")
-            r.downloadTelemetry()
+            r.downloadTelemetry(filename = 'BifilarPendulumTestPitch')
     
     if EXIT_WAIT:  #Pause for a Ctrl + C , if desired
         while True:

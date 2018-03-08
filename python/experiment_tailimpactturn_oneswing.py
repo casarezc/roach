@@ -25,8 +25,8 @@ def main():
     xb = setupSerial(shared.BS_COMPORT, shared.BS_BAUDRATE)
     
     R1 = Velociroach('\x21\x62', xb)
-    # R1.SAVE_DATA = False
-    R1.SAVE_DATA = True
+    R1.SAVE_DATA = False
+    # R1.SAVE_DATA = True
                             
     #R1.RESET = False       #current roach code does not support software reset
     
@@ -63,7 +63,7 @@ def main():
     pzero = 90
 
     # Set tail impact velocity (Hz)
-    v_impact = -2
+    v_impact = 8
 
     # Set stride frequency for straight running
     freq = 10
@@ -116,7 +116,8 @@ def main():
     T2 = 1000
     T3 = 500
     T4 = 100
-    T5 = 1000
+    # T5 = 1000
+    T5 = 500
     T5a = 1000/abs(v_impact)
     T5b = 500
     T6 = 2000
